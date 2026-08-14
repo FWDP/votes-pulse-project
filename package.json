@@ -1,0 +1,34 @@
+{
+  "name": "votes-pulse",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "tsx watch src/server/index.ts",
+    "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
+    "preview": "vite preview",
+    "start:server": "node dist-server/index.js",
+    "type-check": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@types/express": "^5.0.6",
+    "@vitejs/plugin-react": "^6.0.4",
+    "cheerio": "^1.2.0",
+    "concurrently": "^10.0.4",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "recharts": "^3.10.1",
+    "tsx": "^4.23.5",
+    "vite": "^8.1.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,18 @@
+[Unit]
+Description=PULSE source connector API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=peej
+Group=peej
+WorkingDirectory=/home/peej/Documents/Work/FWDP/votes-pulse
+Environment=NODE_ENV=production
+EnvironmentFile=-/home/peej/Documents/Work/FWDP/votes-pulse/.env
+ExecStart=/usr/bin/node /home/peej/Documents/Work/FWDP/votes-pulse/dist-server/index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
