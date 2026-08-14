@@ -11,6 +11,12 @@
   --red: #e45d65;
   --navy: #071918;
   --cream: #f8faf9;
+  /* default brand variables (PULSE) */
+  --brand-50: #e6f8f0;
+  --brand-100: #ccefe2;
+  --brand-500: #1fb986;
+  --brand-600: #117c5d;
+  --brand-700: #0b5b45;
 }
 * {
   box-sizing: border-box;
@@ -27,17 +33,22 @@ select {
 .app-shell {
   display: flex;
   min-height: 100vh;
+  --sidebar-width: 246px;
 }
 .sidebar {
   position: fixed;
-  inset: 0 auto 0 0;
-  width: 246px;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
   background: var(--navy);
   color: #fff;
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
   z-index: 20;
+  overflow-y: auto;
+  height: 100vh;
 }
 .brand {
   display: flex;
@@ -49,7 +60,16 @@ select {
   width: 38px;
   height: 38px;
   border-radius: 11px;
-  background: #18ae7e;
+  background: var(--brand-500);
+.sidebar .close-nav {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 6px;
+  color: var(--brand-600);
+}
   display: grid;
   place-items: center;
 }
@@ -62,19 +82,69 @@ select {
 }
 .brand small {
   font-size: 12px;
+/* Collapsed sidebar behavior */
+.app-shell.collapsed {
+  --sidebar-width: 72px;
+}
+
+.app-shell {
+  transition: --sidebar-width 180ms ease;
+}
+.app-shell.collapsed .sidebar .brand > div {
+  display: none;
+}
+.app-shell.collapsed .sidebar .nav-item {
+  justify-content: center;
+}
+.app-shell.collapsed .sidebar .nav-item span {
+  display: none;
+}
+/* hide back link when collapsed */
+.app-shell.collapsed .back-link {
+  display: none;
+}
+.app-shell main.page {
+  margin-left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width));
+  transition: margin-left 180ms ease, width 180ms ease;
+}
+.sidebar {
+  transition: width 180ms ease;
+}
   color: #7f9994;
   text-transform: uppercase;
   letter-spacing: 0.09em;
 }
 .close-nav {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 6px;
+  color: var(--brand-600);
+  cursor: pointer;
 }
+
+/* Toggle icon animation */
+.close-nav svg {
+  display: block;
+  transition: transform 180ms ease;
+  transform-origin: center;
+}
+.app-shell.collapsed .close-nav svg {
+  transform: rotate(180deg);
+}
+/* Floating circular toggle on sidebar edge */
+/* sidebar-toggle removed; control exists in page content as `.content-toggle` */
 .workspace {
   border-top: 1px solid #17302d;
   border-bottom: 1px solid #17302d;
   padding: 18px 4px;
   margin-bottom: 17px;
 }
+
+/* back-link removed from sidebar; page header handles it */
 .workspace > span {
   display: block;
   font-size: 11px;
@@ -82,6 +152,224 @@ select {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin: 0 8px 8px;
+}
+
+/* PULSE-specific sidebar styling (matches screenshot) */
+.app-shell.theme-pulse .sidebar {
+  background: #0f1720;
+}
+.app-shell.theme-pulse .brand {
+  padding-bottom: 18px;
+}
+.app-shell.theme-pulse .brand-mark {
+  background: var(--brand-500);
+}
+.app-shell.theme-pulse .brand strong {
+  color: #ffffff;
+}
+.app-shell.theme-pulse .brand small {
+  color: #b9c6c2;
+}
+
+.app-shell.theme-pulse .back-link {
+  color: #9fb0ad;
+  font-size: 13px;
+  display: inline-block;
+  margin: 6px 8px 12px;
+}
+
+.app-shell.theme-pulse .nav-item {
+  padding: 12px 14px;
+  border-radius: 10px;
+  color: #cde3df;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-shell.theme-pulse .nav-item:hover {
+  background: rgba(255,255,255,0.02);
+  color: #fff;
+}
+
+.app-shell.theme-pulse .nav-item.active {
+  background: var(--brand-500);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(12,58,46,0.18);
+}
+
+.app-shell.theme-pulse .nav-chev {
+  margin-left: auto;
+  color: rgba(255,255,255,0.95);
+}
+
+.app-shell.theme-pulse .sidebar-foot {
+  background: rgba(255,255,255,0.02);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+/* Unified sidebar layout tweaks for both themes to match design */
+.sidebar {
+  width: var(--sidebar-width);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 0 8px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  margin-bottom: 12px;
+}
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+}
+.brand strong {
+  display: block;
+  font: 700 15px Manrope;
+  color: #fff;
+}
+.brand small {
+  display: block;
+  font-size: 12px;
+  color: #9fb0ad;
+}
+
+.sidebar-back {
+  margin: 8px 6px 10px;
+}
+.back-link {
+  color: #cfeee0;
+  text-decoration: none;
+  font-size: 13px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  background: rgba(255,255,255,0.03);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.header-back {
+  background: rgba(18,24,32,0.9);
+  color: rgba(255,255,255,0.95);
+}
+
+.workspace {
+  padding: 12px 6px;
+  border: none;
+  margin-bottom: 6px;
+}
+.workspace > span {
+  color: #6f817e;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 8px 10px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 4px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  color: #9fb0ad;
+  font-size: 15px;
+  text-decoration: none;
+  position: relative;
+}
+.nav-item svg {
+  color: #8aa0a0;
+  min-width: 20px;
+}
+.nav-item:hover {
+  background: rgba(255,255,255,0.02);
+  color: #fff;
+}
+.nav-item.active {
+  background: var(--brand-500);
+  color: #fff;
+}
+.nav-item .nav-chev {
+  margin-left: auto;
+  color: rgba(255,255,255,0.95);
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  padding: 16px;
+  border-radius: 10px;
+  background: transparent;
+}
+
+/* Collapsed state tweaks (icons-only) */
+.app-shell.collapsed .brand > div,
+.app-shell.collapsed .brand small {
+  display: none;
+}
+.app-shell.collapsed .back-link {
+  display: none;
+}
+.app-shell.collapsed .nav-item span {
+  display: none;
+}
+.app-shell.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+/* Ensure the sidebar "Back to PULSE Portal" link hides when the shell is collapsed */
+.app-shell.collapsed .sidebar .sidebar-back {
+  display: none;
+}
+
+/* VOTES theme overrides (blue) */
+.app-shell.theme-votes {
+  --brand-50: #eef5ff;
+  --brand-100: #d9e9ff;
+  --brand-500: #3370ff;
+  --brand-600: #1a4df5;
+  --brand-700: #1339e1;
+}
+.app-shell.theme-votes .sidebar {
+  background: #0e1620; /* dark navy suitable for votes */
+}
+.app-shell.theme-votes .brand-mark {
+  background: var(--brand-500);
+}
+.app-shell.theme-votes .nav-item.active {
+  background: var(--brand-500);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(20,64,204,0.18);
+}
+.app-shell.theme-votes .brand strong {
+  color: #ffffff;
+}
+.app-shell.theme-votes .brand small {
+  color: #b9c6c2;
+}
+
+.app-shell.theme-votes .back-link {
+  color: #9fb0ad;
+  font-size: 13px;
+  display: inline-block;
+  margin: 6px 8px 12px;
 }
 .workspace button {
   width: 100%;
@@ -220,9 +508,38 @@ header {
   display: none;
 }
 .page {
-  padding: 30px 34px 20px;
   max-width: 1500px;
-  margin: auto;
+}
+
+/* Toggle inside page content (top-left) */
+.page {
+  position: relative;
+}
+.content-toggle {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  border: 1px solid rgba(255,255,255,0.06);
+  color: #fff;
+  cursor: pointer;
+  left: calc(var(--sidebar-width) - 8px);
+  z-index: 20;
+}
+.app-shell.theme-pulse .content-toggle {
+  /* keep content-toggle appearance consistent across themes */
+  background: #000;
+  color: #fff;
+}
+.content-toggle svg {
+  transition: transform 180ms ease;
+}
+.app-shell.collapsed .content-toggle svg {
+  transform: rotate(180deg);
 }
 .page-heading {
   display: flex;
@@ -234,7 +551,7 @@ header {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #168160;
+  color: var(--brand-500);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -270,8 +587,8 @@ header {
   color: #415450;
 }
 .primary {
-  background: #117c5d;
-  border: 1px solid #117c5d;
+  background: var(--brand-600);
+  border: 1px solid var(--brand-600);
   color: #fff;
 }
 .control-panel {
@@ -798,6 +1115,31 @@ footer div {
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-top: 15px;
+}
+
+/* Theme variants: default to PULSE */
+:root {
+  --brand-50: #e6f8f0;
+  --brand-100: #ccefe2;
+  --brand-500: #1fb986;
+  --brand-600: #117c5d;
+  --brand-700: #0b5b45;
+}
+
+.theme-pulse {
+  --brand-50: #e6f8f0;
+  --brand-100: #ccefe2;
+  --brand-500: #1fb986; /* green/teal */
+  --brand-600: #117c5d;
+  --brand-700: #0b5b45;
+}
+
+.theme-votes {
+  --brand-50: #eef5ff;
+  --brand-100: #d9e9ff;
+  --brand-500: #3370ff; /* blue */
+  --brand-600: #1a4df5;
+  --brand-700: #1339e1;
 }
 .source-grid article {
   border: 1px solid #e3ebe8;

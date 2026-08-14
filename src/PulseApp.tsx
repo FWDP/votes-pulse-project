@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { Star, MapPin, ArrowRight, Globe } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-type PulseAppProps = {
-  onEnter?: (target: string) => void
-}
-
-export default function PulseApp({ onEnter }: PulseAppProps) {
+export default function PulseApp() {
   const [visible, setVisible] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 80)
@@ -48,7 +46,7 @@ export default function PulseApp({ onEnter }: PulseAppProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 w-full max-w-4xl mb-6 sm:mb-10">
           <button
-            onClick={() => onEnter?.('votes')}
+            onClick={() => navigate('/votes/overview')}
             className="group relative text-left rounded-2xl border border-slate-700 hover:border-blue-500 bg-slate-800/80 hover:bg-slate-800 p-6 sm:p-7 transition-all duration-200 hover:shadow-2xl hover:shadow-blue-900/40 hover:-translate-y-1 flex flex-col justify-between"
           >
             <div>
@@ -94,7 +92,7 @@ export default function PulseApp({ onEnter }: PulseAppProps) {
           </button>
 
           <button
-            onClick={() => onEnter?.('pulse-ph')}
+            onClick={() => navigate('/pulse/overview')}
             className="group relative text-left rounded-2xl border border-slate-700 hover:border-emerald-500 bg-slate-800/80 hover:bg-slate-800 p-6 sm:p-7 transition-all duration-200 hover:shadow-2xl hover:shadow-emerald-900/40 hover:-translate-y-1 flex flex-col justify-between"
           >
             <div>
