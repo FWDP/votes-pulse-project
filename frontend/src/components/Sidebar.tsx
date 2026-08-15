@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, Link, useLocation } from 'react-router-dom'
-import { MapPin, Globe, Zap, Map, Clock, BarChart2, Layers, FileText, ChevronLeft, ChevronRight, ArrowLeft, Radio } from 'lucide-react'
+import { MapPin, Globe, Zap, Map, Clock, BarChart2, Layers, FileText, ChevronRight, Radio } from 'lucide-react'
 
 const items = [
   { to: '/overview', label: 'Overview', icon: MapPin },
@@ -13,9 +13,8 @@ const items = [
   { to: '/fieldreports', label: 'Field Reports', icon: FileText },
 ]
 
-export default function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean, setCollapsed?: (v:boolean)=>void }) {
+export default function Sidebar({ collapsed }: { collapsed?: boolean, setCollapsed?: (v: boolean) => void }) {
   const location = useLocation()
-  const search = location.search || ''
   const pathname = location.pathname || ''
   let prefix = pathname.split('/')[1] || ''
   // fallback to legacy `workspace` query param
@@ -33,11 +32,11 @@ export default function Sidebar({ collapsed, setCollapsed }: { collapsed?: boole
   // `collapsed` is controlled by parent `DashboardLayout` (if provided).
   // Persist to localStorage when parent provides the state and setter.
   React.useEffect(() => {
-    try { if (typeof collapsed !== 'undefined') localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0') } catch (e) {}
+    try { if (typeof collapsed !== 'undefined') localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0') } catch (e) { }
   }, [collapsed])
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : 'expanded'}`}>
+    <aside className={`sidebar ${collapsed ? 'collapsed' : 'expanded'} bg-slate-900`}>
       <div className={`brand ${isVotes ? 'votes' : ''}`}>
         <div className="brand-mark"><Radio size={18} /></div>
         <div>
@@ -45,8 +44,6 @@ export default function Sidebar({ collapsed, setCollapsed }: { collapsed?: boole
           <small>Sentiment Dashboard</small>
         </div>
       </div>
-
-      {/* Sidebar toggle moved to page content; remove duplicate control here */}
 
       <div className="sidebar-back">
         <Link to="/" className="back-link">Back to PULSE Portal</Link>
@@ -70,17 +67,6 @@ export default function Sidebar({ collapsed, setCollapsed }: { collapsed?: boole
           </NavLink>
         ))}
       </nav>
-
-      <div className="sidebar-foot">
-        <div style={{ 
-            display: collapsed ? 'none' : 'block',
-         }}>
-            <div className="status-dot" />
-          <strong>PULSE</strong>
-          <small>Built by FWDP</small>
-        </div>
-        <div className="avatar">P</div>
-      </div>
     </aside>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -24,12 +24,12 @@ export default function DashboardLayout() {
       if (collapsed) root.classList.add('collapsed')
       else root.classList.remove('collapsed')
     }
-    try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0') } catch (e) {}
-    
+    try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0') } catch (e) { }
+
     // Also set the CSS variable on the app-shell element to force grid/aside recalculation
     try {
       if (root) (root as HTMLElement).style.setProperty('--sidebar-width', collapsed ? '80px' : '246px')
-    } catch (e) {}
+    } catch (e) { }
 
   }, [collapsed])
 
@@ -38,15 +38,15 @@ export default function DashboardLayout() {
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       <main className="flex-1 overflow-auto page">
         <button
-          className="content-toggle"
+          className="content-toggle text-slate-300 bg-slate-700"
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-pressed={collapsed}
           onClick={() => setCollapsed(s => !s)}
-          style={{ 
+          style={{
             transform: collapsed ? 'rotate(180deg)' : 'none',
             left: collapsed ? 'calc(80px - 20px)' : 'calc(var(--sidebar-width) - 20px)',
-            top: '25px',
-        }}
+            top: '50px',
+          }}
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
