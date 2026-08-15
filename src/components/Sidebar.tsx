@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, Link, useLocation } from 'react-router-dom'
-import { MapPin, Globe, Zap, Map, Clock, BarChart2, Layers, FileText, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
+import { MapPin, Globe, Zap, Map, Clock, BarChart2, Layers, FileText, ChevronLeft, ChevronRight, ArrowLeft, Radio } from 'lucide-react'
 
 const items = [
   { to: '/overview', label: 'Overview', icon: MapPin },
@@ -37,9 +37,9 @@ export default function Sidebar({ collapsed, setCollapsed }: { collapsed?: boole
   }, [collapsed])
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${collapsed ? 'collapsed' : 'expanded'}`}>
       <div className={`brand ${isVotes ? 'votes' : ''}`}>
-        <div className="brand-mark"><MapPin size={18} /></div>
+        <div className="brand-mark"><Radio size={18} /></div>
         <div>
           <strong>{isVotes ? 'VOTES' : 'PULSE'}</strong>
           <small>Sentiment Dashboard</small>
@@ -72,8 +72,10 @@ export default function Sidebar({ collapsed, setCollapsed }: { collapsed?: boole
       </nav>
 
       <div className="sidebar-foot">
-        <div className="status-dot" />
-        <div>
+        <div style={{ 
+            display: collapsed ? 'none' : 'block',
+         }}>
+            <div className="status-dot" />
           <strong>PULSE</strong>
           <small>Built by FWDP</small>
         </div>

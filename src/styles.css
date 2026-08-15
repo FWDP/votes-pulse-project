@@ -31,15 +31,14 @@ select {
   font: inherit;
 }
 .app-shell {
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
   --sidebar-width: 246px;
 }
 .sidebar {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  bottom: 0;
   width: var(--sidebar-width);
   background: var(--navy);
   color: #fff;
@@ -49,6 +48,7 @@ select {
   z-index: 20;
   overflow-y: auto;
   height: 100vh;
+  transition: width 550ms cubic-bezier(.2,.9,.3,1), background 180ms ease;
 }
 .brand {
   display: flex;
@@ -57,10 +57,11 @@ select {
   padding: 0 8px 25px;
 }
 .brand-mark {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   border-radius: 11px;
   background: var(--brand-500);
+  align-content: center;
 .sidebar .close-nav {
   margin-left: auto;
   background: transparent;
@@ -84,29 +85,67 @@ select {
   font-size: 12px;
 /* Collapsed sidebar behavior */
 .app-shell.collapsed {
-  --sidebar-width: 72px;
+  --sidebar-width: 80px;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
 .app-shell {
   transition: --sidebar-width 180ms ease;
 }
+/* Animate hide/show of brand text */
+.app-shell .sidebar .brand > div {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
 .app-shell.collapsed .sidebar .brand > div {
-  display: none;
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+}
+
+.app-shell .sidebar .nav-item {
+  transition: background 160ms ease, color 160ms ease, padding 160ms ease;
+}
+.app-shell .sidebar .nav-item span {
+  display: inline-block;
+  transition: opacity 160ms ease, transform 160ms ease;
+  transform-origin: left center;
 }
 .app-shell.collapsed .sidebar .nav-item {
   justify-content: center;
 }
 .app-shell.collapsed .sidebar .nav-item span {
-  display: none;
+  opacity: 0;
+  transform: translateX(-6px) scaleX(0.98);
+  width: 0;
 }
 /* hide back link when collapsed */
 .app-shell.collapsed .back-link {
   display: none;
 }
 .app-shell main.page {
-  margin-left: var(--sidebar-width);
-  width: calc(100% - var(--sidebar-width));
+  grid-column: 2;
   transition: margin-left 180ms ease, width 180ms ease;
+}
+
+.app-shell .sidebar .expanded {
+  width: var(--sidebar-width);
+}
+
+/* Ensure the main content area and its children size to the grid column (no margin-left usage).
+   This keeps all blocks inside `main` responsive to the available column width. */
+.app-shell main.page {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.page {
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.page > * {
+  box-sizing: border-box;
+  max-width: 100%;
 }
 .sidebar {
   transition: width 180ms ease;
@@ -350,6 +389,17 @@ select {
 .app-shell.theme-votes .sidebar {
   background: #0e1620; /* dark navy suitable for votes */
 }
+
+.app-shell.theme-votes .sidebar.collapsed {
+  width: 80px;
+}
+
+.app-shell.theme-votes.collapsed .brand-mark {
+  display: block;
+  width: 32px;
+  height: 32px;
+}
+
 .app-shell.theme-votes .brand-mark {
   background: var(--brand-500);
 }
@@ -438,10 +488,7 @@ select {
   border-radius: 50%;
   background: #e7ae4c;
 }
-main {
-  margin-left: 246px;
-  width: calc(100% - 246px);
-}
+
 header {
   height: 70px;
   background: #fff;
@@ -511,12 +558,19 @@ header {
   max-width: 1500px;
 }
 
+/* When the sidebar is collapsed, let the `.page` container expand to the
+   full grid column so inner blocks can use the available width. */
+.app-shell.collapsed .page {
+  max-width: 100%;
+  width: 100%;
+}
+
 /* Toggle inside page content (top-left) */
 .page {
   position: relative;
 }
 .content-toggle {
-  position: absolute;
+  position: fixed;
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -527,8 +581,8 @@ header {
   border: 1px solid rgba(255,255,255,0.06);
   color: #fff;
   cursor: pointer;
-  left: calc(var(--sidebar-width) - 8px);
-  z-index: 20;
+  z-index: 999;
+  transition: left 180ms ease, transform 180ms ease;
 }
 .app-shell.theme-pulse .content-toggle {
   /* keep content-toggle appearance consistent across themes */
