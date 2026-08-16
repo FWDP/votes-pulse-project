@@ -1,23 +1,22 @@
 import React, { useState } from 'react'
 import { FileText } from 'lucide-react'
-import { GeographyControls, topics, regional } from './shared'
 import PageShell from '../components/PageShell'
 
 export default function FieldReportsPage() {
-  const [reports, setReports] = useState(
-    topics.slice(0, 5).map(([label], index) => ({ title: String(label), location: String(regional[index % regional.length][0]), status: index % 2 ? 'Reviewed' : 'Pending' }))
-  )
+  // const [reports, setReports] = useState(
+  //   topics.slice(0, 5).map(([label], index) => ({ title: String(label), location: String(regional[index % regional.length][0]), status: index % 2 ? 'Reviewed' : 'Pending' }))
+  // )
   const [saved, setSaved] = useState(false)
-  const submit = (event: React.SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const data = new FormData(event.currentTarget)
-    const title = String(data.get('title') || '').trim()
-    const location = String(data.get('location') || '').trim()
-    if (!title || !location) return
-    setReports(current => [{ title, location, status: 'Pending' }, ...current])
-    setSaved(true)
-    event.currentTarget.reset()
-  }
+  // const submit = (event: React.SubmitEvent<HTMLFormElement>) => {
+  //   event.preventDefault()
+  //   const data = new FormData(event.currentTarget)
+  //   const title = String(data.get('title') || '').trim()
+  //   const location = String(data.get('location') || '').trim()
+  //   if (!title || !location) return
+  //   setReports(current => [{ title, location, status: 'Pending' }, ...current])
+  //   setSaved(true)
+  //   event.currentTarget.reset()
+  // }
 
   const search = new URLSearchParams(window.location.search)
   const workspace = (search.get('workspace') as 'national' | 'candidate') || 'national'
@@ -33,7 +32,7 @@ export default function FieldReportsPage() {
             <option>Election period</option>
           </select>
         </div>
-        <GeographyControls />
+        {/* <GeographyControls /> */}
 
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
           <div className="field-banner">

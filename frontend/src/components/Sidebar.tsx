@@ -37,6 +37,9 @@ export default function Sidebar({ collapsed }: { collapsed?: boolean, setCollaps
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : 'expanded'} bg-slate-900`}>
+      <div className="sidebar-back">
+        <Link to="/" className="back-link">Back to PULSE Portal</Link>
+      </div>
       <div className={`brand ${isVotes ? 'votes' : ''}`}>
         <div className="brand-mark"><Radio size={18} /></div>
         <div>
@@ -44,11 +47,6 @@ export default function Sidebar({ collapsed }: { collapsed?: boolean, setCollaps
           <small>Sentiment Dashboard</small>
         </div>
       </div>
-
-      <div className="sidebar-back">
-        <Link to="/" className="back-link">Back to PULSE Portal</Link>
-      </div>
-
       <nav>
         {items.map(({ to, label, icon: Icon }) => (
           <NavLink

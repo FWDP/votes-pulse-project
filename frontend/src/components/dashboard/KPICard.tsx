@@ -9,6 +9,7 @@ export type KPIVariant =
   | "slate";
 
 export interface KPICardProps {
+  slug: string;
   icon: LucideIcon;
   value: string | number;
   label: string;

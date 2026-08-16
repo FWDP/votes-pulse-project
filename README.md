@@ -21,7 +21,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` starts the Vite client on port 5173 and the cached source service on port 8787. Copy `.env.example` to `.env` and provide `PSA_PSGC_TOKEN` to activate the official PSGC connector.
+`npm run dev` starts the Vite client on port 5173. Configure the external API base in `.env` using `VITE_API_BASE_URL`, for example `https://your-api.example.com`.
 
 ## Production data model
 

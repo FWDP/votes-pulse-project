@@ -1,7 +1,9 @@
 import { Building2, Clock4, Code, Cross, Database, MapPin, Sprout } from "lucide-react";
 import type { DashboardData } from "../types/dashboard";
+import type { KPICardProps } from "../components/dashboard/KPICard";
 
 export const placeholderDashboard: DashboardData = {
+
   totalMentions: 12116,
   positiveSentiment: 26,
   uniqueContributors: 8231,
@@ -153,39 +155,39 @@ export const placeholderDashboard: DashboardData = {
       trend: "up",
     },
   ],
-
-  kpiMetrics: [
-    {
-      slug: "dataPoints",
-      icon: Database,
-      value: 12000,
-      label: "Data Points",
-      subtitle: "Total mentions tracked",
-      variant: "blue",
-    },
-    {
-      slug: "lguCovered",
-      icon: MapPin,
-      value: 15,
-      label: "LGUs Covered",
-      subtitle: "All across municipalities and cities",
-      variant: "green",
-    },
-    {
-      slug: "coveragePeriod",
-      icon: Clock4,
-      value: `47 mos`,
-      label: "Coverage Period",
-      subtitle: "From 2023 - Present",
-      variant: "amber",
-    },
-    {
-      slug: "dataSources",
-      icon: Code,
-      value: 5,
-      label: "Data Sources",
-      subtitle: "public media and social channels",
-      variant: "purple",
-    },
-  ]
 };
+
+export const kpiMetrics: KPICardProps[] = [
+  {
+    slug: "dataPoints",
+    icon: Database,
+    value: 12000,
+    label: "Data Points",
+    subtitle: "Total mentions tracked",
+    variant: "blue",
+  },
+  {
+    slug: "lguCovered",
+    icon: MapPin,
+    value: 15,
+    label: "LGUs Covered",
+    subtitle: "All across municipalities and cities",
+    variant: "green",
+  },
+  {
+    slug: "coveragePeriod",
+    icon: Clock4,
+    value: `47 mos`,
+    label: "Coverage Period",
+    subtitle: "From 2023 - Present",
+    variant: "amber",
+  },
+  {
+    slug: "dataSources",
+    icon: Code,
+    value: 5,
+    label: "Data Sources",
+    subtitle: "public media and social channels",
+    variant: "purple",
+  },
+]

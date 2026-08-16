@@ -1,7 +1,6 @@
 import React from 'react'
 import { topics } from './shared'
 import { CalendarDays } from 'lucide-react'
-import { GeographyControls } from './shared'
 import PageShell from '../components/PageShell'
 
 export default function HistoricalPage() {
@@ -13,7 +12,6 @@ export default function HistoricalPage() {
     <PageShell title="Historical Context" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : 'National Pulse'}>
       <div className="space-y-4">
         <div className="flex justify-end"><select aria-label="Date range"><option>Last 30 days</option><option>Last 90 days</option><option>Election period</option></select></div>
-        <GeographyControls />
 
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
           <div className="history-banner">

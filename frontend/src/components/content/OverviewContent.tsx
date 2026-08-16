@@ -1,13 +1,13 @@
 import { lazy } from "react";
 
-import KPICard from "./dashboard/KPICard";
-const SentimentPieChart = lazy(() => import("./dashboard/SentimentPieChart"));
-const IssuesBarChart = lazy(() => import("./dashboard/IssuesBarChart"));
-const AreaComparison = lazy(() => import("./dashboard/AreaComparison"));
-const DataSourcesCard = lazy(() => import("./dashboard/DataSourcesCard"));
+import KPICard from "../dashboard/KPICard";
+const SentimentPieChart = lazy(() => import("../dashboard/SentimentPieChart"));
+const IssuesBarChart = lazy(() => import("../dashboard/IssuesBarChart"));
+const AreaComparison = lazy(() => import("../dashboard/AreaComparison"));
+const DataSourcesCard = lazy(() => import("../dashboard/DataSourcesCard"));
 
-import { placeholderDashboard } from "../data/placeholderDashboard";
-import { useDashboard } from "../hooks/useDashboard";
+import { placeholderDashboard, kpiMetrics } from "../../data/placeholderDashboard";
+import { useDashboard } from "../../hooks/useDashboard";
 
 function toMeltwaterDate(
     date: Date,
@@ -54,7 +54,7 @@ export default function OverviewContent() {
     return (
         <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {data.kpiMetrics.map((kpi, index) => (
+                {kpiMetrics.map((kpi, index) => (
                     <KPICard key={index} {...kpi} />
                 ))}
             </div>

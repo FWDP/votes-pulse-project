@@ -1,5 +1,4 @@
 import React from 'react'
-import { GeographyControls } from './shared'
 import PageShell from '../components/PageShell'
 
 export default function TimelinePage() {
@@ -12,7 +11,7 @@ export default function TimelinePage() {
     <PageShell title="Timeline" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : 'National Pulse'}>
       <div className="space-y-4">
         <div className="flex justify-end"><select aria-label="Date range"><option>Last 30 days</option><option>Last 90 days</option><option>Election period</option></select></div>
-        <GeographyControls />
+        {/* <GeographyControls /> */}
 
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
           <h3 className="text-sm font-semibold text-slate-700 mb-4">Key event timeline</h3>
