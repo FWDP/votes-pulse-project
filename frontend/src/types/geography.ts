@@ -26,6 +26,13 @@ export interface GeographySelection {
     locality: string
 }
 
+export interface ResolvedGeographySelection {
+    region?: GeographyUnit
+    province?: GeographyUnit
+    district?: GeographyUnit
+    locality?: GeographyUnit
+}
+
 export interface GeographyApiResponse {
     data: GeographyUnit[]
 }

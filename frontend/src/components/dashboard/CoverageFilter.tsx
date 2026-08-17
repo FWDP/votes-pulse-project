@@ -8,6 +8,7 @@ import {
 
 import type {
     GeographySelection,
+    ResolvedGeographySelection,
 } from '../../types/geography'
 import {
     ALL_CITIES_FILTER,
@@ -27,6 +28,10 @@ type CoverageFilterProps = {
     onGeographyChange: (
         value: GeographySelection,
     ) => void
+
+    onResolvedGeographyChange?: (
+        value: ResolvedGeographySelection,
+    ) => void
 }
 
 export default function CoverageFilter({
@@ -34,6 +39,7 @@ export default function CoverageFilter({
     onPeriodChange,
     geography,
     onGeographyChange,
+    onResolvedGeographyChange,
 }: CoverageFilterProps) {
     const getDescription = () => {
         if (geography.locality) {
@@ -97,6 +103,9 @@ export default function CoverageFilter({
                             value={geography}
                             onChange={
                                 onGeographyChange
+                            }
+                            onResolvedChange={
+                                onResolvedGeographyChange
                             }
                         />
                     </div>

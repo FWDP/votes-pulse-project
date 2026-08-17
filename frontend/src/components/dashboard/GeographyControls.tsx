@@ -21,6 +21,7 @@ import {
     INDEPENDENT_CITIES_FILTER,
     type GeographySelection,
     type GeographyUnit,
+    type ResolvedGeographySelection,
 } from '../../types/geography'
 
 interface GeographyControlsProps {
@@ -28,6 +29,10 @@ interface GeographyControlsProps {
 
     onChange: (
         value: GeographySelection,
+    ) => void
+
+    onResolvedChange?: (
+        value: ResolvedGeographySelection,
     ) => void
 }
 
@@ -93,6 +98,7 @@ const isAbortError = (error: unknown) =>
 export function GeographyControls({
     value,
     onChange,
+    onResolvedChange,
 }: GeographyControlsProps) {
     const {
         region,
@@ -216,6 +222,20 @@ export function GeographyControls({
 
             return independentCities
         }, [independentCities, isIndependentCitiesSelection, isNCR, localities, selectedDistrict, selectedProvince])
+
+    const selectedLocality = useMemo(
+        () => filteredLocalities.find(item => item.code === locality),
+        [filteredLocalities, locality],
+    )
+
+    useEffect(() => {
+        onResolvedChange?.({
+            region: selectedRegion,
+            province: selectedProvince,
+            district: selectedDistrict,
+            locality: selectedLocality,
+        })
+    }, [onResolvedChange, selectedDistrict, selectedLocality, selectedProvince, selectedRegion])
     
     /**
      * Load regions once.
