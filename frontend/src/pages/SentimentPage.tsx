@@ -1,6 +1,5 @@
 import PageShell from '../components/PageShell'
 import SentimentContent from '../components/content/SentimentContent'
-import SentimentFilter from '../components/sentiment/SentimentFilter'
 
 export default function SentimentPage() {
   return (

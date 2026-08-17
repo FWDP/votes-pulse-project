@@ -19,6 +19,9 @@ export const loadTimelinePage = () =>
 export const loadHistoricalPage = () =>
     import('./pages/HistoricalPage')
 
+export const loadKeyInsightsPage = () =>
+    import('./pages/KeyInsightsPage')
+
 export const loadDataScopePage = () =>
     import('./pages/DataScopePage')
 
@@ -44,6 +47,7 @@ const routePreloaders: Record<
     location: loadLocationPage,
     timeline: loadTimelinePage,
     historical: loadHistoricalPage,
+    insights: loadKeyInsightsPage,
     datascope: loadDataScopePage,
     fieldreports: loadFieldReportsPage,
 }

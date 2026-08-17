@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, Link, useLocation } from 'react-router-dom'
-import { MapPin, Globe, Zap, Map, Clock, BarChart2, Layers, FileText, ChevronRight, Radio } from 'lucide-react'
+import { MapPin, Globe, Zap, Map, Clock, BarChart2, Database, FileText, ChevronRight, Radio, Lightbulb } from 'lucide-react'
 import { preloadRoute } from '../routeLoaders'
 
 const items = [
@@ -10,7 +10,8 @@ const items = [
   { to: '/location', label: 'Location', icon: Map },
   { to: '/timeline', label: 'Timeline', icon: Clock },
   { to: '/historical', label: 'Historical', icon: BarChart2 },
-  { to: '/datascope', label: 'DataScope', icon: Layers },
+  { to: '/insights', label: 'Key Insights', icon: Lightbulb },
+  { to: '/datascope', label: 'Data & Scope', icon: Database },
   { to: '/fieldreports', label: 'Field Reports', icon: FileText },
 ]
 

@@ -10,6 +10,7 @@ import {
   loadFieldReportsPage,
   loadHistoricalPage,
   loadIssuesPage,
+  loadKeyInsightsPage,
   loadLocationPage,
   loadOverviewPage,
   loadPulseApp,
@@ -24,6 +25,7 @@ const IssuesPage = lazy(loadIssuesPage)
 const LocationPage = lazy(loadLocationPage)
 const TimelinePage = lazy(loadTimelinePage)
 const HistoricalPage = lazy(loadHistoricalPage)
+const KeyInsightsPage = lazy(loadKeyInsightsPage)
 const DataScopePage = lazy(loadDataScopePage)
 const FieldReportsPage = lazy(loadFieldReportsPage)
 
@@ -62,6 +64,7 @@ export default function App() {
           <Route path="location" element={<LazyRoute><LocationPage /></LazyRoute>} />
           <Route path="timeline" element={<LazyRoute><TimelinePage /></LazyRoute>} />
           <Route path="historical" element={<LazyRoute><HistoricalPage /></LazyRoute>} />
+          <Route path="insights" element={<LazyRoute><KeyInsightsPage /></LazyRoute>} />
           <Route path="datascope" element={<LazyRoute><DataScopePage /></LazyRoute>} />
           <Route path="fieldreports" element={<LazyRoute><FieldReportsPage /></LazyRoute>} />
         </Route>
@@ -74,6 +77,7 @@ export default function App() {
           <Route path="location" element={<LazyRoute><LocationPage /></LazyRoute>} />
           <Route path="timeline" element={<LazyRoute><TimelinePage /></LazyRoute>} />
           <Route path="historical" element={<LazyRoute><HistoricalPage /></LazyRoute>} />
+          <Route path="insights" element={<LazyRoute><KeyInsightsPage /></LazyRoute>} />
           <Route path="datascope" element={<LazyRoute><DataScopePage /></LazyRoute>} />
           <Route path="fieldreports" element={<LazyRoute><FieldReportsPage /></LazyRoute>} />
         </Route>

@@ -9,13 +9,54 @@ const router = Router()
 const PSA_BASE_URL =
     'https://classification.psa.gov.ph/psgc'
 
+const BOUNDARY_SERVICE_BASE_URL =
+    'https://ulap-nga.georisk.gov.ph/arcgis/rest/services/PSA'
+
+const NATIONAL_BOUNDARY_URL =
+    'https://github.com/bendlikeabamboo/barangay-boundaries-repository/releases/download/v2026.4.13.0/regions.geojson'
+
 const PSA_VERSION =
     process.env.PSA_PSGC_VERSION ??
     'Q2_2024'
 
 const REQUEST_TIMEOUT_MS = 15_000
+const BOUNDARY_REQUEST_TIMEOUT_MS = 30_000
 const PSA_CACHE_TTL_MS = 6 * 60 * 60 * 1000
+const BOUNDARY_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const CLIENT_CACHE_SECONDS = 60 * 60
+
+const NCR_REGION_CODE = '1300000000'
+
+const NCR_DISTRICTS = [
+    {
+        code: '133900000',
+        area_name: 'NCR, First District',
+        geographic_level: 'Dist',
+        reg: 13,
+    },
+    {
+        code: '137400000',
+        area_name: 'NCR, Second District',
+        geographic_level: 'Dist',
+        reg: 13,
+    },
+    {
+        code: '137500000',
+        area_name: 'NCR, Third District',
+        geographic_level: 'Dist',
+        reg: 13,
+    },
+    {
+        code: '137600000',
+        area_name: 'NCR, Fourth District',
+        geographic_level: 'Dist',
+        reg: 13,
+    },
+] as const
+
+const NCR_DISTRICT_CODES = new Set(
+    NCR_DISTRICTS.map(district => district.code),
+)
 
 interface PopulationData {
     code: string
@@ -71,6 +112,22 @@ const psaResponseCache =
 
 const pendingPSARequests =
     new Map<string, Promise<PSAResponse>>()
+
+interface GeoJsonFeatureCollection {
+    type: 'FeatureCollection'
+    features: unknown[]
+}
+
+interface CachedBoundaryResponse {
+    expiresAt: number
+    payload: GeoJsonFeatureCollection
+}
+
+const boundaryResponseCache =
+    new Map<string, CachedBoundaryResponse>()
+
+const pendingBoundaryRequests =
+    new Map<string, Promise<GeoJsonFeatureCollection>>()
 
 class PSARequestError extends Error {
     constructor(
@@ -204,6 +261,8 @@ const toMunicipalityResponse = (
     reg: locality.reg,
     prv: locality.prv,
     mun: locality.mun,
+    correspondence_code:
+        locality.correspondence_code,
     island_region: locality.island_region,
 })
 
@@ -408,6 +467,251 @@ const isNumericCode = (
         /^\d+$/.test(value)
     )
 }
+
+const isPSGCCode = (
+    value: unknown,
+): value is string =>
+    typeof value === 'string' &&
+    /^\d{10}$/.test(value)
+
+const getBoundaryData = async (
+    {
+        region,
+        province,
+        district,
+        locality,
+    }: {
+        region?: string
+        province?: string
+        district?: string
+        locality?: string
+    },
+): Promise<GeoJsonFeatureCollection> => {
+    const url = region
+        ? new URL(
+            `${BOUNDARY_SERVICE_BASE_URL}/MunicipalPopMF/MapServer/2/query`,
+        )
+        : new URL(NATIONAL_BOUNDARY_URL)
+
+    let where = '1=1'
+
+    if (locality) {
+        where = `psgc_10d='${locality}'`
+    } else if (district) {
+        where = `prov_code='${district}'`
+    } else if (province) {
+        where = `psgc_10d LIKE '${province.slice(0, 5)}%'`
+    } else if (region) {
+        where = `psgc_10d LIKE '${region.slice(0, 2)}%'`
+    }
+
+    if (region) {
+        url.searchParams.set('where', where)
+        url.searchParams.set(
+            'outFields',
+            'reg_name,prov_name,city_name,reg_code,prov_code,city_code,psgc_10d,geographic_level',
+        )
+        url.searchParams.set('returnGeometry', 'true')
+        url.searchParams.set('outSR', '4326')
+        url.searchParams.set('geometryPrecision', '5')
+        url.searchParams.set('maxAllowableOffset', '0.002')
+        url.searchParams.set('resultRecordCount', '5000')
+        url.searchParams.set('f', 'geojson')
+    }
+
+    const cacheKey = url.toString()
+    const cached = boundaryResponseCache.get(cacheKey)
+
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.payload
+    }
+
+    const pending = pendingBoundaryRequests.get(cacheKey)
+
+    if (pending) return pending
+
+    const request = (async () => {
+        let response: globalThis.Response
+
+        try {
+            response = await fetch(url, {
+                headers: {
+                    Accept: 'application/geo+json, application/json',
+                },
+                signal: AbortSignal.timeout(
+                    BOUNDARY_REQUEST_TIMEOUT_MS,
+                ),
+            })
+        } catch (error) {
+            const reason = error instanceof Error
+                ? error.message
+                : String(error)
+
+            throw new Error(
+                `Unable to reach boundary service: ${reason}`,
+            )
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                `Boundary service returned ${response.status}`,
+            )
+        }
+
+        const payload = await response.json() as Partial<GeoJsonFeatureCollection> & {
+            error?: unknown
+        }
+
+        if (
+            payload.error ||
+            payload.type !== 'FeatureCollection' ||
+            !Array.isArray(payload.features)
+        ) {
+            throw new Error(
+                'Boundary service returned an invalid GeoJSON response',
+            )
+        }
+
+        const featureCollection = payload as GeoJsonFeatureCollection
+
+        boundaryResponseCache.set(cacheKey, {
+            expiresAt: Date.now() + BOUNDARY_CACHE_TTL_MS,
+            payload: featureCollection,
+        })
+
+        return featureCollection
+    })().finally(() => {
+        pendingBoundaryRequests.delete(cacheKey)
+    })
+
+    pendingBoundaryRequests.set(cacheKey, request)
+
+    return request
+}
+
+/**
+ * GET /api/geography/boundaries
+ *
+ * Returns neutral administrative boundary polygons. National geometry uses
+ * a version-pinned PSA/NAMRIA-derived release; scoped LGU geometry comes from
+ * the GeoRiskPH PSA ArcGIS service. Both expose 10-digit PSGC codes.
+ */
+router.get(
+    '/boundaries',
+    async (
+        request: Request,
+        response: Response,
+    ) => {
+        const region = request.query.region
+        const province = request.query.province
+        const district = request.query.district
+        const locality = request.query.locality
+
+        if (region !== undefined && !isPSGCCode(region)) {
+            return response.status(400).json({
+                message: 'Invalid region PSGC code',
+            })
+        }
+
+        if (province !== undefined && !isPSGCCode(province)) {
+            return response.status(400).json({
+                message: 'Invalid province PSGC code',
+            })
+        }
+
+        if (locality !== undefined && !isPSGCCode(locality)) {
+            return response.status(400).json({
+                message: 'Invalid locality PSGC code',
+            })
+        }
+
+        if (
+            district !== undefined &&
+            (
+                typeof district !== 'string' ||
+                !NCR_DISTRICT_CODES.has(
+                    district as typeof NCR_DISTRICTS[number]['code'],
+                )
+            )
+        ) {
+            return response.status(400).json({
+                message: 'Invalid NCR district code',
+            })
+        }
+
+        if ((province || district || locality) && !region) {
+            return response.status(400).json({
+                message: 'Region is required for nested boundary filters',
+            })
+        }
+
+
+        if (
+            typeof district === 'string' &&
+            region !== NCR_REGION_CODE
+        ) {
+            return response.status(400).json({
+                message: 'NCR district requires the NCR region',
+            })
+        }
+
+        if (
+            typeof region === 'string' &&
+            typeof province === 'string' &&
+            !province.startsWith(region.slice(0, 2))
+        ) {
+            return response.status(400).json({
+                message: 'Province does not belong to the selected region',
+            })
+        }
+
+        try {
+            const payload = await getBoundaryData({
+                region: typeof region === 'string' ? region : undefined,
+                province: typeof province === 'string' ? province : undefined,
+                district: typeof district === 'string' ? district : undefined,
+                locality: typeof locality === 'string' ? locality : undefined,
+            })
+
+            setGeographyCacheHeader(response)
+            return response.json(payload)
+        } catch (error) {
+            console.error('Unable to load boundary map', error)
+
+            return response.status(502).json({
+                message: 'Unable to load boundary map',
+            })
+        }
+    },
+)
+
+/**
+ * GET /api/geography/districts?reg=13
+ *
+ * NCR's four PSGC statistical districts occupy the province-level slot in
+ * the administrative hierarchy. They are not congressional districts.
+ */
+router.get(
+    '/districts',
+    (
+        request: Request,
+        response: Response,
+    ) => {
+        if (String(request.query.reg) !== '13') {
+            return response.status(400).json({
+                message: 'NCR region code 13 is required',
+            })
+        }
+
+        setGeographyCacheHeader(response)
+        return response.json({
+            count: NCR_DISTRICTS.length,
+            next: null,
+            previous: null,
+            data: NCR_DISTRICTS,
+        })
+    },
+)
 
 /**
  * GET /api/geography/regions

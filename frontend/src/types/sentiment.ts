@@ -13,6 +13,7 @@ export interface TopicSentiment {
     icon: LucideIcon
 
     mentions: number
+    momentum: number[]
 
     positive: number
     neutral: number
@@ -25,4 +26,14 @@ export interface UserSentimentData {
     topics: TopicSentiment[]
 
     isPlaceholder: boolean
+}
+
+export interface LocationSentimentMetric {
+    code: string
+    aliases?: string[]
+    mentions: number
+    positive: number
+    neutral: number
+    negative: number
+    topConcern?: string
 }

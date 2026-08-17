@@ -3,7 +3,7 @@ import {
     useState,
 } from 'react'
 
-import SentimentFilter from '../sentiment/SentimentFilter'
+import CoverageFilter from '../dashboard/CoverageFilter'
 import {
     SentimentSummary,
 } from '../dashboard/SentimentSummary'
@@ -28,6 +28,7 @@ export default function SentimentContent() {
         useState<GeographySelection>({
             region: '',
             province: '',
+            district: '',
             locality: '',
         })
 
@@ -57,7 +58,7 @@ export default function SentimentContent() {
         <div className="space-y-6">
             {/* Filters */}
 
-            <SentimentFilter
+            <CoverageFilter
                 geography={
                     geography
                 }

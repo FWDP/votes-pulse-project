@@ -204,6 +204,31 @@ const getPeriodMultiplier = (
     }
 }
 
+const createPlaceholderMomentum = (
+    seed: number,
+    mentions: number,
+) => {
+    const direction =
+        (Math.floor(seed / 31) % 15) - 7
+    const baseline = Math.max(mentions / 8, 1)
+
+    return Array.from(
+        { length: 8 },
+        (_, index) => {
+            const movement =
+                (direction / 100) * baseline * index
+            const variation =
+                (((seed >> (index % 8)) % 9) - 4) *
+                baseline * 0.025
+
+            return Math.max(
+                0,
+                Math.round(baseline + movement + variation),
+            )
+        },
+    )
+}
+
 /**
  * National + 30d uses the exact mockup values.
  *
@@ -217,6 +242,7 @@ const createPlaceholderTopics = (
     const isNational =
         !geography.region &&
         !geography.province &&
+        !geography.district &&
         !geography.locality
 
     const periodMultiplier =
@@ -224,6 +250,26 @@ const createPlaceholderTopics = (
 
     return BASE_TOPIC_SENTIMENT.map(
         topic => {
+            const seed = hashString(
+                [
+                    geography.region ||
+                        'national',
+
+                    geography.province ||
+                        'all-provinces',
+
+                    geography.district ||
+                        'all-districts',
+
+                    geography.locality ||
+                        'all-localities',
+
+                    period,
+
+                    topic.id,
+                ].join('|'),
+            )
+
             /**
              * Keep the exact screenshot values
              * for National + Last 30 days.
@@ -234,25 +280,12 @@ const createPlaceholderTopics = (
             ) {
                 return {
                     ...topic,
+                    momentum: createPlaceholderMomentum(
+                        seed,
+                        topic.mentions,
+                    ),
                 }
             }
-
-            const seed = hashString(
-                [
-                    geography.region ||
-                        'national',
-
-                    geography.province ||
-                        'all-provinces',
-
-                    geography.locality ||
-                        'all-localities',
-
-                    period,
-
-                    topic.id,
-                ].join('|'),
-            )
 
             /**
              * Small percentage adjustments.
@@ -338,6 +371,11 @@ const createPlaceholderTopics = (
 
                 mentions,
 
+                momentum: createPlaceholderMomentum(
+                    seed,
+                    mentions,
+                ),
+
                 positive,
 
                 neutral,
@@ -364,6 +402,7 @@ const createOverallSentiment = (
     const isNational =
         !geography.region &&
         !geography.province &&
+        !geography.district &&
         !geography.locality
 
     if (
@@ -380,6 +419,9 @@ const createOverallSentiment = (
 
             geography.province ||
                 'all-provinces',
+
+            geography.district ||
+                'all-districts',
 
             geography.locality ||
                 'all-localities',

@@ -85,6 +85,10 @@ select {
   place-items: center;
 }
 
+.brand-mark svg {
+  color: #102725;
+}
+
 .brand strong,
 .brand small {
   display: block;
@@ -383,6 +387,12 @@ select {
 .nav-item.active {
   background: var(--brand-500);
   color: #fff;
+}
+
+.nav-item.active svg,
+.app-shell.theme-pulse .nav-item.active svg,
+.app-shell.theme-votes .nav-item.active svg {
+  color: #102725;
 }
 
 .nav-item .nav-chev {
@@ -2404,7 +2414,12 @@ footer button:hover {
 }
 
 .scope-summary svg {
-  color: #1aae7b;
+  color: #263b4a;
+}
+
+.history-banner>svg,
+.field-banner>svg {
+  color: #263b4a;
 }
 
 .scope-summary dl {

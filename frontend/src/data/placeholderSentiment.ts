@@ -37,6 +37,7 @@ export function getPlaceholderSentiment(
     {
         region,
         province,
+        district,
         locality,
     }: GeographySelection,
 ): SentimentData {
@@ -46,6 +47,7 @@ export function getPlaceholderSentiment(
     if (
         !region &&
         !province &&
+        !district &&
         !locality
     ) {
         return NATIONAL_SENTIMENT
@@ -60,6 +62,7 @@ export function getPlaceholderSentiment(
     const geographyKey = [
         region || 'national',
         province || 'all-provinces',
+        district || 'all-districts',
         locality || 'all-localities',
     ].join('|')
 

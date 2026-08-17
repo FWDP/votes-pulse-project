@@ -51,7 +51,7 @@ export default function SentimentMeters({
                                 <div className="flex min-w-0 items-center gap-2">
                                     <div className="flex items-center">
                                         <topic.icon
-                                            className="h-4 w-4 shrink-0 text-slate-400"
+                                            className="h-4 w-4 shrink-0 text-slate-700"
                                         />
                                     </div>
 

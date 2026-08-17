@@ -72,7 +72,7 @@ export default function SentimentExtremes({
 
                                 <span>
                                     {
-                                        <topic.icon className="h-5 w-5 text-slate-400" />
+                                        <topic.icon className="h-5 w-5 text-slate-700" />
                                     }
                                 </span>
 
@@ -121,7 +121,7 @@ export default function SentimentExtremes({
 
                                 <span>
                                     {
-                                        <topic.icon className="h-5 w-5 text-slate-400" />
+                                        <topic.icon className="h-5 w-5 text-slate-700" />
                                     }
                                 </span>
 

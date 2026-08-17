@@ -1,9 +1,16 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
 
-export default function PageShell({ title, subtitle, children }: { title: string; subtitle?: React.ReactNode; children: React.ReactNode }) {
-  const location = useLocation()
-  const search = location.search || ''
+export default function PageShell({
+  title,
+  subtitle,
+  children,
+  dataMode = 'placeholder',
+}: {
+  title: string
+  subtitle?: React.ReactNode
+  children: React.ReactNode
+  dataMode?: 'placeholder' | 'coverage-only'
+}) {
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
@@ -14,8 +21,16 @@ export default function PageShell({ title, subtitle, children }: { title: string
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs text-slate-500">Data as of March 2026</div>
-          <button className="bg-amber-50 text-amber-800 px-3 py-1 rounded-full text-xs">Simulation — Placeholder Data</button>
+          {dataMode === 'placeholder' ? (
+            <>
+              <div className="text-xs text-slate-500">Data as of March 2026</div>
+              <span className="bg-amber-50 text-amber-800 px-3 py-1 rounded-full text-xs">Simulation — Placeholder Data</span>
+            </>
+          ) : (
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+              Official PSGC coverage · Sentiment pending
+            </span>
+          )}
         </div>
       </header>
 

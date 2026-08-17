@@ -9,14 +9,18 @@ import {
 } from '../dashboard/SelectField'
 
 import {
+    getDistricts,
     getMunicipalities,
     getProvinces,
     getRegions,
 } from '../../services/geographyApi'
 
-import type {
-    GeographySelection,
-    GeographyUnit,
+import {
+    ALL_CITIES_FILTER,
+    ALL_MUNICIPALITIES_FILTER,
+    INDEPENDENT_CITIES_FILTER,
+    type GeographySelection,
+    type GeographyUnit,
 } from '../../types/geography'
 
 interface GeographyControlsProps {
@@ -93,19 +97,23 @@ export function GeographyControls({
     const {
         region,
         province,
+        district,
         locality
     } = value;
 
     const [regions, setRegions] = useState<GeographyUnit[]>([])
     const [provinces, setProvinces] = useState<GeographyUnit[]>([])
+    const [districts, setDistricts] = useState<GeographyUnit[]>([])
     const [localities, setLocalities] = useState<GeographyUnit[]>([])
 
     const [isLoadingRegions, setIsLoadingRegions] = useState<boolean>(false)
     const [isLoadingProvinces, setIsLoadingProvinces] = useState<boolean>(false)
+    const [isLoadingDistricts, setIsLoadingDistricts] = useState<boolean>(false)
     const [isLoadingLocalities, setIsLoadingLocalities] = useState<boolean>(false)
 
     const [regionError, setRegionError] = useState<string | null>(null)
     const [provinceError, setProvinceError] = useState<string | null>(null)
+    const [districtError, setDistrictError] = useState<string | null>(null)
     const [localityError, setLocalityError] = useState<string | null>(null)
 
     /**
@@ -125,6 +133,8 @@ export function GeographyControls({
      * cleaner than testing names.
      */
     const isNCR = selectedRegion?.reg === 13
+    const isIndependentCitiesSelection =
+        province === INDEPENDENT_CITIES_FILTER
 
     /**
      * Selected official PSGC province.
@@ -135,6 +145,11 @@ export function GeographyControls({
                 ),
             [provinces, province,],
         )
+
+    const selectedDistrict = useMemo(
+        () => districts.find(item => item.code === district),
+        [district, districts],
+    )
 
     const independentCities = useMemo(() => {
         const provinceCodes = new Set(
@@ -174,14 +189,33 @@ export function GeographyControls({
                 return level === 'city' || level === 'mun'
             })
 
-            if (isNCR || selectedProvince) {
+            if (isNCR) {
+                const districtPrefix =
+                    selectedDistrict?.code.slice(0, 4)
+
+                return sortGeographyUnits(
+                    districtPrefix
+                        ? citiesAndMunicipalities.filter(item =>
+                            item.correspondence_code?.startsWith(
+                                districtPrefix,
+                            ),
+                        )
+                        : citiesAndMunicipalities,
+                )
+            }
+
+            if (isIndependentCitiesSelection) {
+                return independentCities
+            }
+
+            if (selectedProvince) {
                 return sortGeographyUnits(
                     citiesAndMunicipalities,
                 )
             }
 
             return independentCities
-        }, [independentCities, isNCR, localities, selectedProvince])
+        }, [independentCities, isIndependentCitiesSelection, isNCR, localities, selectedDistrict, selectedProvince])
     
     /**
      * Load regions once.
@@ -270,6 +304,49 @@ export function GeographyControls({
     }, [selectedRegion, isNCR])
 
     /**
+     * NCR uses four official PSGC statistical districts instead of
+     * provinces at the middle level of the administrative hierarchy.
+     */
+    useEffect(() => {
+        const controller = new AbortController()
+
+        setDistricts([])
+        setDistrictError(null)
+
+        if (!selectedRegion || !isNCR) {
+            setIsLoadingDistricts(false)
+            return () => controller.abort()
+        }
+
+        const loadDistricts = async () => {
+            setIsLoadingDistricts(true)
+
+            try {
+                const data = await getDistricts(
+                    selectedRegion.reg,
+                    controller.signal,
+                )
+
+                setDistricts(data)
+            } catch (error) {
+                if (isAbortError(error)) return
+
+                console.error('Unable to load NCR districts:', error)
+                setDistricts([])
+                setDistrictError('Unable to load NCR districts.')
+            } finally {
+                if (!controller.signal.aborted) {
+                    setIsLoadingDistricts(false)
+                }
+            }
+        }
+
+        void loadDistricts()
+
+        return () => controller.abort()
+    }, [selectedRegion, isNCR])
+
+    /**
      * Load city / municipality.
      */
     useEffect(() => {
@@ -324,6 +401,7 @@ export function GeographyControls({
         onChange({
             region: nextRegion,
             province: "",
+            district: "",
             locality: "",
         })
     }
@@ -332,6 +410,16 @@ export function GeographyControls({
         onChange({
             region,
             province: nextProvince,
+            district: "",
+            locality: "",
+        })
+    }
+
+    const handleDistrictChange = (nextDistrict: string) => {
+        onChange({
+            region,
+            province: "",
+            district: nextDistrict,
             locality: "",
         })
     }
@@ -340,6 +428,7 @@ export function GeographyControls({
         onChange({
             region,
             province,
+            district,
             locality: nextLocality,
         })
     }
@@ -386,31 +475,38 @@ export function GeographyControls({
                     )}
                 </SelectField>
 
-                {/* PROVINCE */}
+                {/* PROVINCE / NCR STATISTICAL DISTRICT */}
 
                 <SelectField
-                    label="Province"
-                    value={province}
+                    label={isNCR ? 'District' : 'Province'}
+                    value={isNCR ? district : province}
                     disabled={
                         !region ||
-                        isLoadingProvinces
+                        (isNCR
+                            ? isLoadingDistricts
+                            : isLoadingProvinces)
                     }
-                    onChange={event =>
-                        handleProvinceChange(
-                            event.target
-                                .value,
-                        )
-                    }
+                    onChange={event => {
+                        if (isNCR) {
+                            handleDistrictChange(event.target.value)
+                        } else {
+                            handleProvinceChange(event.target.value)
+                        }
+                    }}
                 >
                     <option value="">
                         {!region
                             ? 'Select region first'
-                            : isLoadingProvinces
+                            : isNCR
+                                ? isLoadingDistricts
+                                    ? 'Loading districts…'
+                                    : 'All districts'
+                                : isLoadingProvinces
                                     ? 'Loading provinces…'
                                     : 'All provinces'}
                     </option>
 
-                    {provinces.map(
+                    {(isNCR ? districts : provinces).map(
                             item => (
                                 <option
                                     key={
@@ -426,6 +522,12 @@ export function GeographyControls({
                                 </option>
                             ),
                         )}
+
+                    {!isNCR && independentCities.length > 0 && (
+                        <option value={INDEPENDENT_CITIES_FILTER}>
+                            Independent cities
+                        </option>
+                    )}
 
                 </SelectField>
 
@@ -459,10 +561,26 @@ export function GeographyControls({
                                     : filteredLocalities.length ===
                                         0
                                         ? 'No cities & municipalities found'
-                                        : !province && !isNCR
+                                    : !province && !isNCR
                                             ? 'Independent cities'
                                             : 'All cities & municipalities'}
                     </option>
+
+                    {filteredLocalities.some(item =>
+                        item.geographic_level.trim().toLowerCase() === 'city'
+                    ) && (
+                        <option value={ALL_CITIES_FILTER}>
+                            All cities
+                        </option>
+                    )}
+
+                    {filteredLocalities.some(item =>
+                        item.geographic_level.trim().toLowerCase() === 'mun'
+                    ) && (
+                        <option value={ALL_MUNICIPALITIES_FILTER}>
+                            All municipalities
+                        </option>
+                    )}
 
                     {filteredLocalities.map(
                         item => (
@@ -492,6 +610,12 @@ export function GeographyControls({
             {provinceError && (
                 <p className="text-xs text-red-600">
                     {provinceError}
+                </p>
+            )}
+
+            {districtError && (
+                <p className="text-xs text-red-600">
+                    {districtError}
                 </p>
             )}
 

@@ -4,13 +4,18 @@ import {
 
 import {
     GeographyControls,
-} from '../dashboard/GeographyControls'
+} from './GeographyControls'
 
 import type {
     GeographySelection,
 } from '../../types/geography'
+import {
+    ALL_CITIES_FILTER,
+    ALL_MUNICIPALITIES_FILTER,
+    INDEPENDENT_CITIES_FILTER,
+} from '../../types/geography'
 
-type SentimentFilterProps = {
+type CoverageFilterProps = {
     period?: string
 
     onPeriodChange?: (
@@ -24,23 +29,39 @@ type SentimentFilterProps = {
     ) => void
 }
 
-export default function SentimentFilter({
+export default function CoverageFilter({
     period = '30d',
     onPeriodChange,
     geography,
     onGeographyChange,
-}: SentimentFilterProps) {
+}: CoverageFilterProps) {
     const getDescription = () => {
         if (geography.locality) {
-            return 'Showing dashboard data for the selected city or municipality.'
+            if (geography.locality === ALL_CITIES_FILTER) {
+                return 'Showing all cities within the selected administrative coverage.'
+            }
+
+            if (geography.locality === ALL_MUNICIPALITIES_FILTER) {
+                return 'Showing all municipalities within the selected administrative coverage.'
+            }
+
+            return 'Showing data for the selected city or municipality.'
         }
 
         if (geography.province) {
-            return 'Showing dashboard data for the selected province.'
+            if (geography.province === INDEPENDENT_CITIES_FILTER) {
+                return 'Showing independently administered cities in the selected region.'
+            }
+
+            return 'Showing data for the selected province.'
+        }
+
+        if (geography.district) {
+            return 'Showing data for the selected NCR statistical district.'
         }
 
         if (geography.region) {
-            return 'Showing dashboard data for the selected region.'
+            return 'Showing data for the selected region.'
         }
 
         return 'Showing national aggregate data.'
@@ -107,7 +128,7 @@ export default function SentimentFilter({
                                     left-3
                                     top-1/2
                                     -translate-y-1/2
-                                    text-slate-400
+                                    text-slate-700
                                 "
                             />
 
@@ -209,7 +230,7 @@ export default function SentimentFilter({
                     {!geography.region && (
                         <span className="ml-1 text-slate-400">
                             Select a region to narrow
-                            the dashboard coverage.
+                            the coverage.
                         </span>
                     )}
                 </p>

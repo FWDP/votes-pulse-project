@@ -125,6 +125,20 @@ export const getRegions = (
     )
 }
 
+export const getDistricts = (
+    reg: number,
+    signal?: AbortSignal,
+) => {
+    const params = new URLSearchParams({
+        reg: String(reg),
+    })
+
+    return fetchGeography(
+        `/api/geography/districts?${params}`,
+        signal,
+    )
+}
+
 export const getProvinces = (
     reg: number,
     signal?: AbortSignal,
