@@ -1,6 +1,7 @@
 import React from 'react'
 import { NavLink, Link, useLocation } from 'react-router-dom'
 import { MapPin, Globe, Zap, Map, Clock, BarChart2, Layers, FileText, ChevronRight, Radio } from 'lucide-react'
+import { preloadRoute } from '../routeLoaders'
 
 const items = [
   { to: '/overview', label: 'Overview', icon: MapPin },
@@ -52,6 +53,12 @@ export default function Sidebar({ collapsed }: { collapsed?: boolean, setCollaps
           <NavLink
             key={to}
             to={`/${base}${to}${cleanSearch}`}
+            onFocus={() => {
+              void preloadRoute(to).catch(() => undefined)
+            }}
+            onPointerEnter={() => {
+              void preloadRoute(to).catch(() => undefined)
+            }}
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             title={label}
           >

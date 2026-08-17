@@ -4,10 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite",
+    "dev:server": "tsx watch backend/src/server.ts",
     "build": "vite build",
     "preview": "vite preview",
+    "start:server": "node dist-server/index.js",
     "type-check": "tsc -b --pretty false"
   },
   "dependencies": {

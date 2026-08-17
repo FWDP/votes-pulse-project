@@ -1,49 +1,99 @@
-import { CalendarDays } from "lucide-react";
-import GeographyControls from "../shared/GeographyControls";
+import {
+    CalendarDays,
+} from 'lucide-react'
+
+import {
+    GeographyControls,
+} from '../dashboard/GeographyControls'
+
+import type {
+    GeographySelection,
+} from '../../types/geography'
 
 type SentimentFilterProps = {
-    period?: string;
-    onPeriodChange?: (value: string) => void;
-    activeScope?: string;
-};
+    period?: string
+
+    onPeriodChange?: (
+        value: string,
+    ) => void
+
+    geography: GeographySelection
+
+    onGeographyChange: (
+        value: GeographySelection,
+    ) => void
+}
 
 export default function SentimentFilter({
-    period = "30d",
+    period = '30d',
     onPeriodChange,
-    activeScope = "national"
+    geography,
+    onGeographyChange,
 }: SentimentFilterProps) {
     const getDescription = () => {
-        switch (activeScope) {
-            case "provincial":
-                return "Select a province or party-list to filter the dashboard data.";
-
-            case "local":
-                return "Select a city, municipality, or congressional district to filter the dashboard data.";
-
-            default:
-                return "Showing national aggregate data.";
+        if (geography.locality) {
+            return 'Showing dashboard data for the selected city or municipality.'
         }
-    };
+
+        if (geography.province) {
+            return 'Showing dashboard data for the selected province.'
+        }
+
+        if (geography.region) {
+            return 'Showing dashboard data for the selected region.'
+        }
+
+        return 'Showing national aggregate data.'
+    }
 
     return (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-            {/* Main filter row */}
-            <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
-                {/* Scope */}
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                        <div className="inline-flex max-w-full flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
-                            <GeographyControls />
-                        </div>
-                    </div>
-                </div>
+            <div className="flex flex-col gap-5 p-4 sm:p-5">
+                <div className="
+                    flex
+                    flex-col
+                    gap-4
+                    xl:flex-row
+                    xl:items-end
+                    xl:justify-between
+                ">
+                    {/* Geography */}
 
-                {/* Date range */}
-                <div className="flex shrink-0 items-end gap-2">
-                    <div>
+                    <div className="min-w-0 flex-1">
+                        <div className="mb-2">
+                            <span className="
+                                text-xs
+                                font-semibold
+                                uppercase
+                                tracking-wide
+                                text-slate-400
+                            ">
+                                Coverage
+                            </span>
+                        </div>
+
+                        <GeographyControls
+                            value={geography}
+                            onChange={
+                                onGeographyChange
+                            }
+                        />
+                    </div>
+
+                    {/* Date Range */}
+
+                    <div className="shrink-0">
                         <label
                             htmlFor="dashboard-period"
-                            className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400"
+                            className="
+                                mb-2
+                                block
+                                text-xs
+                                font-semibold
+                                uppercase
+                                tracking-wide
+                                text-slate-400
+                            "
                         >
                             Date Range
                         </label>
@@ -51,41 +101,90 @@ export default function SentimentFilter({
                         <div className="relative">
                             <CalendarDays
                                 size={16}
-                                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                className="
+                                    pointer-events-none
+                                    absolute
+                                    left-3
+                                    top-1/2
+                                    -translate-y-1/2
+                                    text-slate-400
+                                "
                             />
 
                             <select
                                 id="dashboard-period"
                                 value={period}
-                                onChange={(e) => onPeriodChange?.(e.target.value)}
+                                onChange={event =>
+                                    onPeriodChange?.(
+                                        event.target
+                                            .value,
+                                    )
+                                }
                                 className="
-                                            h-10 min-w-[160px]
-                                            appearance-none rounded-lg
-                                            border border-slate-200
-                                            bg-white
-                                            pl-9 pr-9
-                                            text-sm font-medium text-slate-700
-                                            outline-none
-                                            transition
-                                            hover:border-slate-300
-                                            focus:border-emerald-500
-                                            focus:ring-2 focus:ring-emerald-100
-                                            "
+                                    h-10
+                                    min-w-[170px]
+                                    appearance-none
+                                    rounded-lg
+                                    border
+                                    border-slate-200
+                                    bg-white
+                                    pl-9
+                                    pr-9
+                                    text-sm
+                                    font-medium
+                                    text-slate-700
+                                    outline-none
+                                    transition
+                                    hover:border-slate-300
+                                    focus:border-emerald-500
+                                    focus:ring-2
+                                    focus:ring-emerald-100
+                                "
                             >
-                                <option value="7d">Last 7 days</option>
-                                <option value="30d">Last 30 days</option>
-                                <option value="90d">Last 90 days</option>
-                                <option value="1y">Last 12 months</option>
+                                <option value="7d">
+                                    Last 7 days
+                                </option>
+
+                                <option value="30d">
+                                    Last 30 days
+                                </option>
+
+                                <option value="90d">
+                                    Last 90 days
+                                </option>
+
+                                <option value="1y">
+                                    Last 12 months
+                                </option>
                             </select>
 
                             <svg
-                                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                                className="
+                                    pointer-events-none
+                                    absolute
+                                    right-3
+                                    top-1/2
+                                    h-4
+                                    w-4
+                                    -translate-y-1/2
+                                    text-slate-400
+                                "
                                 viewBox="0 0 20 20"
                                 fill="currentColor"
                             >
                                 <path
                                     fillRule="evenodd"
-                                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.51a.75.75 0 01-1.08 0l-4.25-4.51a.75.75 0 01.02-1.06z"
+                                    d="
+                                        M5.23 7.21
+                                        a.75.75 0 011.06.02
+                                        L10 11.168
+                                        l3.71-3.938
+                                        a.75.75 0 111.08 1.04
+                                        l-4.25 4.51
+                                        a.75.75 0 01-1.08 0
+                                        l-4.25-4.51
+                                        a.75.75 0 01.02-1.06z
+                                    "
                                     clipRule="evenodd"
                                 />
                             </svg>
@@ -94,17 +193,27 @@ export default function SentimentFilter({
                 </div>
             </div>
 
-            {/* Helper / current selection */}
-            <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-3 sm:px-5">
+            {/* Description */}
+
+            <div className="
+                border-t
+                border-slate-100
+                bg-slate-50/70
+                px-4
+                py-3
+                sm:px-5
+            ">
                 <p className="text-xs text-slate-500 sm:text-sm">
                     {getDescription()}
-                    {activeScope === "national" && (
+
+                    {!geography.region && (
                         <span className="ml-1 text-slate-400">
-                            Select Provincial or Congressional mode to filter by location.
+                            Select a region to narrow
+                            the dashboard coverage.
                         </span>
                     )}
                 </p>
             </div>
         </div>
-    );
+    )
 }

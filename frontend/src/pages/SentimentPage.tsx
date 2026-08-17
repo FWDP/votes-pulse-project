@@ -6,7 +6,6 @@ export default function SentimentPage() {
   return (
     <PageShell title="Sentiment Analysis" subtitle="Positive, neutral, and negative patterns by topic">
       <div className="space-y-4">
-        <SentimentFilter />
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
           <SentimentContent />
         </div>
