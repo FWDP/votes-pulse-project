@@ -4,6 +4,7 @@ import PageShell from '../components/PageShell'
 import CoverageFilter from '../components/dashboard/CoverageFilter'
 import { getUserSentimentData } from '../hooks/userSentimentData'
 import type { GeographySelection } from '../types/geography'
+import { getDominantSentiment } from '../utils/sentiment'
 
 type PriorityFilter = 'all' | 'high' | 'medium'
 
@@ -23,29 +24,52 @@ export default function KeyInsightsPage() {
   )
   const insights = useMemo(
     () => [...topics]
-      .sort((a, b) => b.mentions - a.mentions)
+      .map(topic => ({
+        topic,
+        priorityScore: topic.mentions * (1 + topic.negative / 100),
+      }))
+      .sort((a, b) => b.priorityScore - a.priorityScore)
       .slice(0, 8)
-      .map((topic, index) => {
-        const dominant = topic.negative >= topic.positive
-          ? { label: 'negative', value: topic.negative, direction: '↓' }
-          : { label: 'positive', value: topic.positive, direction: '↑' }
+      .map(({ topic, priorityScore }, index, ranked) => {
+        const dominantSentiment = getDominantSentiment(topic)
+        const dominant = {
+          ...dominantSentiment,
+          direction: dominantSentiment.key === 'positive'
+            ? '↑'
+            : dominantSentiment.key === 'negative'
+              ? '↓'
+              : '→',
+        }
+        const insightPriority = index < Math.ceil(ranked.length / 2)
+          ? 'high'
+          : 'medium'
+        const titleSuffix = insightPriority === 'high'
+          ? 'requires close attention'
+          : dominant.key === 'positive'
+            ? 'shows a positive signal worth sustaining'
+            : dominant.key === 'neutral'
+              ? 'remains a mixed discussion area'
+              : 'shows a noteworthy discussion pattern'
 
         return {
           topic,
-          priority: (index < 4 ? 'high' : 'medium') as Exclude<PriorityFilter, 'all'>,
+          priorityScore,
+          priority: insightPriority as Exclude<PriorityFilter, 'all'>,
           dominant,
-          title: `${topic.name} ${index < 4 ? 'requires close attention' : 'shows a noteworthy discussion pattern'}`,
-          description: `${topic.name} generated ${topic.mentions.toLocaleString()} simulated mentions for the selected coverage. ${dominant.label[0].toUpperCase()}${dominant.label.slice(1)} sentiment is the largest directional share at ${dominant.value}%, with the remaining discussion split across neutral and opposing signals.`,
+          title: `${topic.name} ${titleSuffix}`,
+          description: `${topic.name} generated ${topic.mentions.toLocaleString()} simulated mentions for the selected coverage. ${dominant.label} sentiment is the largest share at ${dominant.value}% (${topic.positive}% positive, ${topic.neutral}% neutral, and ${topic.negative}% negative).`,
         }
       }),
     [topics],
   )
-  const visibleInsights = insights.filter(insight =>
-    (category === 'all' || insight.topic.id === category) &&
-    (priority === 'all' || insight.priority === priority)
+  const categoryInsights = insights.filter(insight =>
+    category === 'all' || insight.topic.id === category
   )
-  const highCount = insights.filter(insight => insight.priority === 'high').length
-  const mediumCount = insights.filter(insight => insight.priority === 'medium').length
+  const visibleInsights = categoryInsights.filter(insight =>
+    priority === 'all' || insight.priority === priority
+  )
+  const highCount = categoryInsights.filter(insight => insight.priority === 'high').length
+  const mediumCount = categoryInsights.filter(insight => insight.priority === 'medium').length
 
   return (
     <PageShell title="Key Insights" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : 'Priority observations from the simulated research dataset'}>
@@ -58,9 +82,9 @@ export default function KeyInsightsPage() {
         />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <InsightMetric value={highCount} title="High-Priority Observations" description="Findings warranting immediate attention or follow-up" color="text-red-600" />
-          <InsightMetric value={mediumCount} title="Medium-Priority Observations" description="Noteworthy patterns for monitoring or context" color="text-amber-700" />
-          <InsightMetric value={insights.length} title="Total Research Insights" description={`Across ${insights.length} leading topic categories`} color="text-slate-700" />
+          <InsightMetric value={highCount} title="High-Priority Observations" description="Findings warranting immediate attention or follow-up" color="text-red-600" selected={priority === 'high'} onClick={() => setPriority(priority === 'high' ? 'all' : 'high')} />
+          <InsightMetric value={mediumCount} title="Medium-Priority Observations" description="Noteworthy patterns for monitoring or context" color="text-amber-700" selected={priority === 'medium'} onClick={() => setPriority(priority === 'medium' ? 'all' : 'medium')} />
+          <InsightMetric value={categoryInsights.length} title="Total Research Insights" description={`Across ${categoryInsights.length} matching topic categories`} color="text-slate-700" selected={priority === 'all'} onClick={() => setPriority('all')} />
         </div>
 
         <section aria-label="Insight filters" className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -89,7 +113,11 @@ export default function KeyInsightsPage() {
           {visibleInsights.map(insight => {
             const TopicIcon = insight.topic.icon
             const high = insight.priority === 'high'
-            const positive = insight.dominant.label === 'positive'
+            const sentimentClasses = insight.dominant.key === 'positive'
+              ? 'bg-green-100 text-green-700'
+              : insight.dominant.key === 'negative'
+                ? 'bg-red-100 text-red-700'
+                : 'bg-slate-200 text-slate-700'
 
             return (
               <article key={insight.topic.id} className={`rounded-xl border p-5 shadow-sm ${high ? 'border-red-200 bg-red-50/70' : 'border-amber-200 bg-white'}`}>
@@ -99,8 +127,8 @@ export default function KeyInsightsPage() {
                     {insight.topic.name}
                   </div>
                   <div className="flex gap-2">
-                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${positive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {insight.dominant.direction} {insight.dominant.label} · {insight.dominant.value}%
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${sentimentClasses}`}>
+                      {insight.dominant.direction} {insight.dominant.label.toLowerCase()} · {insight.dominant.value}%
                     </span>
                     <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${high ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>
                       {high ? 'High Priority' : 'Medium'}
@@ -124,13 +152,18 @@ export default function KeyInsightsPage() {
   )
 }
 
-function InsightMetric({ value, title, description, color }: { value: number; title: string; description: string; color: string }) {
+function InsightMetric({ value, title, description, color, selected, onClick }: { value: number; title: string; description: string; color: string; selected: boolean; onClick: () => void }) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`rounded-xl border bg-white p-5 text-left shadow-sm transition hover:border-blue-300 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${selected ? 'border-blue-400 ring-1 ring-blue-100' : 'border-slate-200'}`}
+    >
       <strong className={`text-3xl font-black tabular-nums ${color}`}>{value}</strong>
       <h2 className="mt-2 text-sm font-bold text-slate-800">{title}</h2>
       <p className="mt-1 text-xs text-slate-500">{description}</p>
-    </article>
+    </button>
   )
 }
 

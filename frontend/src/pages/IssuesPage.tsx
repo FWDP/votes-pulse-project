@@ -10,8 +10,9 @@ import {
   getUserSentimentData,
 } from '../hooks/userSentimentData'
 import type {
-  GeographySelection,
+    GeographySelection,
 } from '../types/geography'
+import { getDominantSentiment } from '../utils/sentiment'
 
 export default function IssuesPage() {
   const search = new URLSearchParams(window.location.search)
@@ -67,11 +68,15 @@ export default function IssuesPage() {
 
               {topics.map((topic, index) => {
                 const TopicIcon = topic.icon
-                const dominant = [
-                  { label: 'Positive', value: topic.positive, className: 'text-green-600' },
-                  { label: 'Neutral', value: topic.neutral, className: 'text-slate-500' },
-                  { label: 'Negative', value: topic.negative, className: 'text-red-500' },
-                ].sort((a, b) => b.value - a.value)[0]
+                const dominantSentiment = getDominantSentiment(topic)
+                const dominant = {
+                  ...dominantSentiment,
+                  className: dominantSentiment.key === 'positive'
+                    ? 'text-green-600'
+                    : dominantSentiment.key === 'negative'
+                      ? 'text-red-500'
+                      : 'text-slate-500',
+                }
 
                 return (
                   <div
