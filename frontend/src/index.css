@@ -86,7 +86,8 @@ select {
 }
 
 .brand-mark svg {
-  color: #102725;
+  color: #fff;
+  stroke: currentColor;
 }
 
 .brand strong,
@@ -112,11 +113,11 @@ select {
   }
 
   /* Animate hide/show of brand text */
-  .app-shell .sidebar .brand>div {
+  .app-shell .sidebar .brand>div:not(.brand-mark) {
     transition: opacity 200ms ease, transform 200ms ease;
   }
 
-  .app-shell.collapsed .sidebar .brand>div {
+  .app-shell.collapsed .sidebar .brand>div:not(.brand-mark) {
     opacity: 0;
     transform: translateX(-8px);
     pointer-events: none;
@@ -296,7 +297,7 @@ select {
   gap: 12px;
   align-items: center;
   padding: 0 8px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
   margin-bottom: 12px;
 }
 
@@ -392,7 +393,7 @@ select {
 .nav-item.active svg,
 .app-shell.theme-pulse .nav-item.active svg,
 .app-shell.theme-votes .nav-item.active svg {
-  color: #102725;
+  color: #fff;
 }
 
 .nav-item .nav-chev {
@@ -408,9 +409,15 @@ select {
 }
 
 /* Collapsed state tweaks (icons-only) */
-.app-shell.collapsed .brand>div,
+.app-shell.collapsed .brand>div:not(.brand-mark),
 .app-shell.collapsed .brand small {
   display: none;
+}
+
+.app-shell.collapsed .brand {
+  justify-content: center;
+  padding-right: 0;
+  padding-left: 0;
 }
 
 .app-shell.collapsed .back-link {
@@ -446,7 +453,8 @@ select {
 }
 
 .app-shell.theme-votes.collapsed .brand-mark {
-  display: block;
+  display: grid;
+  place-items: center;
   width: 32px;
   height: 32px;
 }

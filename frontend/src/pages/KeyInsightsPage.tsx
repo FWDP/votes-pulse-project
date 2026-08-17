@@ -111,7 +111,6 @@ export default function KeyInsightsPage() {
 
         <div className="space-y-4" aria-live="polite">
           {visibleInsights.map(insight => {
-            const TopicIcon = insight.topic.icon
             const high = insight.priority === 'high'
             const sentimentClasses = insight.dominant.key === 'positive'
               ? 'bg-green-100 text-green-700'
@@ -120,23 +119,29 @@ export default function KeyInsightsPage() {
                 : 'bg-slate-200 text-slate-700'
 
             return (
-              <article key={insight.topic.id} className={`rounded-xl border p-5 shadow-sm ${high ? 'border-red-200 bg-red-50/70' : 'border-amber-200 bg-white'}`}>
-                <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                    <TopicIcon size={17} className="text-slate-800" aria-hidden="true" />
-                    {insight.topic.name}
+              <article
+                key={insight.topic.id}
+                className={`rounded-xl border px-6 py-5 ${high ? 'border-red-200 bg-red-50/70' : 'border-amber-300 bg-white'}`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 pt-0.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    <span
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${high ? 'bg-red-500' : 'bg-amber-500'}`}
+                      aria-hidden="true"
+                    />
+                    {insight.topic.shortName}
                   </div>
-                  <div className="flex gap-2">
-                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${sentimentClasses}`}>
-                      {insight.dominant.direction} {insight.dominant.label.toLowerCase()} · {insight.dominant.value}%
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-bold leading-none ${sentimentClasses}`}>
+                      {insight.dominant.direction} {insight.dominant.label.toLowerCase()}
                     </span>
-                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${high ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-bold leading-none ${high ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>
                       {high ? 'High Priority' : 'Medium'}
                     </span>
                   </div>
-                </header>
-                <h2 className="mt-4 text-base font-bold text-slate-800">{insight.title}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{insight.description}</p>
+                </div>
+                <h2 className="mt-4 text-base font-bold leading-6 text-slate-800">{insight.title}</h2>
+                <p className="mt-2 max-w-none text-sm leading-6 text-slate-600">{insight.description}</p>
               </article>
             )
           })}
