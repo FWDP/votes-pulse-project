@@ -1,0 +1,217 @@
+import {
+    useMemo,
+    useState,
+} from 'react'
+
+import type {
+    BoundaryFeature,
+    BoundaryFeatureCollection,
+    GeoJsonPosition,
+} from '../../types/geography'
+import type { LocationSentimentMetric } from '../../types/sentiment'
+
+interface GeoJsonMapProps {
+    data: BoundaryFeatureCollection
+    metrics?: LocationSentimentMetric[]
+}
+
+const WIDTH = 480
+const HEIGHT = 390
+const PADDING = 18
+
+const getPolygons = (
+    feature: BoundaryFeature,
+): GeoJsonPosition[][][] => {
+    if (!feature.geometry) return []
+
+    return feature.geometry.type === 'Polygon'
+        ? [feature.geometry.coordinates]
+        : feature.geometry.coordinates
+}
+
+const getFeatureName = (
+    feature: BoundaryFeature,
+) => feature.properties.city_name ??
+    feature.properties.prov_name ??
+    feature.properties.reg_name ??
+    feature.properties.psgc_name ??
+    'Administrative area'
+
+const getFeatureCode = (
+    feature: BoundaryFeature,
+) => feature.properties.psgc_10d ??
+    feature.properties.psgc_code
+
+const getShortLabel = (value: string) =>
+    value
+        .replace(/^City of /i, '')
+        .replace(/^Municipality of /i, '')
+        .replace(/ \(.+\)$/, '')
+
+export default function GeoJsonMap({
+    data,
+    metrics = [],
+}: GeoJsonMapProps) {
+    const [hoveredCode, setHoveredCode] = useState<string | null>(null)
+
+    const projected = useMemo(() => {
+        const points = data.features.flatMap(feature =>
+            getPolygons(feature).flatMap(polygon =>
+                polygon.flatMap(ring => ring),
+            ),
+        )
+
+        if (points.length === 0) return []
+
+        const longitudes = points.map(point => point[0])
+        const latitudes = points.map(point => point[1])
+        const minLongitude = Math.min(...longitudes)
+        const maxLongitude = Math.max(...longitudes)
+        const minLatitude = Math.min(...latitudes)
+        const maxLatitude = Math.max(...latitudes)
+        const longitudeRange = Math.max(maxLongitude - minLongitude, 0.001)
+        const latitudeRange = Math.max(maxLatitude - minLatitude, 0.001)
+        const scale = Math.min(
+            (WIDTH - PADDING * 2) / longitudeRange,
+            (HEIGHT - PADDING * 2) / latitudeRange,
+        )
+        const drawingWidth = longitudeRange * scale
+        const drawingHeight = latitudeRange * scale
+        const offsetX = (WIDTH - drawingWidth) / 2
+        const offsetY = (HEIGHT - drawingHeight) / 2
+        const project = ([longitude, latitude]: GeoJsonPosition) => [
+            offsetX + (longitude - minLongitude) * scale,
+            offsetY + (maxLatitude - latitude) * scale,
+        ]
+
+        const metricByCode = new Map<string, LocationSentimentMetric>()
+        metrics.forEach(metric => {
+            metricByCode.set(metric.code, metric)
+            metric.aliases?.forEach(alias => metricByCode.set(alias, metric))
+        })
+        const aggregateMetric = metrics.length > 0
+            ? {
+                positive: Math.round(metrics.reduce((sum, metric) => sum + metric.positive, 0) / metrics.length),
+                neutral: Math.round(metrics.reduce((sum, metric) => sum + metric.neutral, 0) / metrics.length),
+                negative: Math.round(metrics.reduce((sum, metric) => sum + metric.negative, 0) / metrics.length),
+            }
+            : undefined
+
+        return data.features.map((feature, index) => {
+            const polygons = getPolygons(feature)
+            const path = polygons.map(polygon =>
+                polygon.map(ring =>
+                    ring.map((point, pointIndex) => {
+                        const [x, y] = project(point)
+
+                        return `${pointIndex === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
+                    }).join(' ') + ' Z',
+                ).join(' '),
+            ).join(' ')
+            const outerPoints = polygons.flatMap(polygon => polygon[0] ?? [])
+            const projectedOuterPoints = outerPoints.map(project)
+            const center = projectedOuterPoints.length > 0
+                ? projectedOuterPoints.reduce(
+                    ([sumX, sumY], [x, y]) => [sumX + x, sumY + y],
+                    [0, 0],
+                ).map(value => value / projectedOuterPoints.length)
+                : null
+
+            return {
+                feature,
+                path,
+                center,
+                key: getFeatureCode(feature) ?? String(index),
+                metric: [
+                    feature.properties.psgc_10d,
+                    feature.properties.psgc_code,
+                    feature.properties.city_code,
+                    feature.properties.prov_code,
+                ].map(code => code ? metricByCode.get(code) : undefined)
+                    .find(metric => metric !== undefined) ?? aggregateMetric,
+            }
+        })
+    }, [data, metrics])
+
+    const hoveredFeature = projected.find(
+        item => item.key === hoveredCode,
+    )?.feature
+    const showLabels = projected.length <= 16
+
+    return (
+        <div className="relative h-full min-h-[390px] w-full">
+            <svg
+                viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+                className="h-full min-h-[390px] w-full"
+                role="img"
+                aria-label="Administrative boundary map"
+            >
+                <rect width={WIDTH} height={HEIGHT} rx="14" fill="#f8fafc" />
+
+                <g>
+                    {projected.map(item => (
+                        <path
+                            key={item.key}
+                            d={item.path}
+                            fill={hoveredCode === item.key
+                                ? '#475569'
+                                : item.metric
+                                    ? item.metric.positive >= item.metric.neutral && item.metric.positive >= item.metric.negative
+                                        ? '#22c55e'
+                                        : item.metric.negative >= item.metric.positive && item.metric.negative >= item.metric.neutral
+                                            ? '#ef4444'
+                                            : '#f59e0b'
+                                    : '#dbe4ee'}
+                            fillRule="evenodd"
+                            stroke="#ffffff"
+                            strokeWidth={projected.length > 100 ? 0.35 : 0.9}
+                            className="cursor-pointer transition-colors duration-150"
+                            onMouseEnter={() => setHoveredCode(item.key)}
+                            onMouseLeave={() => setHoveredCode(null)}
+                            onFocus={() => setHoveredCode(item.key)}
+                            onBlur={() => setHoveredCode(null)}
+                            tabIndex={0}
+                        >
+                            <title>{getFeatureName(item.feature)}</title>
+                        </path>
+                    ))}
+                </g>
+
+                {showLabels && (
+                    <g className="pointer-events-none">
+                        {projected.map(item => item.center && (
+                            <text
+                                key={`${item.key}-label`}
+                                x={item.center[0]}
+                                y={item.center[1]}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                fill="#475569"
+                                fontSize={projected.length <= 18 ? 6.5 : 5.5}
+                                fontWeight="600"
+                            >
+                                {getShortLabel(getFeatureName(item.feature))}
+                            </text>
+                        ))}
+                    </g>
+                )}
+            </svg>
+
+            <div className="pointer-events-none absolute left-3 top-3 max-w-[75%] rounded-lg border border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    {hoveredFeature ? 'Area details' : 'Boundary layer'}
+                </p>
+                <p className="mt-0.5 truncate text-xs font-semibold text-slate-700">
+                    {hoveredFeature
+                        ? getFeatureName(hoveredFeature)
+                        : 'Hover over an area for details'}
+                </p>
+                {hoveredFeature && getFeatureCode(hoveredFeature) && (
+                    <p className="mt-0.5 text-[10px] text-slate-500">
+                        PSGC {getFeatureCode(hoveredFeature)}
+                    </p>
+                )}
+            </div>
+        </div>
+    )
+}

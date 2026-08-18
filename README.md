@@ -21,7 +21,41 @@ npm install
 npm run dev
 ```
 
-`npm run dev` starts the Vite client on port 5173 and the cached source service on port 8787. Copy `.env.example` to `.env` and provide `PSA_PSGC_TOKEN` to activate the official PSGC connector.
+`npm run dev` starts the Vite client on port 5173 and the API on port 8787. Vite proxies requests under `/api` to the local API. Configure an external API base in `.env` using `VITE_API_BASE_URL`, for example `https://your-api.example.com`.
+
+## Run the API with Docker
+
+Create the backend environment file and add your PSA PSGC token:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+```dotenv
+PSA_PSGC_TOKEN=your-token
+PSA_PSGC_VERSION=Q2_2024
+```
+
+Build and start the API in the background:
+
+```bash
+docker compose up --build -d api
+```
+
+Verify the container and the regions endpoint:
+
+```bash
+docker compose ps
+curl http://127.0.0.1:8787/api/health
+curl http://127.0.0.1:8787/api/geography/regions
+```
+
+The existing Vite development server will continue to proxy `/api` requests to the container on port 8787. View logs or stop the service with:
+
+```bash
+docker compose logs -f api
+docker compose down
+```
 
 ## Production data model
 
