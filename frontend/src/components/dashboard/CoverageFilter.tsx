@@ -1,5 +1,6 @@
 import {
     useEffect,
+    useMemo,
 } from 'react'
 import {
     CalendarDays,
@@ -67,9 +68,13 @@ export default function CoverageFilter({
                     ? assigned.region
                     : ''
             ),
-            province: restrictedCoverage.field === 'province' ? restrictedCoverage.value : (
-                restrictedCoverage.field === 'locality' ? assigned.province : ''
-            ),
+            province: restrictedCoverage.field === 'province'
+                ? restrictedCoverage.value
+                : (
+                    restrictedCoverage.field === 'locality'
+                        ? (restrictedCoverage.provinceValue ?? assigned.province)
+                        : ''
+                ),
             district: restrictedCoverage.field === 'district' ? restrictedCoverage.value : '',
             locality: restrictedCoverage.field === 'locality' ? restrictedCoverage.value : '',
         }
@@ -80,6 +85,22 @@ export default function CoverageFilter({
     }, [geography, isSuperadmin, onGeographyChange, restrictedCoverage, user])
 
     const coverageLocked = hasCoverageLock(user)
+    const assignedAreaSummary = useMemo(() => {
+        if (!user?.homeLocation || user.isSuperadmin) return null
+
+        switch (user.homeLocation) {
+            case 'Navotas':
+                return 'Assigned area: National Capital Region · Navotas'
+            case 'Cavite':
+                return 'Assigned area: CALABARZON · Cavite'
+            case 'Lucena City':
+                return 'Assigned area: CALABARZON · Quezon · Lucena City'
+            case 'Marilao, Bulacan':
+                return 'Assigned area: Central Luzon · Bulacan · Marilao'
+            default:
+                return null
+        }
+    }, [user])
 
     const getDescription = () => {
         if (geography.locality) {
@@ -152,7 +173,12 @@ export default function CoverageFilter({
                             />
 
                             {coverageLocked && (
-                                <div className="ml-4 text-xs font-semibold text-rose-700" role="status" aria-live="polite">Coverage locked to assigned area</div>
+                                <div className="ml-4 flex flex-col gap-1 text-xs font-semibold text-rose-700" role="status" aria-live="polite">
+                                    <span>Coverage locked to assigned area</span>
+                                    {assignedAreaSummary && (
+                                        <span className="text-[11px] font-medium text-slate-600">{assignedAreaSummary}</span>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>

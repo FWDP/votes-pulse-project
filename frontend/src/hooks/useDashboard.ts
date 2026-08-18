@@ -47,22 +47,6 @@ export function useDashboard(
         }
       ).env?.VITE_API_BASE_URL;
 
-      /*
-       * Backend isn't configured yet.
-       * Keep showing development placeholders.
-       */
-      if (!apiBaseUrl) {
-        setData(placeholderDashboard);
-
-        setUsingPlaceholder(true);
-
-        setError(null);
-
-        setLoading(false);
-
-        return;
-      }
-
       try {
         setLoading(true);
 
@@ -72,9 +56,11 @@ export function useDashboard(
         if (filters?.severity && filters.severity !== 'all') params.set('severity', filters.severity)
         if (filters?.area) params.set('area', filters.area)
 
-        const response = await fetch(
-          `${apiBaseUrl}/api/dashboard?${params.toString()}`,
-        );
+        const dashboardUrl = apiBaseUrl
+          ? `${apiBaseUrl}/api/dashboard?${params.toString()}`
+          : `/api/dashboard?${params.toString()}`;
+
+        const response = await fetch(dashboardUrl);
 
         if (!response.ok) {
           throw new Error(

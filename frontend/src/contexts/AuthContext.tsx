@@ -6,10 +6,11 @@ export type TestUser = {
   displayName: string
   email: string
   isSuperadmin?: boolean
-  homeLocation?: 'Navotas' | 'Cavite' | 'Lucena City'
+  homeLocation?: 'Navotas' | 'Cavite' | 'Lucena City' | 'Marilao, Bulacan'
   coverageScope?: 'locality' | 'province'
   coverageValue?: string
   coverageCode?: string
+  provinceCode?: string
 }
 
 export const TEST_USERS: TestUser[] = [
@@ -45,6 +46,17 @@ export const TEST_USERS: TestUser[] = [
     coverageScope: 'locality',
     coverageValue: 'Lucena City',
     coverageCode: '0431200000',
+    provinceCode: '0431000000',
+  },
+  {
+    id: 'user-marilao-local',
+    displayName: 'Marilao User',
+    email: 'marilao@example.test',
+    homeLocation: 'Marilao, Bulacan',
+    coverageScope: 'locality',
+    coverageValue: 'Marilao, Bulacan',
+    coverageCode: '0314100000',
+    provinceCode: '0314000000',
   },
 ]
 
@@ -57,6 +69,7 @@ export const getCoverageRestriction = (user?: Partial<TestUser>) => {
   return {
     field: matches.coverageScope,
     value: matches.coverageCode ?? matches.coverageValue,
+    provinceValue: matches.provinceCode || undefined,
   }
 }
 
@@ -70,6 +83,8 @@ export const getCoverageLabel = (user?: Partial<TestUser>) => {
       return 'Coverage: Cavite Province'
     case 'Lucena City':
       return 'Coverage: City of Lucena'
+    case 'Marilao, Bulacan':
+      return 'Coverage: Municipality of Marilao'
     default:
       return 'National coverage'
   }
@@ -98,9 +113,16 @@ export const getAssignedGeographySelection = (user?: Partial<TestUser>): Geograp
     case 'Lucena City':
       return {
         region: '0400000000',
-        province: '',
+        province: '0431000000',
         district: '',
         locality: '0431200000',
+      }
+    case 'Marilao, Bulacan':
+      return {
+        region: '0300000000',
+        province: '0314000000',
+        district: '',
+        locality: '0314100000',
       }
     default:
       return { region: '', province: '', district: '', locality: '' }
@@ -109,16 +131,26 @@ export const getAssignedGeographySelection = (user?: Partial<TestUser>): Geograp
 
 export const hasCoverageLock = (user?: Partial<TestUser>) => Boolean(user?.homeLocation && !user?.isSuperadmin)
 
+const DEFAULT_TEST_USER_ID = TEST_USERS.find(candidate => candidate.homeLocation === 'Marilao, Bulacan')?.id ?? TEST_USERS[0].id
+const LEGACY_DEFAULT_USER_ID = 'user-navotas-local'
+
 const AuthContext = createContext<any>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [selectedUserId, setSelectedUserId] = useState<string>(() => {
-    if (typeof window === 'undefined') return TEST_USERS[0].id
+    if (typeof window === 'undefined') return DEFAULT_TEST_USER_ID
 
     const saved = window.localStorage.getItem('votespulse-user-id')
+
+    if (saved === LEGACY_DEFAULT_USER_ID) {
+      window.localStorage.setItem('votespulse-user-id', DEFAULT_TEST_USER_ID)
+      return DEFAULT_TEST_USER_ID
+    }
+
     if (saved && TEST_USERS.some(user => user.id === saved)) return saved
 
-    return TEST_USERS[0].id
+    window.localStorage.setItem('votespulse-user-id', DEFAULT_TEST_USER_ID)
+    return DEFAULT_TEST_USER_ID
   })
 
   const user = useMemo(() => {

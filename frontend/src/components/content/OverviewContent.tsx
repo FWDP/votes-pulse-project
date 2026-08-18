@@ -14,7 +14,7 @@ import MapPanelPlaceholder from '../../components/MapPanelPlaceholder'
 import GeoJsonMap from '../location/GeoJsonMap'
 import { getBoundaryGeoJson } from '../../services/boundaryApi'
 import { useEffect, useState } from 'react'
-import { getAssignedGeographySelection, useAuth, getCoverageRestriction } from '../../contexts/AuthContext'
+import { getAssignedGeographySelection, useAuth, getCoverageRestriction, getCoverageLabel } from '../../contexts/AuthContext'
 import { isSameGeography } from '../../utils/geography'
 
 function toMeltwaterDate(
@@ -54,6 +54,10 @@ export default function OverviewContent() {
     const [severity, setSeverity] = useState<string>('all')
     const [selectedArea, setSelectedArea] = useState<string | null>(restrictedCoverage?.value ?? null)
     const [geography, setGeography] = useState(assignedGeography)
+    const selectedAreaLabel = useMemo(() => {
+        if (user?.isSuperadmin) return 'National coverage'
+        return getCoverageLabel(user) || 'Selected area'
+    }, [user])
 
     const getRangeForPeriod = (period: string) => {
         const now = new Date()
@@ -117,7 +121,7 @@ export default function OverviewContent() {
         setGeography(current => isSameGeography(current, assignedGeography) ? current : assignedGeography)
 
         setSelectedArea(current => {
-            const next = restrictedCoverage.value ?? null
+            const next = restrictedCoverage.value ?? restrictedCoverage.provinceValue ?? null
             return current === next ? current : next
         })
     }, [assignedGeography, restrictedCoverage])
@@ -172,7 +176,7 @@ export default function OverviewContent() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white rounded-xl border border-slate-200 p-5">
-                    <AreaComparison data={data.areas} />
+                    <AreaComparison data={data.areas} selectedAreaName={selectedAreaLabel} />
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-5">
                     <DataSourcesCard sources={data.sources} quickIssues={data.quickIssues} />

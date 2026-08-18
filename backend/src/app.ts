@@ -4,6 +4,7 @@ import path from 'path'
 
 import geographyRouter from './routes/geography'
 import adminRouter from './routes/admin'
+import dashboardRouter from './routes/dashboard'
 
 const app = express()
 const distPath = path.resolve(process.cwd(), 'dist')
@@ -41,6 +42,7 @@ app.use(
 )
 
 app.use('/api/admin', adminRouter)
+app.use('/api/dashboard', dashboardRouter)
 
 app.use(express.static(distPath))
 
