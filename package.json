@@ -13,6 +13,7 @@
     "type-check": "tsc -b --pretty false"
   },
   "dependencies": {
+  "cors": "^2.8.5",
     "@types/express": "^5.0.6",
     "@vitejs/plugin-react": "^6.0.4",
     "cheerio": "^1.2.0",

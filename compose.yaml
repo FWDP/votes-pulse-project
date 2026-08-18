@@ -11,6 +11,7 @@ services:
     environment:
       BACKEND_HOST: 0.0.0.0
       PORT: 8787
+      CORS_ORIGIN: 'http://votes-pulse.local,http://localhost:5173,http://127.0.0.1:5173'
     ports:
       - "8787:8787"
     healthcheck:
