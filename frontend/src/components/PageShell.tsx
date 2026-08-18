@@ -1,4 +1,5 @@
 import React from 'react'
+import { useAuth, hasCoverageLock } from '../contexts/AuthContext'
 
 export default function PageShell({
   title,
@@ -11,6 +12,10 @@ export default function PageShell({
   children: React.ReactNode
   dataMode?: 'placeholder' | 'coverage-only'
 }) {
+  const { user } = useAuth()
+
+  const coverageLocked = hasCoverageLock(user)
+
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
@@ -18,6 +23,9 @@ export default function PageShell({
           <div>
             <h1 className="text-xl font-bold">{title}</h1>
             {subtitle && <div className="text-sm text-slate-500">{subtitle}</div>}
+            {coverageLocked && (
+              <div className="mt-1 text-xs text-rose-700 font-semibold" role="status" aria-live="polite">Coverage locked to assigned area</div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">

@@ -474,6 +474,15 @@ const isPSGCCode = (
     typeof value === 'string' &&
     /^\d{10}$/.test(value)
 
+const inferRegionCodeFromNestedSelection = (
+    value?: string,
+): string | undefined => {
+    if (!value || !isPSGCCode(value)) return undefined
+
+    const regionPrefix = value.slice(0, 2)
+    return `${regionPrefix}00000000`
+}
+
 const getBoundaryData = async (
     {
         region,
@@ -639,16 +648,28 @@ router.get(
             })
         }
 
-        if ((province || district || locality) && !region) {
+        const resolvedRegion =
+            typeof region === 'string'
+                ? region
+                : inferRegionCodeFromNestedSelection(
+                    typeof locality === 'string'
+                        ? locality
+                        : typeof district === 'string'
+                            ? district
+                            : typeof province === 'string'
+                                ? province
+                                : undefined,
+                )
+
+        if ((province || district || locality) && !resolvedRegion) {
             return response.status(400).json({
                 message: 'Region is required for nested boundary filters',
             })
         }
 
-
         if (
             typeof district === 'string' &&
-            region !== NCR_REGION_CODE
+            resolvedRegion !== NCR_REGION_CODE
         ) {
             return response.status(400).json({
                 message: 'NCR district requires the NCR region',
@@ -656,9 +677,9 @@ router.get(
         }
 
         if (
-            typeof region === 'string' &&
+            typeof resolvedRegion === 'string' &&
             typeof province === 'string' &&
-            !province.startsWith(region.slice(0, 2))
+            !province.startsWith(resolvedRegion.slice(0, 2))
         ) {
             return response.status(400).json({
                 message: 'Province does not belong to the selected region',
@@ -667,7 +688,7 @@ router.get(
 
         try {
             const payload = await getBoundaryData({
-                region: typeof region === 'string' ? region : undefined,
+                region: resolvedRegion,
                 province: typeof province === 'string' ? province : undefined,
                 district: typeof district === 'string' ? district : undefined,
                 locality: typeof locality === 'string' ? locality : undefined,

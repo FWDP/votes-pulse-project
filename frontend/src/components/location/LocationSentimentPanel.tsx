@@ -20,12 +20,18 @@ import {
 import {
     getPlaceholderLocationMetrics,
 } from '../../data/placeholderLocationMetrics'
+import {
+    getAssignedGeographySelection,
+    useAuth,
+} from '../../contexts/AuthContext'
+import { isSameGeography } from '../../utils/geography'
 
 import AdministrativeBreakdown, {
     type AdministrativeGroup,
 } from './AdministrativeBreakdown'
 import GeoJsonMap from './GeoJsonMap'
 import LocationAnalyticsPanels from './LocationAnalyticsPanels'
+import MapLegend from '../MapLegend'
 
 import type {
     BoundaryFeatureCollection,
@@ -70,6 +76,17 @@ export default function LocationSentimentPanel({
     onGeographyChange,
     period,
 }: LocationSentimentPanelProps) {
+    const { user } = useAuth()
+    const assignedGeography = useMemo(() => getAssignedGeographySelection(user), [user])
+    const hasAssignedCoverageLock = Boolean(user?.homeLocation && !user.isSuperadmin)
+
+    useEffect(() => {
+        if (!hasAssignedCoverageLock) return
+        if (!isSameGeography(geography, assignedGeography)) {
+            onGeographyChange(assignedGeography)
+        }
+    }, [assignedGeography, geography, hasAssignedCoverageLock, onGeographyChange, user])
+
     const [scopeName, setScopeName] = useState('Philippines')
     const [units, setUnits] = useState<GeographyUnit[]>([])
     const [loading, setLoading] = useState(true)
@@ -412,19 +429,22 @@ export default function LocationSentimentPanel({
         [locationMetrics],
     )
 
-    const upLevelLabel = geography.locality
-        ? geography.district
-            ? 'Up to district'
-            : geography.province
-                ? 'Up to province'
-                : 'Up to region'
-        : geography.district || geography.province
-            ? 'Up to region'
-            : geography.region
-                ? 'Up to all regions'
+    const canMoveUp = !hasAssignedCoverageLock && Boolean(geography.locality || geography.district || geography.province)
+    const upLevelLabel = canMoveUp
+        ? geography.locality
+            ? geography.district
+                ? 'Up to district'
+                : geography.province
+                    ? 'Up to province'
+                    : 'Up to region'
+            : geography.district || geography.province
+                ? 'Up to region'
                 : null
+        : null
 
     const moveUpOneLevel = () => {
+        if (hasAssignedCoverageLock) return
+
         if (geography.locality) {
             onGeographyChange({
                 ...geography,
@@ -482,6 +502,8 @@ export default function LocationSentimentPanel({
                 kind={groupKind}
                 metrics={locationMetrics}
                 onGroupSelect={group => {
+                    if (hasAssignedCoverageLock) return
+
                     if (groupKind === 'district') {
                         onGeographyChange({
                             ...geography,
@@ -521,11 +543,16 @@ export default function LocationSentimentPanel({
                     <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-green-500" />Positive</span>
                     <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-amber-500" />Mixed</span>
                     <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-red-500" />Negative</span>
+                    {hasAssignedCoverageLock && (
+                        <span className="ml-2 rounded-full bg-rose-50 text-rose-700 px-2 py-1 text-[11px] font-semibold">
+                            Coverage locked to assigned area
+                        </span>
+                    )}
                 </div>
             </header>
 
             <div className="grid min-h-[420px] grid-cols-1 lg:grid-cols-[minmax(280px,0.9fr)_minmax(360px,1.4fr)]">
-                <div className="flex items-center justify-center border-b border-slate-100 bg-slate-50/60 p-8 lg:border-b-0 lg:border-r">
+                <div className="relative flex items-center justify-center border-b border-slate-100 bg-slate-50/60 p-8 lg:border-b-0 lg:border-r">
                     {boundaryLoading && (
                         <div className="text-sm text-slate-500" role="status">
                             Loading boundary map…
@@ -550,7 +577,19 @@ export default function LocationSentimentPanel({
                     )}
 
                     {!boundaryLoading && !boundaryError && displayedBoundaryData && displayedBoundaryData.features.length > 0 && (
-                        <GeoJsonMap data={displayedBoundaryData} metrics={locationMetrics} />
+                        <>
+                            <GeoJsonMap data={displayedBoundaryData} metrics={locationMetrics} />
+                            <MapLegend />
+                        </>
+                    )}
+
+                    {boundaryLoading && (
+                        <div className="absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2">
+                            <svg className="h-10 w-10 animate-spin text-slate-500" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                            </svg>
+                        </div>
                     )}
                 </div>
 

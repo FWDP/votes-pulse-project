@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type InputHTMLAttributes } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type InputHTMLAttributes } from 'react'
 import { CheckCircle2, ClipboardList, FilePlus2, FileText, Search } from 'lucide-react'
 
 import PageShell from '../components/PageShell'
@@ -9,6 +9,8 @@ import {
   type GeographySelection,
   type ResolvedGeographySelection,
 } from '../types/geography'
+import { getAssignedGeographySelection, getCoverageLabel, useAuth } from '../contexts/AuthContext'
+import { isSameGeography } from '../utils/geography'
 
 type ReportStatus = 'Pending review' | 'Reviewed' | 'Follow-up'
 type LocalityType = 'city' | 'municipality'
@@ -99,12 +101,20 @@ const sameArea = (left: string, right?: string) => {
 }
 
 export default function FieldReportsPage() {
+  const { user } = useAuth()
   const searchParams = new URLSearchParams(window.location.search)
   const workspace = (searchParams.get('workspace') as 'national' | 'candidate') || 'national'
   const candidate = workspace === 'candidate'
-  const [geography, setGeography] = useState<GeographySelection>({ region: '', province: '', district: '', locality: '' })
+  const [geography, setGeography] = useState<GeographySelection>(getAssignedGeographySelection(user))
   const [resolvedGeography, setResolvedGeography] = useState<ResolvedGeographySelection>({})
   const [period, setPeriod] = useState('30d')
+
+  useEffect(() => {
+    if (!user?.homeLocation || user.isSuperadmin) return
+
+    const assigned = getAssignedGeographySelection(user)
+    setGeography(current => isSameGeography(current, assigned) ? current : assigned)
+  }, [user])
   const [reports, setReports] = useState(INITIAL_REPORTS)
   const [query, setQuery] = useState('')
   const [topic, setTopic] = useState('all')
@@ -182,7 +192,7 @@ export default function FieldReportsPage() {
   const reviewedCount = coverageReports.filter(report => report.status === 'Reviewed').length
 
   return (
-    <PageShell title="Field Reports" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : 'Structured field observations and review workflow'}>
+    <PageShell title="Field Reports" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : getCoverageLabel(user)}>
       <div className="space-y-5">
         <CoverageFilter geography={geography} onGeographyChange={setGeography} onResolvedGeographyChange={setResolvedGeography} period={period} onPeriodChange={setPeriod} />
 

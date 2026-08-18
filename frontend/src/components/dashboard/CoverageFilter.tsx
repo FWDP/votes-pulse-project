@@ -1,10 +1,21 @@
 import {
+    useEffect,
+} from 'react'
+import {
     CalendarDays,
 } from 'lucide-react'
 
 import {
     GeographyControls,
 } from './GeographyControls'
+
+import {
+    useAuth,
+    getCoverageRestriction,
+    getAssignedGeographySelection,
+    hasCoverageLock,
+} from '../../contexts/AuthContext'
+import { isSameGeography } from '../../utils/geography'
 
 import type {
     GeographySelection,
@@ -41,6 +52,35 @@ export default function CoverageFilter({
     onGeographyChange,
     onResolvedGeographyChange,
 }: CoverageFilterProps) {
+    const { user } = useAuth()
+    const isSuperadmin = Boolean(user?.isSuperadmin)
+    const restrictedCoverage = getCoverageRestriction(user)
+
+    useEffect(() => {
+        if (isSuperadmin || !restrictedCoverage) return
+
+        const assigned = getAssignedGeographySelection(user)
+
+        const nextGeography: GeographySelection = {
+            region: restrictedCoverage.field === 'region' ? restrictedCoverage.value : (
+                restrictedCoverage.field === 'province' || restrictedCoverage.field === 'district' || restrictedCoverage.field === 'locality'
+                    ? assigned.region
+                    : ''
+            ),
+            province: restrictedCoverage.field === 'province' ? restrictedCoverage.value : (
+                restrictedCoverage.field === 'locality' ? assigned.province : ''
+            ),
+            district: restrictedCoverage.field === 'district' ? restrictedCoverage.value : '',
+            locality: restrictedCoverage.field === 'locality' ? restrictedCoverage.value : '',
+        }
+
+        if (!isSameGeography(nextGeography, geography)) {
+            onGeographyChange(nextGeography)
+        }
+    }, [geography, isSuperadmin, onGeographyChange, restrictedCoverage, user])
+
+    const coverageLocked = hasCoverageLock(user)
+
     const getDescription = () => {
         if (geography.locality) {
             if (geography.locality === ALL_CITIES_FILTER) {
@@ -99,15 +139,22 @@ export default function CoverageFilter({
                             </span>
                         </div>
 
-                        <GeographyControls
-                            value={geography}
-                            onChange={
-                                onGeographyChange
-                            }
-                            onResolvedChange={
-                                onResolvedGeographyChange
-                            }
-                        />
+                        <div className="flex items-center justify-between">
+                            <GeographyControls
+                                value={geography}
+                                onChange={
+                                    onGeographyChange
+                                }
+                                onResolvedChange={
+                                    onResolvedGeographyChange
+                                }
+                                disabled={coverageLocked}
+                            />
+
+                            {coverageLocked && (
+                                <div className="ml-4 text-xs font-semibold text-rose-700" role="status" aria-live="polite">Coverage locked to assigned area</div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Date Range */}

@@ -3,8 +3,9 @@ import {
   Suspense,
   type ReactNode,
 } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import DashboardLayout from './layouts/DashboardLayout'
+import LoginPage from './pages/LoginPage'
 import {
   loadDataScopePage,
   loadFieldReportsPage,
@@ -28,6 +29,10 @@ const HistoricalPage = lazy(loadHistoricalPage)
 const KeyInsightsPage = lazy(loadKeyInsightsPage)
 const DataScopePage = lazy(loadDataScopePage)
 const FieldReportsPage = lazy(loadFieldReportsPage)
+const SessionsPage = lazy(() => import('./pages/admin/SessionsPage'))
+const ExportsPage = lazy(() => import('./pages/admin/ExportsPage'))
+const RolesPage = lazy(() => import('./pages/admin/RolesPage'))
+const SuperadminsPage = lazy(() => import('./pages/admin/SuperadminsPage'))
 
 function RouteLoader() {
   return (
@@ -50,11 +55,22 @@ function LazyRoute({ children }: { children: ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <Routes>
+      <Route
+        path="/"
+        element={<LazyRoute><PulseApp /></LazyRoute>}
+      />
         <Route
-          path="/"
+          path="login"
           element={<LazyRoute><PulseApp /></LazyRoute>}
+        />
+        <Route
+          path="login/votes"
+          element={<LoginPage product="votes" />}
+        />
+        <Route
+          path="login/pulse"
+          element={<LoginPage product="pulse" />}
         />
         <Route path="pulse" element={<DashboardLayout />}>
           <Route index element={<Navigate to="overview" replace />} />
@@ -68,6 +84,12 @@ export default function App() {
           <Route path="datascope" element={<LazyRoute><DataScopePage /></LazyRoute>} />
           <Route path="fieldreports" element={<LazyRoute><FieldReportsPage /></LazyRoute>} />
         </Route>
+          <Route path="admin">
+            <Route path="roles" element={<LazyRoute><RolesPage /></LazyRoute>} />
+            <Route path="sessions" element={<LazyRoute><SessionsPage /></LazyRoute>} />
+            <Route path="exports" element={<LazyRoute><ExportsPage /></LazyRoute>} />
+            <Route path="superadmins" element={<LazyRoute><SuperadminsPage /></LazyRoute>} />
+          </Route>
 
         <Route path="votes" element={<DashboardLayout />}>
           <Route index element={<Navigate to="overview" replace />} />
@@ -81,7 +103,6 @@ export default function App() {
           <Route path="datascope" element={<LazyRoute><DataScopePage /></LazyRoute>} />
           <Route path="fieldreports" element={<LazyRoute><FieldReportsPage /></LazyRoute>} />
         </Route>
-      </Routes>
-    </BrowserRouter>
+    </Routes>
   )
 }

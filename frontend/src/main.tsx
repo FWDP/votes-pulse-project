@@ -1,6 +1,9 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import App from './App'
+import { AuthProvider } from './contexts/AuthContext'
+import { TenantWorkspaceProvider } from './contexts/TenantWorkspaceContext'
 import { preloadRoute } from './routeLoaders'
 import './index.css'
 
@@ -12,6 +15,12 @@ void preloadRoute(window.location.pathname)
 
 createRoot(root).render(
 	<React.StrictMode>
-		<App />
+		<BrowserRouter>
+			<AuthProvider>
+				<TenantWorkspaceProvider>
+					<App />
+				</TenantWorkspaceProvider>
+			</AuthProvider>
+		</BrowserRouter>
 	</React.StrictMode>
 )

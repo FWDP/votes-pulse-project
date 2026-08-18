@@ -7,7 +7,8 @@ import {
 } from 'lucide-react'
 
 import PageShell from '../components/PageShell'
-import { placeholderDashboard } from '../data/placeholderDashboard'
+import { getCoverageLabel, useAuth } from '../contexts/AuthContext'
+import { useDashboard } from '../hooks/useDashboard'
 
 const SOURCE_COLORS = ['#3b82f6', '#10b981', '#06b6d4', '#f59e0b', '#8b5cf6']
 
@@ -52,18 +53,19 @@ const NEXT_PHASE = [
 ]
 
 export default function DataScopePage() {
+  const { user } = useAuth()
   const search = new URLSearchParams(window.location.search)
   const workspace = (search.get('workspace') as 'national' | 'candidate') || 'national'
   const candidate = workspace === 'candidate'
-  const totalMentions = placeholderDashboard.sources.reduce(
-    (total, source) => total + source.mentions,
-    0,
-  )
+  const end = new Date().toISOString().slice(0, 19)
+  const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19)
+  const { data } = useDashboard(start, end)
+  const totalMentions = data.sources.reduce((total, source) => total + source.mentions, 0)
 
   return (
     <PageShell
       title="Data & Scope"
-      subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : 'Data sources, limitations, and project scope'}
+      subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : getCoverageLabel(user)}
     >
       <div className="space-y-6">
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -95,7 +97,7 @@ export default function DataScopePage() {
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-bold text-slate-800">Data Sources Used</h2>
           <div className="mt-4 space-y-3">
-            {placeholderDashboard.sources.map((source, index) => {
+            {data.sources.map((source, index) => {
               const percentage = totalMentions === 0
                 ? 0
                 : (source.mentions / totalMentions) * 100

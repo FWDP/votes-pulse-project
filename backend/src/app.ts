@@ -1,9 +1,12 @@
 import express from 'express'
 import cors from 'cors'
+import path from 'path'
 
 import geographyRouter from './routes/geography'
+import adminRouter from './routes/admin'
 
 const app = express()
+const distPath = path.resolve(process.cwd(), 'dist')
 
 app.use(express.json())
 
@@ -36,5 +39,13 @@ app.use(
     '/api/geography',
     geographyRouter,
 )
+
+app.use('/api/admin', adminRouter)
+
+app.use(express.static(distPath))
+
+app.get(/^(?!\/api\/).*$/, (_request, response) => {
+    response.sendFile(path.join(distPath, 'index.html'))
+})
 
 export default app

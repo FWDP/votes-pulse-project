@@ -34,6 +34,8 @@ interface GeographyControlsProps {
     onResolvedChange?: (
         value: ResolvedGeographySelection,
     ) => void
+
+    disabled?: boolean
 }
 
 const sortGeographyUnits = (
@@ -99,6 +101,7 @@ export function GeographyControls({
     value,
     onChange,
     onResolvedChange,
+    disabled = false,
 }: GeographyControlsProps) {
     const {
         region,
@@ -418,6 +421,7 @@ export function GeographyControls({
     }, [selectedRegion, selectedProvince, isNCR])
 
     const handleRegionChange = (nextRegion: string) => {
+        if (disabled) return
         onChange({
             region: nextRegion,
             province: "",
@@ -427,6 +431,7 @@ export function GeographyControls({
     }
 
     const handleProvinceChange = (nextProvince: string) => {
+        if (disabled) return
         onChange({
             region,
             province: nextProvince,
@@ -436,6 +441,7 @@ export function GeographyControls({
     }
 
     const handleDistrictChange = (nextDistrict: string) => {
+        if (disabled) return
         onChange({
             region,
             province: "",
@@ -445,6 +451,7 @@ export function GeographyControls({
     }
 
     const handleLocalityChange = (nextLocality: string) => {
+        if (disabled) return
         onChange({
             region,
             province,
@@ -462,7 +469,7 @@ export function GeographyControls({
                     label="Region"
                     value={region}
                     disabled={
-                        isLoadingRegions
+                        disabled || isLoadingRegions
                     }
                     onChange={event =>
                         handleRegionChange(
@@ -501,7 +508,7 @@ export function GeographyControls({
                     label={isNCR ? 'District' : 'Province'}
                     value={isNCR ? district : province}
                     disabled={
-                        !region ||
+                        disabled || !region ||
                         (isNCR
                             ? isLoadingDistricts
                             : isLoadingProvinces)
@@ -557,7 +564,7 @@ export function GeographyControls({
                     label="City / Municipality"
                     value={locality}
                     disabled={
-                        !region ||
+                        disabled || !region ||
                         (!isNCR &&
                             isLoadingProvinces) ||
                         isLoadingLocalities

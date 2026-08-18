@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Area, AreaChart, CartesianGrid, Legend, Line, LineChart,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -8,6 +8,8 @@ import PageShell from '../components/PageShell'
 import CoverageFilter from '../components/dashboard/CoverageFilter'
 import { getPlaceholderTimeline } from '../data/placeholderTimeline'
 import type { GeographySelection } from '../types/geography'
+import { getAssignedGeographySelection, getCoverageLabel, useAuth } from '../contexts/AuthContext'
+import { isSameGeography } from '../utils/geography'
 
 type MetricMode = 'volume' | 'sentiment' | 'netScore'
 
@@ -18,14 +20,20 @@ const METRICS: Array<{ value: MetricMode; label: string }> = [
 ]
 
 export default function TimelinePage() {
+  const { user } = useAuth()
   const search = new URLSearchParams(window.location.search)
   const workspace = (search.get('workspace') as 'national' | 'candidate') || 'national'
   const candidate = workspace === 'candidate'
-  const [geography, setGeography] = useState<GeographySelection>({
-    region: '', province: '', district: '', locality: '',
-  })
+  const [geography, setGeography] = useState<GeographySelection>(getAssignedGeographySelection(user))
   const [period, setPeriod] = useState('30d')
   const [metric, setMetric] = useState<MetricMode>('volume')
+
+  useEffect(() => {
+    if (!user?.homeLocation || user.isSuperadmin) return
+
+    const assigned = getAssignedGeographySelection(user)
+    setGeography(current => isSameGeography(current, assigned) ? current : assigned)
+  }, [user])
   const timeline = useMemo(
     () => getPlaceholderTimeline(geography, period),
     [geography, period],
@@ -33,7 +41,7 @@ export default function TimelinePage() {
   const metricLabel = METRICS.find(item => item.value === metric)?.label ?? 'Volume'
 
   return (
-    <PageShell title="Timeline" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : 'National Pulse'}>
+    <PageShell title="Timeline" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : getCoverageLabel(user)}>
       <div className="space-y-6">
         <CoverageFilter
           geography={geography}

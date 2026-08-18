@@ -1,13 +1,12 @@
 import OverviewContent from '../components/content/OverviewContent'
 import PageShell from '../components/PageShell';
+import { getCoverageLabel, useAuth } from '../contexts/AuthContext'
 
 export default function OverviewPage() {
-  let newDate = new Date();
-  let month = newDate.toLocaleString('default', { month: 'long' });
-  let year = newDate.getFullYear();
+  const { user } = useAuth()
 
   return (
-    <PageShell title="Overview" subtitle="Summary of research findings across cities and municipalities">
+    <PageShell title="Overview" subtitle={getCoverageLabel(user)}>
       <OverviewContent />
     </PageShell>
   )

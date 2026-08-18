@@ -1,21 +1,27 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { topics } from './shared'
 import { CalendarDays } from 'lucide-react'
 import PageShell from '../components/PageShell'
 import CoverageFilter from '../components/dashboard/CoverageFilter'
 import type { GeographySelection } from '../types/geography'
+import { getAssignedGeographySelection, getCoverageLabel, useAuth } from '../contexts/AuthContext'
+import { isSameGeography } from '../utils/geography'
 
 export default function HistoricalPage() {
+  const { user } = useAuth()
   const search = new URLSearchParams(window.location.search)
   const workspace = (search.get('workspace') as 'national' | 'candidate') || 'national'
   const candidate = workspace === 'candidate'
-  const [geography, setGeography] = useState<GeographySelection>({
-    region: '',
-    province: '',
-    district: '',
-    locality: '',
-  })
+  const [geography, setGeography] = useState<GeographySelection>(getAssignedGeographySelection(user))
   const [period, setPeriod] = useState('30d')
+
+  useEffect(() => {
+    if (!user?.homeLocation || user.isSuperadmin) return
+
+    const assigned = getAssignedGeographySelection(user)
+    setGeography(current => isSameGeography(current, assigned) ? current : assigned)
+  }, [user])
+
   const historicalEvents = useMemo(() => {
     const baseEvents = [
       ['May 2022', 'National and local election period', 2847, 33],
@@ -104,7 +110,7 @@ export default function HistoricalPage() {
   }, [geography, period])
 
   return (
-    <PageShell title="Historical Context" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : 'National Pulse'}>
+    <PageShell title="Historical Context" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : getCoverageLabel(user)}>
       <div className="space-y-4">
         <CoverageFilter
           geography={geography}

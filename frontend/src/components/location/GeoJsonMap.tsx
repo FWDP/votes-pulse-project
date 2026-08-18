@@ -13,6 +13,8 @@ import type { LocationSentimentMetric } from '../../types/sentiment'
 interface GeoJsonMapProps {
     data: BoundaryFeatureCollection
     metrics?: LocationSentimentMetric[]
+    onAreaClick?: (key: string, feature: BoundaryFeature) => void
+    selectedKey?: string | null
 }
 
 const WIDTH = 480
@@ -51,6 +53,8 @@ const getShortLabel = (value: string) =>
 export default function GeoJsonMap({
     data,
     metrics = [],
+    onAreaClick,
+    selectedKey = null,
 }: GeoJsonMapProps) {
     const [hoveredCode, setHoveredCode] = useState<string | null>(null)
 
@@ -153,23 +157,28 @@ export default function GeoJsonMap({
                         <path
                             key={item.key}
                             d={item.path}
-                            fill={hoveredCode === item.key
-                                ? '#475569'
-                                : item.metric
-                                    ? item.metric.positive >= item.metric.neutral && item.metric.positive >= item.metric.negative
-                                        ? '#22c55e'
-                                        : item.metric.negative >= item.metric.positive && item.metric.negative >= item.metric.neutral
-                                            ? '#ef4444'
-                                            : '#f59e0b'
-                                    : '#dbe4ee'}
+                            fill={
+                                item.key === selectedKey
+                                    ? '#1e293b'
+                                    : hoveredCode === item.key
+                                        ? '#475569'
+                                        : item.metric
+                                            ? item.metric.positive >= item.metric.neutral && item.metric.positive >= item.metric.negative
+                                                ? '#22c55e'
+                                                : item.metric.negative >= item.metric.positive && item.metric.negative >= item.metric.neutral
+                                                    ? '#ef4444'
+                                                    : '#f59e0b'
+                                            : '#dbe4ee'
+                            }
                             fillRule="evenodd"
-                            stroke="#ffffff"
+                            stroke={item.key === selectedKey ? '#000000' : '#ffffff'}
                             strokeWidth={projected.length > 100 ? 0.35 : 0.9}
                             className="cursor-pointer transition-colors duration-150"
                             onMouseEnter={() => setHoveredCode(item.key)}
                             onMouseLeave={() => setHoveredCode(null)}
                             onFocus={() => setHoveredCode(item.key)}
                             onBlur={() => setHoveredCode(null)}
+                            onClick={() => onAreaClick?.(item.key, item.feature)}
                             tabIndex={0}
                         >
                             <title>{getFeatureName(item.feature)}</title>

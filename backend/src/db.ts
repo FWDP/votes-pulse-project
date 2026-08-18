@@ -1,5 +1,5 @@
-import { Pool } from 'pg'
 import path from 'node:path'
+import { Pool } from 'pg'
 import { config as loadEnv } from 'dotenv'
 
 // If DATABASE_URL not set in the environment, try loading backend/.env

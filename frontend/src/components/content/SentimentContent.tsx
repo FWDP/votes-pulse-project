@@ -1,4 +1,5 @@
 import {
+    useEffect,
     useMemo,
     useState,
 } from 'react'
@@ -19,18 +20,23 @@ import {
 import type {
     GeographySelection,
 } from '../../types/geography'
+import { getAssignedGeographySelection, useAuth } from '../../contexts/AuthContext'
+import { isSameGeography } from '../../utils/geography'
 
 export default function SentimentContent() {
+    const { user } = useAuth()
     const [
         geography,
         setGeography,
     ] =
-        useState<GeographySelection>({
-            region: '',
-            province: '',
-            district: '',
-            locality: '',
-        })
+        useState<GeographySelection>(getAssignedGeographySelection(user))
+
+    useEffect(() => {
+        if (!user?.homeLocation || user.isSuperadmin) return
+
+        const assigned = getAssignedGeographySelection(user)
+        setGeography(current => isSameGeography(current, assigned) ? current : assigned)
+    }, [user])
 
     const [
         period,

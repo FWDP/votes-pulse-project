@@ -1,22 +1,30 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import PageShell from '../components/PageShell'
 import CoverageFilter from '../components/dashboard/CoverageFilter'
 import { getUserSentimentData } from '../hooks/userSentimentData'
 import type { GeographySelection } from '../types/geography'
 import { getDominantSentiment } from '../utils/sentiment'
+import { getAssignedGeographySelection, getCoverageLabel, useAuth } from '../contexts/AuthContext'
+import { isSameGeography } from '../utils/geography'
 
 type PriorityFilter = 'all' | 'high' | 'medium'
 
 export default function KeyInsightsPage() {
+  const { user } = useAuth()
   const search = new URLSearchParams(window.location.search)
   const workspace = (search.get('workspace') as 'national' | 'candidate') || 'national'
   const candidate = workspace === 'candidate'
-  const [geography, setGeography] = useState<GeographySelection>({
-    region: '', province: '', district: '', locality: '',
-  })
+  const [geography, setGeography] = useState<GeographySelection>(getAssignedGeographySelection(user))
   const [period, setPeriod] = useState('30d')
   const [category, setCategory] = useState('all')
+
+  useEffect(() => {
+    if (!user?.homeLocation || user.isSuperadmin) return
+
+    const assigned = getAssignedGeographySelection(user)
+    setGeography(current => isSameGeography(current, assigned) ? current : assigned)
+  }, [user])
   const [priority, setPriority] = useState<PriorityFilter>('all')
   const { topics } = useMemo(
     () => getUserSentimentData(geography, period),
@@ -72,7 +80,7 @@ export default function KeyInsightsPage() {
   const mediumCount = categoryInsights.filter(insight => insight.priority === 'medium').length
 
   return (
-    <PageShell title="Key Insights" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : 'Priority observations from the simulated research dataset'}>
+    <PageShell title="Key Insights" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : getCoverageLabel(user)}>
       <div className="space-y-6">
         <CoverageFilter
           geography={geography}

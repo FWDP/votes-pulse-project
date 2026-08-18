@@ -13,14 +13,15 @@
     "type-check": "tsc -b --pretty false"
   },
   "dependencies": {
-  "cors": "^2.8.5",
     "@types/express": "^5.0.6",
     "@vitejs/plugin-react": "^6.0.4",
     "cheerio": "^1.2.0",
     "concurrently": "^10.0.4",
+    "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "lucide-react": "^0.468.0",
+    "pg": "^8.23.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.18.2",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "typescript": "~6.0.3"

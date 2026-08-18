@@ -19,6 +19,7 @@ interface UseDashboardResult {
 export function useDashboard(
   start: string,
   end: string,
+  filters?: { severity?: string; area?: string },
 ): UseDashboardResult {
   const [data, setData] =
     useState<DashboardData>(
@@ -67,11 +68,9 @@ export function useDashboard(
 
         setError(null);
 
-        const params =
-          new URLSearchParams({
-            start,
-            end,
-          });
+        const params = new URLSearchParams({ start, end });
+        if (filters?.severity && filters.severity !== 'all') params.set('severity', filters.severity)
+        if (filters?.area) params.set('area', filters.area)
 
         const response = await fetch(
           `${apiBaseUrl}/api/dashboard?${params.toString()}`,
