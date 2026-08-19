@@ -3,6 +3,7 @@ import { topics } from './shared'
 import { CalendarDays } from 'lucide-react'
 import PageShell from '../components/PageShell'
 import CoverageFilter from '../components/dashboard/CoverageFilter'
+import LiveFeedPanel from '../components/dashboard/LiveFeedPanel'
 import type { GeographySelection } from '../types/geography'
 import { getAssignedGeographySelection, getCoverageLabel, useAuth } from '../contexts/AuthContext'
 import { isSameGeography } from '../utils/geography'
@@ -118,6 +119,8 @@ export default function HistoricalPage() {
           period={period}
           onPeriodChange={setPeriod}
         />
+
+        <LiveFeedPanel title="Historical Activity Feed" locationLabel={getCoverageLabel(user) || 'Selected coverage'} />
 
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
           <div className="history-banner">

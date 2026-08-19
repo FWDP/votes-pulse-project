@@ -6,6 +6,7 @@ import {
 
 import PageShell from '../components/PageShell'
 import CoverageFilter from '../components/dashboard/CoverageFilter'
+import LiveFeedPanel from '../components/dashboard/LiveFeedPanel'
 import { getPlaceholderTimeline } from '../data/placeholderTimeline'
 import type { GeographySelection } from '../types/geography'
 import { getAssignedGeographySelection, getCoverageLabel, useAuth } from '../contexts/AuthContext'
@@ -49,6 +50,8 @@ export default function TimelinePage() {
           period={period}
           onPeriodChange={setPeriod}
         />
+
+        <LiveFeedPanel title="Timeline Activity Feed" locationLabel={getCoverageLabel(user) || 'Selected coverage'} />
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

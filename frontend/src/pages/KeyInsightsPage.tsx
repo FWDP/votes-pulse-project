@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import PageShell from '../components/PageShell'
 import CoverageFilter from '../components/dashboard/CoverageFilter'
+import LiveFeedPanel from '../components/dashboard/LiveFeedPanel'
+import AiInsightPanel from '../components/dashboard/AiInsightPanel'
 import { getUserSentimentData } from '../hooks/userSentimentData'
 import type { GeographySelection } from '../types/geography'
 import { getDominantSentiment } from '../utils/sentiment'
@@ -79,6 +81,35 @@ export default function KeyInsightsPage() {
   const highCount = categoryInsights.filter(insight => insight.priority === 'high').length
   const mediumCount = categoryInsights.filter(insight => insight.priority === 'medium').length
 
+  const aiInsightContext = useMemo(() => {
+    const totalPositive = topics.reduce((sum, topic) => sum + topic.positive, 0)
+    const totalNeutral = topics.reduce((sum, topic) => sum + topic.neutral, 0)
+    const totalNegative = topics.reduce((sum, topic) => sum + topic.negative, 0)
+
+    return {
+      coverageLabel: getCoverageLabel(user) || 'Selected coverage',
+      periodLabel: period,
+      sentiment: {
+        positive: Math.round(totalPositive / Math.max(topics.length, 1)),
+        neutral: Math.round(totalNeutral / Math.max(topics.length, 1)),
+        negative: Math.round(totalNegative / Math.max(topics.length, 1)),
+      },
+      topics: topics.slice(0, 5).map(topic => ({
+        name: topic.name,
+        mentions: topic.mentions,
+        positive: topic.positive,
+        neutral: topic.neutral,
+        negative: topic.negative,
+      })),
+      insights: [
+        {
+          title: 'Monitoring priority',
+          description: 'The current insight set shows the most prominent issue clusters for the selected coverage.',
+        },
+      ],
+    }
+  }, [period, topics, user])
+
   return (
     <PageShell title="Key Insights" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : getCoverageLabel(user)}>
       <div className="space-y-6">
@@ -89,11 +120,18 @@ export default function KeyInsightsPage() {
           onPeriodChange={setPeriod}
         />
 
+        <AiInsightPanel
+          title="Insights AI Brief"
+          context={aiInsightContext}
+        />
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <InsightMetric value={highCount} title="High-Priority Observations" description="Findings warranting immediate attention or follow-up" color="text-red-600" selected={priority === 'high'} onClick={() => setPriority(priority === 'high' ? 'all' : 'high')} />
           <InsightMetric value={mediumCount} title="Medium-Priority Observations" description="Noteworthy patterns for monitoring or context" color="text-amber-700" selected={priority === 'medium'} onClick={() => setPriority(priority === 'medium' ? 'all' : 'medium')} />
           <InsightMetric value={categoryInsights.length} title="Total Research Insights" description={`Across ${categoryInsights.length} matching topic categories`} color="text-slate-700" selected={priority === 'all'} onClick={() => setPriority('all')} />
         </div>
+
+        <LiveFeedPanel title="Key Insights Feed" locationLabel={getCoverageLabel(user) || 'Selected coverage'} />
 
         <section aria-label="Insight filters" className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Filter insights by category">

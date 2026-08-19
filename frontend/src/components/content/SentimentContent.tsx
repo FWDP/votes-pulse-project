@@ -5,6 +5,7 @@ import {
 } from 'react'
 
 import CoverageFilter from '../dashboard/CoverageFilter'
+import AiInsightPanel from '../dashboard/AiInsightPanel'
 import {
     SentimentSummary,
 } from '../dashboard/SentimentSummary'
@@ -77,6 +78,20 @@ export default function SentimentContent() {
                 onPeriodChange={
                     setPeriod
                 }
+            />
+
+            <AiInsightPanel
+                title="Sentiment AI Brief"
+                context={{
+                    coverageLabel: user?.homeLocation ? `${user.homeLocation}` : 'Selected coverage',
+                    periodLabel: period,
+                    sentiment: { positive: 26, neutral: 46, negative: 28 },
+                    topics: [
+                        { name: 'Infrastructure & Roads', mentions: 3241, positive: 14, neutral: 26, negative: 60 },
+                        { name: 'Agriculture & Livelihood', mentions: 2876, positive: 22, neutral: 38, negative: 40 },
+                        { name: 'Health Services', mentions: 2500, positive: 18, neutral: 32, negative: 50 },
+                    ],
+                }}
             />
 
             {/* Overall Sentiment */}

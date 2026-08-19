@@ -5,6 +5,8 @@ import {
 } from 'react'
 import PageShell from '../components/PageShell'
 import CoverageFilter from '../components/dashboard/CoverageFilter'
+import LiveFeedPanel from '../components/dashboard/LiveFeedPanel'
+import AiInsightPanel from '../components/dashboard/AiInsightPanel'
 import IssueTermExplorer from '../components/issues/IssueTermExplorer'
 import TopicMomentum from '../components/issues/TopicMomentum'
 import {
@@ -46,6 +48,24 @@ export default function IssuesPage() {
           period={period}
           onPeriodChange={setPeriod}
         />
+
+        <AiInsightPanel
+          title="Issue AI Brief"
+          context={{
+            coverageLabel: getCoverageLabel(user) || 'Selected coverage',
+            periodLabel: period,
+            sentiment: { positive: 26, neutral: 46, negative: 28 },
+            topics: topics.map(topic => ({
+              name: topic.name,
+              mentions: topic.mentions,
+              positive: topic.positive,
+              neutral: topic.neutral,
+              negative: topic.negative,
+            })),
+          }}
+        />
+
+        <LiveFeedPanel title="Issue Stream" locationLabel={getCoverageLabel(user) || 'Selected coverage'} />
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
