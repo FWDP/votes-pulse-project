@@ -36,8 +36,8 @@ export const dashboardConfig = {
 
   areas: [
     {
-      id: "north",
-      name: "Northern Area",
+      id: "marilao",
+      name: "Marilao, Bulacan",
       type: "municipality",
       count: 4,
       searchId:
@@ -46,9 +46,9 @@ export const dashboardConfig = {
     },
 
     {
-      id: "central",
-      name: "Central Area",
-      type: "municipality",
+      id: "cavite",
+      name: "Cavite Province",
+      type: "province",
       count: 4,
       searchId:
         process.env
@@ -56,9 +56,9 @@ export const dashboardConfig = {
     },
 
     {
-      id: "south",
-      name: "Southern Area",
-      type: "municipality",
+      id: "lucena",
+      name: "Lucena City",
+      type: "locality",
       count: 7,
       searchId:
         process.env

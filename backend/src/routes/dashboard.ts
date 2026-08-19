@@ -8,6 +8,7 @@ const router = Router()
 router.get('/', async (req, res) => {
   const start = String(req.query.start ?? '')
   const end = String(req.query.end ?? '')
+  const area = String(req.query.area ?? '')
 
   if (!start || !end) {
     return res.status(400).json({
@@ -16,12 +17,26 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const data = await buildDashboard({ start, end })
+    const data = await buildDashboard({ start, end }, area ? { area } : undefined)
     return res.json(data)
   } catch (error) {
     console.warn('Dashboard route falling back to placeholder data:', error)
 
-    return res.status(200).json(placeholderDashboard)
+    const scopedFallback = area
+      ? {
+          ...placeholderDashboard,
+          areas: placeholderDashboard.areas.filter((candidate) => {
+            const normalized = area.toLowerCase()
+            return (
+              candidate.id === normalized ||
+              candidate.name.toLowerCase().includes(normalized) ||
+              candidate.name.toLowerCase().includes(normalized.replace(/[^a-z]+/g, ' '))
+            )
+          }),
+        }
+      : placeholderDashboard
+
+    return res.status(200).json(scopedFallback)
   }
 })
 

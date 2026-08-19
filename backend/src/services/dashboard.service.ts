@@ -471,8 +471,73 @@ async function loadAutomaticIssues(
   );
 }
 
+interface DashboardBuildOptions {
+  area?: string;
+}
+
+function normalizeAreaFilter(value?: string): string | null {
+  if (!value) return null
+
+  const normalized = value.toLowerCase().trim()
+  if (!normalized) return null
+
+  const aliases: Record<string, string> = {
+    '0301411000': 'marilao',
+    '0301400000': 'marilao',
+    '0402100000': 'cavite',
+    '0431200000': 'lucena',
+    '1380900000': 'navotas',
+    'marilao': 'marilao',
+    'bulacan': 'marilao',
+    'cavite': 'cavite',
+    'lucena': 'lucena',
+    'navotas': 'navotas',
+    'marilao, bulacan': 'marilao',
+    'cavite province': 'cavite',
+    'lucena city': 'lucena',
+    'city of lucena': 'lucena',
+  }
+
+  return aliases[normalized] ?? normalized.replace(/[^a-z]+/g, ' ').trim()
+}
+
+function applyAreaScope(data: DashboardData, area?: string): DashboardData {
+  const normalized = normalizeAreaFilter(area)
+  if (!normalized || !data.areas.length) return data
+
+  const selectedArea =
+    data.areas.find((areaItem) => {
+      const areaName = areaItem.name.toLowerCase()
+      const areaId = areaItem.id.toLowerCase()
+      return areaId === normalized || areaName.includes(normalized)
+    }) ?? data.areas[0]
+
+  if (!selectedArea) return data
+
+  const areaSentiment = selectedArea.sentiment
+  const areaMentions = selectedArea.mentions || data.totalMentions
+  const areaPositive = areaSentiment?.positive ?? data.positiveSentiment
+
+  return {
+    ...data,
+    totalMentions: areaMentions,
+    positiveSentiment: areaPositive,
+    sentiment: [
+      { name: 'Positive', value: areaSentiment?.positive ?? data.positiveSentiment },
+      { name: 'Neutral', value: areaSentiment?.neutral ?? 0 },
+      { name: 'Negative', value: areaSentiment?.negative ?? 0 },
+    ],
+    areas: data.areas.filter((areaItem) => areaItem.id === selectedArea.id),
+    activeLocations: selectedArea.count ?? data.activeLocations,
+    quickIssues: data.quickIssues.slice(0, 3),
+    sources: data.sources.slice(0, 4),
+    issues: data.issues.slice(0, 5),
+  }
+}
+
 export async function buildDashboard(
   range: DateRange,
+  options: DashboardBuildOptions = {},
 ): Promise<DashboardData> {
   const mainSearchId =
     dashboardConfig.mainSearchId;
@@ -636,8 +701,7 @@ export async function buildDashboard(
       }),
     );
 
-  return {
-
+  const result: DashboardData = {
     totalMentions:
       summary.volume
         .document_count,
@@ -661,4 +725,6 @@ export async function buildDashboard(
         6,
       ),
   };
+
+  return applyAreaScope(result, options.area);
 }

@@ -3,15 +3,20 @@ import type { AreaItem } from "../../types/dashboard";
 interface AreaComparisonProps {
     data: AreaItem[];
     selectedAreaName?: string | null;
+    title?: string;
+    subtitle?: string;
 }
 
 const AREA_COLORS: Record<string, string> = {
     north: '#2563eb',
     central: '#7c3aed',
     south: '#f59e0b',
+    marilao: '#2563eb',
+    cavite: '#7c3aed',
+    lucena: '#f59e0b',
 };
 
-export default function AreaComparison({ data, selectedAreaName }: AreaComparisonProps) {
+export default function AreaComparison({ data, selectedAreaName, title = 'Area Comparison', subtitle }: AreaComparisonProps) {
     if (!data.length) {
         return (
             <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -25,7 +30,14 @@ export default function AreaComparison({ data, selectedAreaName }: AreaCompariso
 
     const normalizedSelectedArea = selectedAreaName?.replace(/^Coverage:\s*/i, '').trim() || null
     const totalMentions = data.reduce((sum, area) => sum + area.mentions, 0)
-    const ranked = [...data].sort((a, b) => b.mentions - a.mentions)
+    const normalizedData = data.map((area) => {
+        const lowered = area.name.toLowerCase()
+        if (lowered.includes('northern area')) return { ...area, name: 'Marilao, Bulacan' }
+        if (lowered.includes('central area')) return { ...area, name: 'Cavite Province' }
+        if (lowered.includes('southern area')) return { ...area, name: 'Lucena City' }
+        return area
+    })
+    const ranked = [...normalizedData].sort((a, b) => b.mentions - a.mentions)
     const selectedMatch = normalizedSelectedArea
         ? ranked.find((area) => area.name.toLowerCase().includes(normalizedSelectedArea.toLowerCase()))
         : null
@@ -37,10 +49,11 @@ export default function AreaComparison({ data, selectedAreaName }: AreaCompariso
     return (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="mb-4">
-                <h3 className="font-bold text-slate-800">Area Comparison</h3>
+                <h3 className="font-bold text-slate-800">{title}</h3>
                 <p className="text-sm text-slate-500">
-                    {normalizedSelectedArea ? `${normalizedSelectedArea} focus · ` : ''}
-                    {sorted.length} areas · {totalMentions.toLocaleString()} aggregated mentions
+                    {subtitle ?? (
+                        `${normalizedSelectedArea ? `${normalizedSelectedArea} focus · ` : ''}${sorted.length} areas · ${totalMentions.toLocaleString()} aggregated mentions`
+                    )}
                 </p>
             </div>
 

@@ -18,6 +18,7 @@ import type { IssueTrend, QuickIssue } from "../../types/dashboard";
 
 interface TopIssuesQuickViewProps {
   data: QuickIssue[];
+  title?: string;
 }
 
 const ISSUE_ICONS: Record<string, LucideIcon> = {
@@ -43,7 +44,7 @@ function TrendIndicator({ trend }: { trend: IssueTrend }) {
   }
 }
 
-export default function TopIssuesQuickView({ data }: TopIssuesQuickViewProps) {
+export default function TopIssuesQuickView({ data, title = 'Top Issues — Quick View' }: TopIssuesQuickViewProps) {
   if (!data.length) {
     return (
       <div className="border-t border-slate-200 pt-4">
@@ -57,7 +58,7 @@ export default function TopIssuesQuickView({ data }: TopIssuesQuickViewProps) {
 
   return (
     <div className="border-t border-slate-200 pt-4">
-      <h4 className="mb-3 text-sm font-bold text-slate-700">Top Issues — Quick View</h4>
+      <h4 className="mb-3 text-sm font-bold text-slate-700">{title}</h4>
       <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
         {data.map((issue) => {
           const Icon = ISSUE_ICONS[issue.id] ?? CircleDot

@@ -6,7 +6,11 @@ import {
 
 import type { DashboardData } from "../types/dashboard";
 
-import { placeholderDashboard } from "../data/placeholderDashboard";
+import {
+  createPlaceholderDashboard,
+  placeholderDashboard,
+  type PlaceholderScope,
+} from "../data/placeholderDashboard";
 
 interface UseDashboardResult {
   data: DashboardData;
@@ -20,11 +24,10 @@ export function useDashboard(
   start: string,
   end: string,
   filters?: { severity?: string; area?: string },
+  placeholderScope?: PlaceholderScope,
 ): UseDashboardResult {
   const [data, setData] =
-    useState<DashboardData>(
-      placeholderDashboard,
-    );
+    useState<DashboardData>(() => createPlaceholderDashboard(placeholderScope));
 
   const [loading, setLoading] =
     useState(false);
@@ -82,9 +85,9 @@ export function useDashboard(
 
         /*
          * If backend/Meltwater isn't available,
-         * fall back to placeholders.
+         * fall back to a geography-scoped placeholder snapshot.
          */
-        setData(placeholderDashboard);
+        setData(createPlaceholderDashboard(placeholderScope));
 
         setUsingPlaceholder(true);
 
@@ -96,7 +99,7 @@ export function useDashboard(
       } finally {
         setLoading(false);
       }
-    }, [start, end]);
+    }, [start, end, filters?.severity, filters?.area, placeholderScope?.region, placeholderScope?.province, placeholderScope?.locality]);
 
   useEffect(() => {
     void loadDashboard();

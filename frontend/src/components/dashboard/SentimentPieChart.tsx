@@ -13,13 +13,15 @@ import { useDashboard } from '../../hooks/useDashboard'
 
 interface SentimentPieChartProps {
   data: SentimentItem[];
+  title?: string;
+  subtitle?: string;
 }
 
 const renderSector = (props: any) => {
   return <Sector {...props} fill={sharedSentimentColors[props.name?.toLowerCase()] ?? defaultColor} key={props.name} />
 }
 
-export default function SentimentPieChart({ data }: SentimentPieChartProps) {
+export default function SentimentPieChart({ data, title = 'Overall Sentiment Distribution', subtitle = 'All topics, all locations, full period' }: SentimentPieChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="flex h-[300px] items-center justify-center text-sm text-slate-500">
@@ -38,8 +40,8 @@ export default function SentimentPieChart({ data }: SentimentPieChartProps) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5" role="region" aria-label="Overall sentiment distribution">
       <div className="mb-4">
-        <h3 className="font-bold text-slate-800">Overall Sentiment Distribution</h3>
-        <p className="text-sm text-slate-500">All topics, all locations, full period</p>
+        <h3 className="font-bold text-slate-800">{title}</h3>
+        <p className="text-sm text-slate-500">{subtitle}</p>
       </div>
 
       <div className="h-[200px]">

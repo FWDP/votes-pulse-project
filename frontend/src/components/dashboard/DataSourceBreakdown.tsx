@@ -3,14 +3,15 @@ import { defaultColor, sourceColors } from '../../theme/colors'
 
 interface DataSourcesBreakdownProps {
     data: SourceItem[];
+    title?: string;
 }
 
-export default function DataSourcesBreakdown({ data }: DataSourcesBreakdownProps) {
+export default function DataSourcesBreakdown({ data, title = 'Data Sources Breakdown' }: DataSourcesBreakdownProps) {
     const total = data.reduce((sum, source) => sum + source.mentions, 0)
 
     return (
         <div>
-            <h3 className="mb-4 font-bold text-slate-800">Data Sources Breakdown</h3>
+            <h3 className="mb-4 font-bold text-slate-800">{title}</h3>
 
             {!data.length ? (
                 <div className="py-8 text-center text-sm text-slate-500">No source data available.</div>

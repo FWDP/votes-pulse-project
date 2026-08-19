@@ -12,10 +12,14 @@ import type { IssueItem } from "../../types/dashboard";
 
 interface IssuesBarChartProps {
   data: IssueItem[];
+  title?: string;
+  subtitle?: string;
 }
 
 export default function IssuesBarChart({
   data,
+  title = 'Top Issues by Mention Volume',
+  subtitle = 'Total mentions across recorded themes',
 }: IssuesBarChartProps) {
   if (data.length === 0) {
     return (
@@ -32,10 +36,12 @@ export default function IssuesBarChart({
     <div className="bg-white rounded-xl border border-slate-200 p-5">
       <div className="mb-4">
         <h3 className="font-bold text-slate-800">
-          Top Issues by Mention Volume
+          {title}
         </h3>
         <p className="text-sm text-slate-500">
-          {total.toLocaleString()} total mentions across {sorted.length} recorded themes
+          {subtitle.includes('{total}') ? subtitle.replace('{total}', total.toLocaleString()) : subtitle}
+          {subtitle.includes('{count}') ? subtitle.replace('{count}', String(sorted.length)) : ''}
+          {!subtitle.includes('{total}') && !subtitle.includes('{count}') && ` ${total.toLocaleString()} total mentions across ${sorted.length} recorded themes`}
         </p>
       </div>
 
