@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import type { DashboardData } from "../types/dashboard";
+import { getApiUrl } from '../utils/getApiUrl'
 
 import {
   createPlaceholderDashboard,
@@ -59,11 +60,7 @@ export function useDashboard(
         if (filters?.severity && filters.severity !== 'all') params.set('severity', filters.severity)
         if (filters?.area) params.set('area', filters.area)
 
-        const dashboardUrl = apiBaseUrl
-          ? `${apiBaseUrl}/api/dashboard?${params.toString()}`
-          : `/api/dashboard?${params.toString()}`;
-
-        const response = await fetch(dashboardUrl);
+        const response = await fetch(getApiUrl(`/api/dashboard?${params.toString()}`));
 
         if (!response.ok) {
           throw new Error(

@@ -17,7 +17,9 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const data = await buildDashboard({ start, end }, area ? { area } : undefined)
+    // Determine product from mounted path: requests under /api/pulse/* are for PULSE
+    const product = req.baseUrl && req.baseUrl.startsWith('/api/pulse') ? 'pulse' : 'votes'
+    const data = await buildDashboard({ start, end }, area ? { area, product } : { product })
     return res.json(data)
   } catch (error) {
     console.warn('Dashboard route falling back to placeholder data:', error)

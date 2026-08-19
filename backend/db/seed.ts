@@ -44,6 +44,17 @@ const run = async () => {
     for (const m of authMemberships) {
       await upsert('INSERT INTO memberships (id, tenant_id, user_id, role, status, workspace_ids) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id, user_id = EXCLUDED.user_id, role = EXCLUDED.role, status = EXCLUDED.status, workspace_ids = EXCLUDED.workspace_ids', [m.id, m.tenantId, m.userId, m.role, m.status, JSON.stringify(m.workspaceIds ?? null)])
     }
+
+    // Seed sample brands for PULSE product
+    const sampleBrands = [
+      { id: 'brand-001', name: 'Acme Foods', slug: 'acme-foods', searchId: process.env.MELTWATER_SEARCH_BRAND_ACME ?? null },
+      { id: 'brand-002', name: 'MetroTel', slug: 'metrotel', searchId: process.env.MELTWATER_SEARCH_BRAND_METROTEL ?? null },
+      { id: 'brand-003', name: 'Green Harvest', slug: 'green-harvest', searchId: process.env.MELTWATER_SEARCH_BRAND_GREEN ?? null },
+    ]
+
+    for (const b of sampleBrands) {
+      await upsert('INSERT INTO brands (id, name, slug, search_id) VALUES ($1,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug, search_id = EXCLUDED.search_id', [b.id, b.name, b.slug, b.searchId])
+    }
     console.log('Seed complete')
   } catch (error) {
     console.error('Seeding failed', error)
