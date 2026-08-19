@@ -97,6 +97,69 @@ const isAbortError = (error: unknown) =>
     error instanceof Error &&
     error.name === 'AbortError'
 
+const FALLBACK_GEOGRAPHY: Record<string, GeographyUnit> = {
+    '0300000000': {
+        code: '0300000000',
+        area_name: 'Region III (Central Luzon)',
+        geographic_level: 'reg',
+        reg: 3,
+    },
+    '0301400000': {
+        code: '0301400000',
+        area_name: 'Bulacan',
+        geographic_level: 'prov',
+        reg: 3,
+        prv: 14,
+    },
+    '0301411000': {
+        code: '0301411000',
+        area_name: 'Marilao',
+        geographic_level: 'mun',
+        reg: 3,
+        prv: 14,
+        mun: 141,
+    },
+    '0400000000': {
+        code: '0400000000',
+        area_name: 'Region IV-A (CALABARZON)',
+        geographic_level: 'reg',
+        reg: 4,
+    },
+    '0405600000': {
+        code: '0405600000',
+        area_name: 'Quezon',
+        geographic_level: 'prov',
+        reg: 4,
+        prv: 56,
+    },
+    '0431200000': {
+        code: '0431200000',
+        area_name: 'Lucena City',
+        geographic_level: 'city',
+        reg: 4,
+        mun: 312,
+    },
+    '1300000000': {
+        code: '1300000000',
+        area_name: 'National Capital Region (NCR)',
+        geographic_level: 'reg',
+        reg: 13,
+    },
+    '1380900000': {
+        code: '1380900000',
+        area_name: 'Navotas',
+        geographic_level: 'city',
+        reg: 13,
+    },
+    '0402100000': {
+        code: '0402100000',
+        area_name: 'Cavite',
+        geographic_level: 'prov',
+        reg: 4,
+        prv: 421,
+    },
+}
+
 export function GeographyControls({
     value,
     onChange,
@@ -131,7 +194,7 @@ export function GeographyControls({
     const selectedRegion = useMemo(
         () => regions.find(
             (item) => item.code === region,
-        ),
+        ) ?? (region ? FALLBACK_GEOGRAPHY[region] : undefined),
         [region, regions],
     )
 
@@ -151,7 +214,7 @@ export function GeographyControls({
     const selectedProvince = useMemo(() =>
                 provinces.find(item =>
                         item.code === province,
-                ),
+                ) ?? (province ? FALLBACK_GEOGRAPHY[province] : undefined),
             [provinces, province,],
         )
 
@@ -227,7 +290,7 @@ export function GeographyControls({
         }, [independentCities, isIndependentCitiesSelection, isNCR, localities, selectedDistrict, selectedProvince])
 
     const selectedLocality = useMemo(
-        () => filteredLocalities.find(item => item.code === locality),
+        () => filteredLocalities.find(item => item.code === locality) ?? (locality ? FALLBACK_GEOGRAPHY[locality] : undefined),
         [filteredLocalities, locality],
     )
 
@@ -484,6 +547,10 @@ export function GeographyControls({
                             : 'All regions'}
                     </option>
 
+                    {!regions.some(item => item.code === region) && selectedRegion && (
+                        <option value={selectedRegion.code}>{normalizeAreaName(selectedRegion.area_name)}</option>
+                    )}
+
                     {regions.map(
                         item => (
                             <option
@@ -532,6 +599,10 @@ export function GeographyControls({
                                     ? 'Loading provinces…'
                                     : 'All provinces'}
                     </option>
+
+                    {!((isNCR ? districts : provinces).some(item => item.code === (isNCR ? district : province))) && (isNCR ? selectedDistrict : selectedProvince) && (
+                        <option value={(isNCR ? selectedDistrict : selectedProvince)!.code}>{normalizeAreaName((isNCR ? selectedDistrict : selectedProvince)!.area_name)}</option>
+                    )}
 
                     {(isNCR ? districts : provinces).map(
                             item => (
@@ -607,6 +678,10 @@ export function GeographyControls({
                         <option value={ALL_MUNICIPALITIES_FILTER}>
                             All municipalities
                         </option>
+                    )}
+
+                    {!filteredLocalities.some(item => item.code === locality) && selectedLocality && (
+                        <option value={selectedLocality.code}>{normalizeAreaName(selectedLocality.area_name)}</option>
                     )}
 
                     {filteredLocalities.map(

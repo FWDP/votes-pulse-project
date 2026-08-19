@@ -19,7 +19,7 @@ const items: Array<{ to: string; label: string; icon: typeof MapPin; feature: Wo
   { to: '/fieldreports', label: 'Field Reports', icon: FileText, feature: 'fieldreports' },
 ]
 
-export default function Sidebar({ collapsed }: { collapsed?: boolean, setCollapsed?: (v: boolean) => void }) {
+export default function Sidebar({ collapsed, variant = 'dashboard' }: { collapsed?: boolean, setCollapsed?: (v: boolean) => void, variant?: 'dashboard' | 'admin' }) {
   const { tenant, workspace, basePath } = useTenantWorkspace()
   const { user, accessibleWorkspaces, membershipForTenant, signOut } = useAuth()
   const navigate = useNavigate()
@@ -32,10 +32,17 @@ export default function Sidebar({ collapsed }: { collapsed?: boolean, setCollaps
     try { if (typeof collapsed !== 'undefined') localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0') } catch (e) { }
   }, [collapsed])
 
+  const adminLinks = [
+    { to: `${basePath}/admin/roles`, label: 'Roles', icon: Database },
+    { to: `${basePath}/admin/superadmins`, label: 'Superadmins', icon: UserRound },
+  ]
+
+  const showAdminNav = variant === 'admin' && (user as any)?.isSuperadmin
+
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : 'expanded'} bg-slate-900`}>
       <div className="sidebar-back">
-        <Link to="/login" className="back-link">Back to PULSE Portal</Link>
+        <Link to={isVotes ? '/login/votes' : '/login/pulse'} className="back-link">Back to {isVotes ? 'VOTES' : 'PULSE'} Portal</Link>
       </div>
       <div className={`brand ${isVotes ? 'votes' : ''}`} title={`${tenant.name} · ${workspace.name}`}>
         <div className="brand-mark"><Radio size={18} /></div>
@@ -68,7 +75,25 @@ export default function Sidebar({ collapsed }: { collapsed?: boolean, setCollaps
           </NavLink>
         ))}
       </nav>
-      {(membership?.role === 'owner' || (user as any)?.isSuperadmin) && (
+      {showAdminNav && (
+        <div className="mt-3 border-t border-white/10 pt-2">
+          {!collapsed && (
+            <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Admin
+            </div>
+          )}
+          <nav className="space-y-1">
+            {adminLinks.map(({ to, label, icon: Icon }) => (
+              <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={label}>
+                <Icon size={16} />
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+      )}
+
+      {variant === 'dashboard' && (membership?.role === 'owner' || (user as any)?.isSuperadmin) && (
         <div className="mt-3 border-t border-white/10 pt-2">
           {!collapsed && (
             <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
@@ -81,7 +106,7 @@ export default function Sidebar({ collapsed }: { collapsed?: boolean, setCollaps
               <span>Roles</span>
             </NavLink>
             {(user as any)?.isSuperadmin && (
-              <NavLink to={`/admin/superadmins`} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title="Superadmins">
+              <NavLink to={`${basePath}/admin/superadmins`} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title="Superadmins">
                 <UserRound size={16} />
                 <span>Superadmins</span>
               </NavLink>

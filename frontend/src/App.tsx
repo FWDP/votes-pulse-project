@@ -5,6 +5,7 @@ import {
 } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import DashboardLayout from './layouts/DashboardLayout'
+import AdminLayout from './layouts/AdminLayout'
 import LoginPage from './pages/LoginPage'
 import {
   loadDataScopePage,
@@ -84,7 +85,14 @@ export default function App() {
           <Route path="datascope" element={<LazyRoute><DataScopePage /></LazyRoute>} />
           <Route path="fieldreports" element={<LazyRoute><FieldReportsPage /></LazyRoute>} />
         </Route>
-          <Route path="admin">
+          <Route path="admin" element={<AdminLayout />}>
+            <Route path="roles" element={<LazyRoute><RolesPage /></LazyRoute>} />
+            <Route path="sessions" element={<LazyRoute><SessionsPage /></LazyRoute>} />
+            <Route path="exports" element={<LazyRoute><ExportsPage /></LazyRoute>} />
+            <Route path="superadmins" element={<LazyRoute><SuperadminsPage /></LazyRoute>} />
+          </Route>
+
+          <Route path="votes/admin" element={<AdminLayout />}>
             <Route path="roles" element={<LazyRoute><RolesPage /></LazyRoute>} />
             <Route path="sessions" element={<LazyRoute><SessionsPage /></LazyRoute>} />
             <Route path="exports" element={<LazyRoute><ExportsPage /></LazyRoute>} />

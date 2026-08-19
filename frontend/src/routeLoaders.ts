@@ -28,6 +28,18 @@ export const loadDataScopePage = () =>
 export const loadFieldReportsPage = () =>
     import('./pages/FieldReportsPage')
 
+export const loadRolesPage = () =>
+    import('./pages/admin/RolesPage')
+
+export const loadSuperadminsPage = () =>
+    import('./pages/admin/SuperadminsPage')
+
+export const loadSessionsPage = () =>
+    import('./pages/admin/SessionsPage')
+
+export const loadExportsPage = () =>
+    import('./pages/admin/ExportsPage')
+
 const preloadSentiment = async () => {
     const [, geographyApi] = await Promise.all([
         loadSentimentPage(),
@@ -50,6 +62,10 @@ const routePreloaders: Record<
     insights: loadKeyInsightsPage,
     datascope: loadDataScopePage,
     fieldreports: loadFieldReportsPage,
+    roles: loadRolesPage,
+    superadmins: loadSuperadminsPage,
+    sessions: loadSessionsPage,
+    exports: loadExportsPage,
 }
 
 export const preloadRoute = (

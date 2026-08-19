@@ -6,11 +6,12 @@ export type TestUser = {
   displayName: string
   email: string
   isSuperadmin?: boolean
-  homeLocation?: 'Navotas' | 'Cavite' | 'Lucena City' | 'Marilao, Bulacan'
-  coverageScope?: 'locality' | 'province'
+  homeLocation?: 'Navotas' | 'Cavite' | 'Lucena City' | 'Marilao, Bulacan' | string
+  coverageScope?: 'region' | 'locality' | 'province'
   coverageValue?: string
   coverageCode?: string
   provinceCode?: string
+  regionCode?: string
 }
 
 export const TEST_USERS: TestUser[] = [
@@ -46,7 +47,6 @@ export const TEST_USERS: TestUser[] = [
     coverageScope: 'locality',
     coverageValue: 'Lucena City',
     coverageCode: '0431200000',
-    provinceCode: '0431000000',
   },
   {
     id: 'user-marilao-local',
@@ -55,21 +55,32 @@ export const TEST_USERS: TestUser[] = [
     homeLocation: 'Marilao, Bulacan',
     coverageScope: 'locality',
     coverageValue: 'Marilao, Bulacan',
-    coverageCode: '0314100000',
-    provinceCode: '0314000000',
+    coverageCode: '0301411000',
+    provinceCode: '0301400000',
   },
 ]
+
+export const inferRegionCode = (code?: string): string | undefined => {
+  if (!code || !/^\d{10}$/.test(code)) return undefined
+  return `${code.slice(0, 2)}00000000`
+}
 
 export const getCoverageRestriction = (user?: Partial<TestUser>) => {
   if (!user?.homeLocation || user.isSuperadmin) return null
 
-  const matches = TEST_USERS.find(candidate => candidate.homeLocation === user.homeLocation)
-  if (!matches) return null
+  const matched = TEST_USERS.find(candidate => candidate.homeLocation === user.homeLocation)
+  const coverageScope = user.coverageScope ?? matched?.coverageScope ?? 'locality'
+  const coverageCode = user.coverageCode ?? matched?.coverageCode ?? user.coverageValue ?? ''
+  const provinceValue = user.provinceCode ?? matched?.provinceCode ?? undefined
+  const regionValue = user.regionCode ?? matched?.regionCode ?? inferRegionCode(coverageCode)
+
+  if (!coverageCode && !regionValue) return null
 
   return {
-    field: matches.coverageScope,
-    value: matches.coverageCode ?? matches.coverageValue,
-    provinceValue: matches.provinceCode || undefined,
+    field: coverageScope,
+    value: coverageCode || regionValue || '',
+    provinceValue: provinceValue || undefined,
+    regionValue: regionValue || undefined,
   }
 }
 
@@ -86,7 +97,7 @@ export const getCoverageLabel = (user?: Partial<TestUser>) => {
     case 'Marilao, Bulacan':
       return 'Coverage: Municipality of Marilao'
     default:
-      return 'National coverage'
+      return `Coverage: ${user.homeLocation ?? 'Assigned area'}`
   }
 }
 
@@ -94,6 +105,8 @@ export const getAssignedGeographySelection = (user?: Partial<TestUser>): Geograp
   if (!user?.homeLocation || user.isSuperadmin) {
     return { region: '', province: '', district: '', locality: '' }
   }
+
+  const regionCode = user.regionCode ?? inferRegionCode(user.coverageCode) ?? inferRegionCode(user.provinceCode) ?? ''
 
   switch (user.homeLocation) {
     case 'Navotas':
@@ -113,19 +126,43 @@ export const getAssignedGeographySelection = (user?: Partial<TestUser>): Geograp
     case 'Lucena City':
       return {
         region: '0400000000',
-        province: '0431000000',
+        province: '',
         district: '',
         locality: '0431200000',
       }
     case 'Marilao, Bulacan':
       return {
         region: '0300000000',
-        province: '0314000000',
+        province: '0301400000',
         district: '',
-        locality: '0314100000',
+        locality: '0301411000',
       }
     default:
-      return { region: '', province: '', district: '', locality: '' }
+      if (!user.coverageScope) {
+        return { region: '', province: '', district: '', locality: '' }
+      }
+      if (user.coverageScope === 'region') {
+        return {
+          region: user.coverageCode || regionCode,
+          province: '',
+          district: '',
+          locality: '',
+        }
+      }
+      if (user.coverageScope === 'province') {
+        return {
+          region: user.regionCode || regionCode,
+          province: user.coverageCode || '',
+          district: '',
+          locality: '',
+        }
+      }
+      return {
+        region: user.regionCode || regionCode,
+        province: user.provinceCode || '',
+        district: '',
+        locality: user.coverageCode || '',
+      }
   }
 }
 
@@ -133,10 +170,37 @@ export const hasCoverageLock = (user?: Partial<TestUser>) => Boolean(user?.homeL
 
 const DEFAULT_TEST_USER_ID = TEST_USERS.find(candidate => candidate.homeLocation === 'Marilao, Bulacan')?.id ?? TEST_USERS[0].id
 const LEGACY_DEFAULT_USER_ID = 'user-navotas-local'
+const USERS_STORAGE_KEY = 'votespulse-users'
+
+const mergeUsers = (baseUsers: TestUser[], incomingUsers: TestUser[]) => {
+  const merged = new Map<string, TestUser>()
+
+  baseUsers.forEach(user => merged.set(user.id, user))
+  incomingUsers.forEach(user => merged.set(user.id, user))
+
+  return Array.from(merged.values())
+}
+
+const readPersistedUsers = (): TestUser[] => {
+  if (typeof window === 'undefined') return TEST_USERS
+
+  try {
+    const raw = window.localStorage.getItem(USERS_STORAGE_KEY)
+    if (!raw) return TEST_USERS
+
+    const parsed = JSON.parse(raw) as TestUser[]
+    if (!Array.isArray(parsed) || parsed.length === 0) return TEST_USERS
+
+    return mergeUsers(TEST_USERS, parsed)
+  } catch {
+    return TEST_USERS
+  }
+}
 
 const AuthContext = createContext<any>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [testUsers, setTestUsers] = useState<TestUser[]>(() => readPersistedUsers())
   const [selectedUserId, setSelectedUserId] = useState<string>(() => {
     if (typeof window === 'undefined') return DEFAULT_TEST_USER_ID
 
@@ -147,15 +211,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return DEFAULT_TEST_USER_ID
     }
 
-    if (saved && TEST_USERS.some(user => user.id === saved)) return saved
+    const availableUsers = readPersistedUsers()
+    if (saved && availableUsers.some(user => user.id === saved)) return saved
 
     window.localStorage.setItem('votespulse-user-id', DEFAULT_TEST_USER_ID)
     return DEFAULT_TEST_USER_ID
   })
 
   const user = useMemo(() => {
-    return TEST_USERS.find(candidate => candidate.id === selectedUserId) ?? TEST_USERS[0]
-  }, [selectedUserId])
+    return testUsers.find(candidate => candidate.id === selectedUserId) ?? testUsers[0] ?? TEST_USERS[0]
+  }, [selectedUserId, testUsers])
 
   const accessibleWorkspaces = useMemo(() => ([
     {
@@ -172,7 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const membershipForTenant = (tenantId: string) => ({ role: user.isSuperadmin ? 'owner' : 'member', tenantId })
   const signOut = () => { /* noop for dev */ }
   const switchUser = (nextUserId: string) => {
-    if (!TEST_USERS.some(candidate => candidate.id === nextUserId)) return
+    if (!testUsers.some(candidate => candidate.id === nextUserId)) return
 
     setSelectedUserId(nextUserId)
     if (typeof window !== 'undefined') {
@@ -180,7 +245,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const value = { user, testUsers: TEST_USERS, accessibleWorkspaces, membershipForTenant, signOut, switchUser }
+  const createTestUser = (input: Partial<TestUser> & { displayName: string; email: string; homeLocation: string }) => {
+    const sanitizedDisplayName = input.displayName.trim()
+    const sanitizedEmail = input.email.trim()
+    const sanitizedHomeLocation = input.homeLocation.trim()
+    const coverageScope = input.coverageScope ?? 'locality'
+    const coverageCode = input.coverageCode?.trim() ?? ''
+    const provinceCode = input.provinceCode?.trim() ?? ''
+    const regionCode = input.regionCode?.trim() ?? inferRegionCode(coverageCode) ?? inferRegionCode(provinceCode) ?? ''
+
+    const nextUser: TestUser = {
+      id: `user-custom-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      displayName: sanitizedDisplayName,
+      email: sanitizedEmail,
+      homeLocation: sanitizedHomeLocation,
+      coverageScope,
+      coverageValue: sanitizedHomeLocation,
+      coverageCode: coverageCode || '',
+      provinceCode: provinceCode || '',
+      regionCode: regionCode || '',
+    }
+
+    setTestUsers(current => {
+      const nextUsers = [...current, nextUser]
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(nextUsers))
+      }
+
+      return nextUsers
+    })
+    setSelectedUserId(nextUser.id)
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('votespulse-user-id', nextUser.id)
+    }
+
+    return nextUser
+  }
+
+  const value = { user, testUsers, accessibleWorkspaces, membershipForTenant, signOut, switchUser, createTestUser }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
