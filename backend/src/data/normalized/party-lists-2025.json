@@ -1,0 +1,1013 @@
+{
+  "metadata": {
+    "datasetId": "comelec-proclaimed-party-lists-2025",
+    "electionYear": 2025,
+    "electionDate": "2025-05-12",
+    "geographicScope": "national",
+    "sourceFile": "2025 ELECTED PARTY LIST.pdf",
+    "sourceSha256": "0c495c0d51b04d758a81d119ac44c2a70181294ebb86c7fd0461b2ccb874509d",
+    "notes": [
+      "Official organization and nominee spelling is preserved from the source PDF.",
+      "Seat counts are not inferred from nominee counts."
+    ]
+  },
+  "data": [
+    {
+      "id": "party-list-2025-01-akbayan",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 1,
+      "officialName": "AKBAYAN CITIZENS' ACTION PARTY (AKBAYAN)",
+      "acronym": "AKBAYAN",
+      "totalVotes": 2779621,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "JOSE MANUEL TADEO ICASIANO DIOKNO"
+        },
+        {
+          "order": 2,
+          "officialName": "PERCIVAL VILAR CENDAÑA"
+        },
+        {
+          "order": 3,
+          "officialName": "HAIMA KIRAM ISMULA"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-02-tingog",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 2,
+      "officialName": "TINGOG SINIRANG (TINGOG)",
+      "acronym": "TINGOG",
+      "totalVotes": 1822708,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "JUDE A. ACIDRE"
+        },
+        {
+          "order": 2,
+          "officialName": "ANDREW JULIAN K. ROMUALDEZ"
+        },
+        {
+          "order": 3,
+          "officialName": "YEDDA MARIE K. ROMUALDEZ"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-03-4ps",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 3,
+      "officialName": "PAGTIBAYIN AT PALAGUIN ANG PANGKABUHAYANG PILIPINO (4PS)",
+      "acronym": "4PS",
+      "totalVotes": 1469571,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "MARCELINO C. LIBANAN"
+        },
+        {
+          "order": 2,
+          "officialName": "JONATHAN CLEMENT M. ABALOS, II"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-04-act-cis",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 4,
+      "officialName": "ANTI-CRIME AND TERRORISM COMMUNITY INVOLVEMENT AND SUPPOR, INC. (ACT-CIS)",
+      "acronym": "ACT-CIS",
+      "totalVotes": 1239930,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "JOCELYN P. TULFO"
+        },
+        {
+          "order": 2,
+          "officialName": "EDVIC G. YAP"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-05-ako-bikol",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 5,
+      "officialName": "AKO BICOL POLITICAL PARTY (AKO BIKOL)",
+      "acronym": "AKO BIKOL",
+      "totalVotes": 1073119,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "ELIZALDY S. CO"
+        },
+        {
+          "order": 2,
+          "officialName": "ALFREDO G. GARBIN, JR."
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-06-uswag-ilonggo",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 6,
+      "officialName": "USWAG ILONGGO PARTY (USWAG ILONGGO)",
+      "acronym": "USWAG ILONGGO",
+      "totalVotes": 777754,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "JAMES A. ANG JR,"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-07-solid-north-party",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 7,
+      "officialName": "SOLIDARITY OF NORTHERN LUZON PEOPLE'S PARTY (SOLID NORTH PARTY)",
+      "acronym": "SOLID NORTH PARTY",
+      "totalVotes": 765322,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "MENCHIE B. BERNOS"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-08-trabaho",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 8,
+      "officialName": "TAGAPAGTAGUYOD NG MGA REPORMA AT ADHIKAING BABALIKAT AT HAHANGO SA MGA OPORTUNIDAD PARA SA MGA PILIPINO (TRABAHO)",
+      "acronym": "TRABAHO",
+      "totalVotes": 709283,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "JOHANNE MONICH G. BAUTISTA"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-09-cibac",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 9,
+      "officialName": "CITIZENS' BATTEL AGAINST CORRUPTION (CIBAC)",
+      "acronym": "CIBAC",
+      "totalVotes": 593911,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "EDUARDO C. VILLANUEVA"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-10-malasakit-bayanihan",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 10,
+      "officialName": "MALASAKIT AT BAYANIHAN FOUNDATION, INC. (MALASAKIT@BAYANIHAN)",
+      "acronym": "MALASAKIT@BAYANIHAN",
+      "totalVotes": 580100,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "GIRLIE E. VELOSO"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-11-senior-citizens",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 11,
+      "officialName": "COALITION OF ASSOCIATIONS OF SENIOR CITIZENS IN THE PHILIPPINES (SENIOR CITIZENS)",
+      "acronym": "SENIOR CITIZENS",
+      "totalVotes": 577753,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "RODOLFO EPIMACO M. ORDANES"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-12-ppp",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 12,
+      "officialName": "PUWERSA NG PILIPINONG PANDAGAT (PPP)",
+      "acronym": "PPP",
+      "totalVotes": 575762,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "HAROLD JAMES T. DUTERTE"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-13-ml",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 13,
+      "officialName": "MAMAMAYANG LIBERAL (ML)",
+      "acronym": "ML",
+      "totalVotes": 547949,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "LEILA NORMA EULAILA JOSEFA M. DE LIMA"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-14-fpj-panday-bayanihan",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 14,
+      "officialName": "FPJ PANDAY BAYANIHAN PARTYLIST (FPJ PANDAY BAYANIHAN)",
+      "acronym": "FPJ PANDAY BAYANIHAN",
+      "totalVotes": 538003,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "BRIAN DANIEL P. LLAMANZARES"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-15-united-senior-citizens",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 15,
+      "officialName": "UNITED SENIOR CITIZENS KOALITION NG PILIPINAS (UNITED SENIOR CITIZENS)",
+      "acronym": "UNITED SENIOR CITIZENS",
+      "totalVotes": 533913,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "MILAGROS A. MAGSAYSAY"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-16-4k",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 16,
+      "officialName": "KABABAIHAN KABALIKATAN PARA SA KAPAKANAN AT KAUNLARAN NG BAYAN (4K)",
+      "acronym": "4K",
+      "totalVotes": 521592,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "IRIS MARIE DEMESA MONTES"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-17-lpgma",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 17,
+      "officialName": "LPG MARKETERS ASSOCIATION, INC. (LPGMA)",
+      "acronym": "LPGMA",
+      "totalVotes": 517833,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "ALLAN U. TY"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-18-coop-natcco",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 18,
+      "officialName": "COOPERATIVE NATCCO NETWORK PARTY (COOP-NATCCO)",
+      "acronym": "COOP-NATCCO",
+      "totalVotes": 509913,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "FELIMON M. ESPARES"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-19-ako-bisaya",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 19,
+      "officialName": "AKO BISAYA INC. (AKO BISAYA)",
+      "acronym": "AKO BISAYA",
+      "totalVotes": 477796,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "SONNY L. LAGON"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-20-cws",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 20,
+      "officialName": "CONSTRUCTION WORKERS SOLIDARITY INC. (CWS)",
+      "acronym": "CWS",
+      "totalVotes": 477517,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "TIRSO EDWIN L. GARDIOLA"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-21-pinoy-workers",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 21,
+      "officialName": "PEOPLE WORKING FOR THE PHILIPPINES (PINOY WORKERS)",
+      "acronym": "PINOY WORKERS",
+      "totalVotes": 475985,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "FRANZ VINCENT F. LEGAZPI"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-22-agap",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 22,
+      "officialName": "AGRICULTURAL SECTOR ALLIANCE OF THE PHILIPPINES (AGAP)",
+      "acronym": "AGAP",
+      "totalVotes": 469412,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "NICANOR M. BRIONES"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-23-asenso-pinoy",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 23,
+      "officialName": "ASENSO PINOY (ASENSO PINOY)",
+      "acronym": "ASENSO PINOY",
+      "totalVotes": 423133,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "HENRY F. OAMINAL, JR."
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-24-agimat",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 24,
+      "officialName": "AGIMAT NG MASA (AGIMAT)",
+      "acronym": "AGIMAT",
+      "totalVotes": 420813,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "BRYAN B. REVILLA"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-25-tgp",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 25,
+      "officialName": "TALINO AT GALING NG PINOY (TGP)",
+      "acronym": "TGP",
+      "totalVotes": 407922,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "JOSE JOSON TEVES, JR."
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-26-sagip",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 26,
+      "officialName": "SOCIAL AMELIORATION & GENUINE INTERVENTION ON POVERTY (SAGIP)",
+      "acronym": "SAGIP",
+      "totalVotes": 405297,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "PAOLO HENRY M. MARCOLETA"
+        }
+      ],
+      "sourcePage": 1
+    },
+    {
+      "id": "party-list-2025-27-alona",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 27,
+      "officialName": "ALLIANCE OF ORGANIZATIONS, NETWORKS AND ASSOCIATIONS OF THE PHILIPPINES (ALONA)",
+      "acronym": "ALONA",
+      "totalVotes": 393684,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "MA. CRISITINA T. LOPEZ"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-28-1-rider-party-list",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 28,
+      "officialName": "ANG BUKLOD NG MGA MOTORISTA NG PILIPINAS (1-RIDER PARTY-LIST)",
+      "acronym": "1-RIDER PARTY-LIST",
+      "totalVotes": 385700,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "RAMON RODRIGO L. GUTIERREZ"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-29-kamanggagawa",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 29,
+      "officialName": "KAMPIHAN NG MGA MARALITA AT MANGGAGAWA (KAMANGGAGAWA)",
+      "acronym": "KAMANGGAGAWA",
+      "totalVotes": 382657,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "ELIJAH R. SAN FERRNANDO"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-30-gp-galing-sa-puso",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 30,
+      "officialName": "GALING SA PUSO PARTY-LIST (GP GALING SA PUSO)",
+      "acronym": "GP GALING SA PUSO",
+      "totalVotes": 381880,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "JAN RURIK D. PADIERNOS"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-31-kamalayan",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 31,
+      "officialName": "KALIPUNAN NG MARALITA AT MALAYANG MAMAMAYAN, INC. (KAMALAYAN)",
+      "acronym": "KAMALAYAN",
+      "totalVotes": 381437,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "CAROLINE L. TANCHAY"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-32-bicol-saro",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 32,
+      "officialName": "BICOL SARO (BICOL SARO)",
+      "acronym": "BICOL SARO",
+      "totalVotes": 366177,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "JAMES MARK TERRY L. RIDON"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-33-kusug-tausug",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 33,
+      "officialName": "KUSUG TAUSUG (KUSUG TAUSUG)",
+      "acronym": "KUSUG TAUSUG",
+      "totalVotes": 365916,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "AIMAN T. TAN"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-34-act-teachers",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 34,
+      "officialName": "ACT TEACHERS PARTY-LIST (ACT TEACHERS)",
+      "acronym": "ACT TEACHERS",
+      "totalVotes": 353631,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "ANTONIO L. TINIO"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-35-one-coop",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 35,
+      "officialName": "AURORA INTEGRATED MULTI-PURPOSE COOPERATIVE (AIMCOOP) (ONE COOP)",
+      "acronym": "ONE COOP",
+      "totalVotes": 334098,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "MARIA KRISTINA JIHAN B. GLEPA"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-36-km-ngayon-na",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 36,
+      "officialName": "KILOS MAMAMAYAN NGAYON NA (KM NGAYON NA)",
+      "acronym": "KM NGAYON NA",
+      "totalVotes": 324405,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "KENNETH PAOLO C. TERENG"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-37-abamin",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 37,
+      "officialName": "ABANTE MINDANAO, INC. (ABAMIN)",
+      "acronym": "ABAMIN",
+      "totalVotes": 320349,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "MAXINO B. RODRIGUEZ JR."
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-38-bh-bagong-henerasyon",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 38,
+      "officialName": "BAGONG HENERASYON (BH-BAGONG HENERASYON)",
+      "acronym": "BH-BAGONG HENERASYON",
+      "totalVotes": 319803,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "ROBERTO GERARD L. NAZAL, JR."
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-39-tucp",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 39,
+      "officialName": "TRADE UNION CONGRESS PARTY (TUCP)",
+      "acronym": "TUCP",
+      "totalVotes": 314814,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "RAYMOND DEMOCRITO C. MENDOZA"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-40-kabataan",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 40,
+      "officialName": "KABATAAN PARTYLIST (KABATAAN)",
+      "acronym": "KABATAAN",
+      "totalVotes": 312344,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "RENEE LOUISE M. CO"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-41-apec",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 41,
+      "officialName": "ASSOCIATION OF PHILIPPINE ELECTRIC COOPERATIVES (APEC)",
+      "acronym": "APEC",
+      "totalVotes": 310427,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "SERGIO C. DAGOOC"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-42-magbubukid",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 42,
+      "officialName": "MAMAMAYAN PARA SA GOBYERNONG BUBUKLOD SA MGA ISIP AT DIWA NG MGA PILIPINO (MAGBUBUKID)",
+      "acronym": "MAGBUBUKID",
+      "totalVotes": 310289,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "FERDINAND L. BELTRAN"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-43-1tahanan",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 43,
+      "officialName": "1TAHANAN INC. (1TAHANAN)",
+      "acronym": "1TAHANAN",
+      "totalVotes": 309761,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "NATHANIEL M. ODUCADO"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-44-ako-ilocano-ako",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 44,
+      "officialName": "AKO ILOCANO AKO (AKO ILOCANO AKO)",
+      "acronym": "AKO ILOCANO AKO",
+      "totalVotes": 301406,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "RICHELLE RAIA LOUISE S. MICHAEL"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-45-manila-teachers",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 45,
+      "officialName": "MANILA TEACHERS' SAVINGS AND LOAN ASSOCIATION, INC. (MANILA TEACHERS)",
+      "acronym": "MANILA TEACHERS",
+      "totalVotes": 301291,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "MA. NINA FRANCESCA P. LACSON"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-46-nanay",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 46,
+      "officialName": "NANAY (NANAY)",
+      "acronym": "NANAY",
+      "totalVotes": 293430,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "FLORABEL C. YATCO"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-47-kapuso-pm",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 47,
+      "officialName": "KABALIKAT PATUNGO SA UMUUNLAD NA SISTEMATIKO AT ORGANISADONG PANGKABUHAYAN (KAPUSO PM)",
+      "acronym": "KAPUSO PM",
+      "totalVotes": 293149,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "MUNIR N. ARBISON JR."
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-48-sss-gsis-pensyonado",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 48,
+      "officialName": "SSS-GSIS PENSYONADO (SSS-GSIS PENSYONADO)",
+      "acronym": "SSS-GSIS PENSYONADO",
+      "totalVotes": 290359,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "ROLANDO L. MACASAET"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-49-dumper-ptda",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 49,
+      "officialName": "DUMPER PHILIPPINES TAXI DRIVERS ASSOCIATION, INC. (DUMPER PTDA)",
+      "acronym": "DUMPER PTDA",
+      "totalVotes": 279532,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "CLAUDINE DIANA D. BAUTISTA-LIM"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-50-abang-lingkod",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 50,
+      "officialName": "ABANG LINGKOD INC. (ABANG LINGKOD)",
+      "acronym": "ABANG LINGKOD",
+      "totalVotes": 274735,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "MANUEL FREDERICK O. KO"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-51-pusong-pinoy",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 51,
+      "officialName": "PUSONG PINOY (PUSONG PINOY)",
+      "acronym": "PUSONG PINOY",
+      "totalVotes": 266623,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "JERNIE JETT. V. NISAY"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-52-swerte",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 52,
+      "officialName": "SOLO PARENT WORKING FOR ECONOMIC RIGHTS AND OTHER THRUSTS FOR EQUALITY (SWERTE)",
+      "acronym": "SWERTE",
+      "totalVotes": 261379,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "ARLYN P. AYON"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-53-philreca",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 53,
+      "officialName": "PHILIPPINE RURAL ELECTRIC COOPERATIVES ASSOCIATION, INC. (PHILRECA)",
+      "acronym": "PHILRECA",
+      "totalVotes": 261045,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "PRESLEY C. DE JESUS"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-54-gabriela",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 54,
+      "officialName": "GABRIELA WOMEN'S PARTY (GABRIELA)",
+      "acronym": "GABRIELA",
+      "totalVotes": 256811,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "SARAH JANE I. ELAGO"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-55-abono",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 55,
+      "officialName": "ABONO PARTY LIST (ABONO)",
+      "acronym": "ABONO",
+      "totalVotes": 254474,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "ROBERT RAYMUND M. ESTRELLA"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-56-ang-probinsyano",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 56,
+      "officialName": "ANG PROBINSIYANO PARTYLIST (ANG PROBINSYANO)",
+      "acronym": "ANG PROBINSYANO",
+      "totalVotes": 250886,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "ALFRED C. DELOS SANTOS"
+        }
+      ],
+      "sourcePage": 2
+    },
+    {
+      "id": "party-list-2025-57-murang-kuryente",
+      "electionYear": 2025,
+      "electionDate": "2025-05-12",
+      "rank": 57,
+      "officialName": "MURANG KURYENTE PARTYLIST (MURANG KURYENTE)",
+      "acronym": "MURANG KURYENTE",
+      "totalVotes": 247754,
+      "geographicScope": "national",
+      "nominees": [
+        {
+          "order": 1,
+          "officialName": "ARTHUR C. YAP"
+        }
+      ],
+      "sourcePage": 2
+    }
+  ]
+}

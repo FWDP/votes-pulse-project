@@ -509,12 +509,11 @@ function applyAreaScope(data: DashboardData, area?: string): DashboardData {
   const normalized = normalizeAreaFilter(area)
   if (!normalized || !data.areas.length) return data
 
-  const selectedArea =
-    data.areas.find((areaItem) => {
+  const selectedArea = data.areas.find((areaItem) => {
       const areaName = areaItem.name.toLowerCase()
       const areaId = areaItem.id.toLowerCase()
       return areaId === normalized || areaName.includes(normalized)
-    }) ?? data.areas[0]
+    })
 
   if (!selectedArea) return data
 

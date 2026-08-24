@@ -1,6 +1,7 @@
 import {
     useEffect,
     useMemo,
+    useState,
 } from 'react'
 import {
     CalendarDays,
@@ -9,6 +10,8 @@ import {
 import {
     GeographyControls,
 } from './GeographyControls'
+import ElectionCoverageControls from './ElectionCoverageControls'
+import LegislativeBoundaryPreview from './LegislativeBoundaryPreview'
 
 import {
     useAuth,
@@ -22,6 +25,12 @@ import type {
     GeographySelection,
     ResolvedGeographySelection,
 } from '../../types/geography'
+import {
+    type ElectionSelection,
+    type LegislativeDistrict,
+    type PartyListResult,
+} from '../../types/elections'
+import { usePersistedElectionSelection } from '../../hooks/usePersistedElectionSelection'
 import {
     ALL_CITIES_FILTER,
     ALL_MUNICIPALITIES_FILTER,
@@ -44,6 +53,17 @@ type CoverageFilterProps = {
     onResolvedGeographyChange?: (
         value: ResolvedGeographySelection,
     ) => void
+
+    election?: ElectionSelection
+
+    onElectionChange?: (
+        value: ElectionSelection,
+    ) => void
+
+    onResolvedElectionChange?: (
+        district?: LegislativeDistrict,
+        partyList?: PartyListResult,
+    ) => void
 }
 
 export default function CoverageFilter({
@@ -52,10 +72,20 @@ export default function CoverageFilter({
     geography,
     onGeographyChange,
     onResolvedGeographyChange,
+    election,
+    onElectionChange,
+    onResolvedElectionChange,
 }: CoverageFilterProps) {
     const { user } = useAuth()
     const isSuperadmin = Boolean(user?.isSuperadmin)
     const restrictedCoverage = getCoverageRestriction(user)
+    const [internalElection, setInternalElection] = usePersistedElectionSelection(
+        election === undefined,
+    )
+    const [resolvedDistrict, setResolvedDistrict] = useState<LegislativeDistrict>()
+    const [resolvedPartyList, setResolvedPartyList] = useState<PartyListResult>()
+    const activeElection = election ?? internalElection
+    const handleElectionChange = onElectionChange ?? setInternalElection
 
     useEffect(() => {
         if (isSuperadmin || !restrictedCoverage) return
@@ -64,7 +94,7 @@ export default function CoverageFilter({
 
         const nextGeography: GeographySelection = {
             region: restrictedCoverage.field === 'region' ? restrictedCoverage.value : (
-                restrictedCoverage.field === 'province' || restrictedCoverage.field === 'district' || restrictedCoverage.field === 'locality'
+                restrictedCoverage.field === 'province' || restrictedCoverage.field === 'locality'
                     ? assigned.region
                     : ''
             ),
@@ -75,7 +105,7 @@ export default function CoverageFilter({
                         ? (restrictedCoverage.provinceValue ?? assigned.province)
                         : ''
                 ),
-            district: restrictedCoverage.field === 'district' ? restrictedCoverage.value : '',
+            district: '',
             locality: restrictedCoverage.field === 'locality' ? restrictedCoverage.value : '',
         }
 
@@ -97,12 +127,24 @@ export default function CoverageFilter({
                 return 'Assigned area: CALABARZON · Quezon · Lucena City'
             case 'Marilao, Bulacan':
                 return 'Assigned area: Central Luzon · Bulacan · Marilao'
+            case 'Quezon City':
+                return 'Assigned area: National Capital Region · Quezon City'
             default:
                 return null
         }
     }, [user])
 
     const getDescription = () => {
+        if (activeElection.coverageMode === 'legislative') {
+            const districtLabel = resolvedDistrict?.label ?? 'a legislative district'
+            const partyListLabel = resolvedPartyList?.acronym || resolvedPartyList?.officialName
+            return `Showing ${districtLabel}${partyListLabel ? ` with ${partyListLabel} as the party-list focus` : ''}.`
+        }
+
+        if (resolvedPartyList) {
+            return `Showing administrative coverage with ${resolvedPartyList.acronym || resolvedPartyList.officialName} as the party-list focus.`
+        }
+
         if (geography.locality) {
             if (geography.locality === ALL_CITIES_FILTER) {
                 return 'Showing all cities within the selected administrative coverage.'
@@ -181,6 +223,29 @@ export default function CoverageFilter({
                                 </div>
                             )}
                         </div>
+
+                        <div className="mt-4 border-t border-slate-100 pt-4">
+                            <ElectionCoverageControls
+                                geography={geography}
+                                value={activeElection}
+                                onChange={handleElectionChange}
+                                onResolvedChange={(district, partyList) => {
+                                    setResolvedDistrict(district)
+                                    setResolvedPartyList(partyList)
+                                    onResolvedElectionChange?.(district, partyList)
+                                }}
+                            />
+                        </div>
+
+                        {activeElection.coverageMode === 'legislative' &&
+                            activeElection.legislativeDistrictId && (
+                                <div className="mt-4">
+                                    <LegislativeBoundaryPreview
+                                        district={resolvedDistrict}
+                                        electionYear={activeElection.electionYear}
+                                    />
+                                </div>
+                            )}
                     </div>
 
                     {/* Date Range */}

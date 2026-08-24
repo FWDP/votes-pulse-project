@@ -44,6 +44,24 @@ export interface QuickIssue {
 
 export interface DashboardData {
 
+    coverage?: {
+        electionYear: number;
+        coverageMode: "administrative" | "legislative";
+        administrativeArea?: string;
+        legislativeDistrict?: {
+            id: string;
+            label: string;
+            status: "locality-resolved" | "partial-boundary";
+            localityCodes: string[];
+        };
+        partyListFocus?: {
+            id: string;
+            rank: number;
+            officialName: string;
+            acronym: string;
+        };
+    };
+
     totalMentions: number;
 
     positiveSentiment: number;

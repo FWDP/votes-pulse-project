@@ -21,10 +21,19 @@ interface UseDashboardResult {
   refresh: () => Promise<void>;
 }
 
+export interface DashboardFilters {
+  severity?: string;
+  area?: string;
+  electionYear?: number;
+  coverageMode?: 'administrative' | 'legislative';
+  legislativeDistrictId?: string;
+  partyListId?: string;
+}
+
 export function useDashboard(
   start: string,
   end: string,
-  filters?: { severity?: string; area?: string },
+  filters?: DashboardFilters,
   placeholderScope?: PlaceholderScope,
 ): UseDashboardResult {
   const [data, setData] =
@@ -59,6 +68,10 @@ export function useDashboard(
         const params = new URLSearchParams({ start, end });
         if (filters?.severity && filters.severity !== 'all') params.set('severity', filters.severity)
         if (filters?.area) params.set('area', filters.area)
+        if (filters?.electionYear) params.set('electionYear', String(filters.electionYear))
+        if (filters?.coverageMode) params.set('coverageMode', filters.coverageMode)
+        if (filters?.legislativeDistrictId) params.set('legislativeDistrictId', filters.legislativeDistrictId)
+        if (filters?.partyListId) params.set('partyListId', filters.partyListId)
 
         const response = await fetch(getApiUrl(`/api/dashboard?${params.toString()}`));
 
@@ -96,7 +109,7 @@ export function useDashboard(
       } finally {
         setLoading(false);
       }
-    }, [start, end, filters?.severity, filters?.area, placeholderScope?.region, placeholderScope?.province, placeholderScope?.locality]);
+    }, [start, end, filters?.severity, filters?.area, filters?.electionYear, filters?.coverageMode, filters?.legislativeDistrictId, filters?.partyListId, placeholderScope?.region, placeholderScope?.province, placeholderScope?.district, placeholderScope?.locality]);
 
   useEffect(() => {
     void loadDashboard();

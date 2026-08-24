@@ -10,7 +10,7 @@ Group=peej
 WorkingDirectory=/home/peej/Documents/Work/FWDP/votes-pulse
 Environment=NODE_ENV=production
 EnvironmentFile=-/home/peej/Documents/Work/FWDP/votes-pulse/backend/.env
-ExecStart=/usr/bin/node /home/peej/Documents/Work/FWDP/votes-pulse/dist-server/index.js
+ExecStart=/usr/bin/node --import tsx /home/peej/Documents/Work/FWDP/votes-pulse/backend/src/server.ts
 Restart=on-failure
 RestartSec=5
 

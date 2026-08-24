@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "data:normalize:elections": "tsx backend/scripts/normalizeElectionData.ts",
+    "data:sync:election-boundaries": "tsx backend/scripts/syncLegislativeBoundaryTemplate.ts",
+    "data:clean:election-boundaries": "tsx backend/scripts/cleanLegislativeBoundaryTopology.ts",
+    "data:validate:elections": "tsx backend/scripts/validateElectionData.ts",
+    "test:elections": "node --import tsx --test backend/tests/elections.service.test.ts frontend/tests/elections.utils.test.ts",
     "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite",
     "dev:server": "tsx watch backend/src/server.ts",

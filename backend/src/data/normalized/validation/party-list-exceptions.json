@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "datasetId": "comelec-proclaimed-party-lists-2025",
+    "sourceFile": "2025 ELECTED PARTY LIST.pdf"
+  },
+  "summary": {
+    "pages": 2,
+    "organizations": 57,
+    "nominees": 64,
+    "errors": 0,
+    "warnings": 2
+  },
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "NATIONAL_TOTALS_ONLY",
+      "message": "The source PDF contains national vote totals only and cannot support geographic party-list filtering."
+    },
+    {
+      "severity": "warning",
+      "code": "SEAT_COUNT_NOT_INFERRED",
+      "message": "Seat counts are intentionally not inferred from the number of printed nominees."
+    }
+  ]
+}

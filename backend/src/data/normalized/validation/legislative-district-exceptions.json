@@ -1,0 +1,280 @@
+{
+  "metadata": {
+    "datasetId": "comelec-legislative-districts-2025",
+    "sourceFile": "LIST-CITIES-MUN-LEGDIST-2025.xls"
+  },
+  "summary": {
+    "sourceRows": 2082,
+    "legislativeDistricts": 254,
+    "resolvedMemberships": 1657,
+    "uniqueMatchedLocalities": 1634,
+    "ignoredNonLegislativeDistrictRows": 88,
+    "errors": 0,
+    "warnings": 37
+  },
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "SOURCE_REGION_DIFFERS_FROM_PSGC",
+      "message": "Workbook region placement differs from the July 2025 PSGC reference; the PSGC region is used.",
+      "sourceRow": 1591,
+      "sourceValue": "S U L U",
+      "context": {
+        "sourceRegion": "Region IX (Zamboanga Peninsula)",
+        "psgcRegion": "Bangsamoro Autonomous Region In Muslim Mindanao (BARMM)"
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 11,
+      "sourceValue": "City of Manila — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 12,
+      "sourceValue": "City of Manila — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 13,
+      "sourceValue": "City of Manila — 3rd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 14,
+      "sourceValue": "City of Manila — 4th Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 15,
+      "sourceValue": "City of Manila — 5th Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 16,
+      "sourceValue": "City of Manila — 6th Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 18,
+      "sourceValue": "Quezon City — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 19,
+      "sourceValue": "Quezon City — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 20,
+      "sourceValue": "Quezon City — 3rd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 21,
+      "sourceValue": "Quezon City — 4th Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 22,
+      "sourceValue": "Quezon City — 5th Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 23,
+      "sourceValue": "Quezon City — 6th Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 25,
+      "sourceValue": "City of Caloocan — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 26,
+      "sourceValue": "City of Caloocan — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 27,
+      "sourceValue": "City of Caloocan — 3rd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 29,
+      "sourceValue": "City of Makati — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 30,
+      "sourceValue": "City of Makati — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 32,
+      "sourceValue": "City of Parañaque — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 33,
+      "sourceValue": "City of Parañaque — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 35,
+      "sourceValue": "City of Valenzuela — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 36,
+      "sourceValue": "City of Valenzuela — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 50,
+      "sourceValue": "City of Marikina — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 51,
+      "sourceValue": "City of Marikina — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 61,
+      "sourceValue": "Pateros and Taguig — Lone Legislative District of Pateros and Taguig (1st Councilor District)"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 62,
+      "sourceValue": "City of Taguig — Lone Legislative District of Taguig (2nd Councilor District)"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 778,
+      "sourceValue": "City of Antipolo — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 779,
+      "sourceValue": "City of Antipolo — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 1335,
+      "sourceValue": "City of Cebu — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 1336,
+      "sourceValue": "City of Cebu — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 1570,
+      "sourceValue": "City of Zamboanga — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 1571,
+      "sourceValue": "City of Zamboanga — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 1700,
+      "sourceValue": "City of Cagayan De Oro — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 1701,
+      "sourceValue": "City of Cagayan De Oro — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 1777,
+      "sourceValue": "City of Davao — 1st Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 1778,
+      "sourceValue": "City of Davao — 2nd Legislative District"
+    },
+    {
+      "severity": "warning",
+      "code": "PARTIAL_LOCALITY_BOUNDARY",
+      "message": "District divides a city; the source does not provide barangay boundaries.",
+      "sourceRow": 1779,
+      "sourceValue": "City of Davao — 3rd Legislative District"
+    }
+  ]
+}
