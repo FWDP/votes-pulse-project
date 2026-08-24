@@ -11,6 +11,10 @@ import {
 import {
   fileURLToPath,
 } from 'node:url'
+import polygonClipping, {
+  type MultiPolygon as ClippingMultiPolygon,
+  type Polygon as ClippingPolygon,
+} from 'polygon-clipping'
 import {
   findRingTopologyIssues,
   signedRingArea,
@@ -31,7 +35,14 @@ interface BoundaryFeature {
     legislativeDistrictId?: string
     boundaryStatus?: string
     source?: string | null
+    sourceSha256?: string
     syncStatus?: string
+    localityCodes?: string[]
+    inputBarangayCount?: number
+    inputWholeLocalityCount?: number
+    inputAreaSquareDegrees?: number
+    dissolvedAreaSquareDegrees?: number
+    overlapRemovedSquareDegrees?: number
   }
   geometry: {
     type: 'Polygon' | 'MultiPolygon'
@@ -81,11 +92,25 @@ const legislativeBoundaries = readJson<{
     electionYear: number
     coordinateReferenceSystem: string
     coordinateOrder: string[]
+    sourceSha256?: string
   }
   features: BoundaryFeature[]
 }>(resolve(
   normalizedDirectory,
   'legislative-district-boundaries-2025.geojson',
+))
+const legislativeSubdivisions = readJson<any>(resolve(
+  normalizedDirectory,
+  'legislative-district-subdivisions-2025.json',
+))
+const boundaryReferencePath = resolve(
+  dataDirectory,
+  'reference/legislative-barangay-boundaries-2025.geojson',
+)
+const boundaryReference = readJson<any>(boundaryReferencePath)
+const boundaryReferenceManifest = readJson<any>(resolve(
+  dataDirectory,
+  'reference/legislative-barangay-boundaries-2025.manifest.json',
 ))
 
 assert(legislative.metadata.electionYear === 2025,
@@ -120,6 +145,122 @@ for (const district of legislative.data) {
       `${district.id} marks a non-city locality as partial.`)
   }
 }
+
+assert(legislativeSubdivisions.metadata.electionYear === 2025,
+  'Legislative subdivision dataset must be for election year 2025.')
+assert(legislativeSubdivisions.metadata.psgcReferenceDate === '2025-07-08',
+  'Legislative subdivisions must use the election dataset PSGC snapshot.')
+
+const expectedSubdivisionDistrictIds = new Set<string>(
+  legislative.data
+    .filter((district: any) => district.status === 'partial-boundary')
+    .map((district: any) => district.id),
+)
+const subdivisionDistrictIds = legislativeSubdivisions.data.map(
+  (item: any) => item.legislativeDistrictId,
+)
+assert(new Set(subdivisionDistrictIds).size === subdivisionDistrictIds.length,
+  'Legislative subdivision district IDs must be unique.')
+assert(subdivisionDistrictIds.length === expectedSubdivisionDistrictIds.size,
+  'Subdivision dataset must contain one entry per partial district.')
+assert(legislativeSubdivisions.data.every(
+  (item: any) => item.membershipStatus === 'verified',
+), 'Every partial legislative district must have verified subdivision coverage.')
+
+const assignedSubdivisionCodes = new Set<string>()
+for (const membership of legislativeSubdivisions.data) {
+  assert(expectedSubdivisionDistrictIds.has(membership.legislativeDistrictId),
+    `${membership.legislativeDistrictId} is not a partial legislative district.`)
+  assert(['missing', 'draft', 'verified'].includes(membership.membershipStatus),
+    `${membership.legislativeDistrictId} has an invalid subdivision status.`)
+  assert(Array.isArray(membership.units) && Array.isArray(membership.sources),
+    `${membership.legislativeDistrictId} has invalid subdivision arrays.`)
+  assert(membership.membershipStatus !== 'missing' ||
+    (membership.units.length === 0 && membership.sources.length === 0),
+  `${membership.legislativeDistrictId} is missing but contains subdivision data.`)
+  assert(membership.membershipStatus !== 'verified' ||
+    (membership.units.length > 0 && membership.sources.length > 0),
+  `${membership.legislativeDistrictId} is verified without units and sources.`)
+
+  const district = legislative.data.find(
+    (item: any) => item.id === membership.legislativeDistrictId,
+  )
+  const localityCodes = new Set(
+    district.memberships.map((item: any) => item.localityCode),
+  )
+  for (const unit of membership.units) {
+    assert(/^\d{10}$/.test(unit.code) && /^\d{10}$/.test(unit.parentCode),
+      `${membership.legislativeDistrictId} contains an invalid subdivision PSGC code.`)
+    assert(['barangay', 'submunicipality'].includes(unit.type),
+      `${membership.legislativeDistrictId} contains an invalid subdivision type.`)
+    if (unit.type === 'submunicipality') {
+      assert(localityCodes.has(unit.parentCode),
+        `${unit.code} has no parent locality in ${membership.legislativeDistrictId}.`)
+    }
+    assert(!assignedSubdivisionCodes.has(unit.code),
+      `${unit.code} is assigned to more than one legislative district.`)
+    assignedSubdivisionCodes.add(unit.code)
+  }
+  for (const source of membership.sources) {
+    assert(typeof source.name === 'string' && source.name.trim().length > 0,
+      `${membership.legislativeDistrictId} contains an unnamed source.`)
+    assert(/^https:\/\//.test(source.url),
+      `${membership.legislativeDistrictId} contains an invalid source URL.`)
+    assert([
+      'legislative-district-assignment',
+      'unit-identity-and-hierarchy',
+    ].includes(source.role),
+    `${membership.legislativeDistrictId} contains an invalid source role.`)
+  }
+}
+assert(assignedSubdivisionCodes.size === 1824,
+  'Legislative subdivision dataset must contain 1,814 barangays and 10 whole submunicipalities.')
+
+assert(boundaryReferenceManifest.sha256 === sha256(boundaryReferencePath),
+  'Cached legislative boundary input checksum does not match its manifest.')
+assert(boundaryReference.type === 'FeatureCollection' &&
+  Array.isArray(boundaryReference.features),
+  'Legislative boundary inputs must be a GeoJSON FeatureCollection.')
+const expectedBoundaryBarangayCodes = new Set<string>(
+  legislativeSubdivisions.data.flatMap((membership: any) =>
+    membership.units
+      .filter((unit: any) => unit.type === 'barangay')
+      .map((unit: any) => unit.code),
+  ),
+)
+const expectedWholeLocalityCodes = new Set<string>(
+  legislative.data
+    .filter((district: any) => district.status === 'partial-boundary')
+    .flatMap((district: any) => district.memberships
+      .filter((membership: any) => membership.coverage === 'whole')
+      .map((membership: any) => membership.localityCode)),
+)
+const coveredBoundaryBarangayCodes = new Set<string>()
+const coveredWholeLocalityCodes = new Set<string>()
+for (const feature of boundaryReference.features) {
+  assert(feature.geometry && ['Polygon', 'MultiPolygon'].includes(feature.geometry.type),
+    `Boundary input ${feature.id ?? '(missing id)'} has invalid geometry.`)
+  assert(['barangay', 'locality'].includes(feature.properties.geometryLevel),
+    `Boundary input ${feature.id ?? '(missing id)'} has an invalid level.`)
+  for (const code of feature.properties.coveredPsgcCodes ?? []) {
+    assert(expectedBoundaryBarangayCodes.has(code),
+      `Boundary input unexpectedly covers barangay ${code}.`)
+    assert(!coveredBoundaryBarangayCodes.has(code),
+      `Boundary input covers barangay ${code} more than once.`)
+    coveredBoundaryBarangayCodes.add(code)
+  }
+  for (const code of feature.properties.coveredLocalityCodes ?? []) {
+    assert(expectedWholeLocalityCodes.has(code),
+      `Boundary input unexpectedly covers whole locality ${code}.`)
+    assert(!coveredWholeLocalityCodes.has(code),
+      `Boundary input covers whole locality ${code} more than once.`)
+    coveredWholeLocalityCodes.add(code)
+  }
+}
+assert(coveredBoundaryBarangayCodes.size === expectedBoundaryBarangayCodes.size,
+  'Boundary inputs must cover every assigned barangay exactly once.')
+assert(coveredWholeLocalityCodes.size === expectedWholeLocalityCodes.size,
+  'Boundary inputs must cover every whole locality in a partial district.')
 
 const validatePosition = (position: unknown, districtId: string) => {
   assert(Array.isArray(position) && position.length >= 2,
@@ -171,6 +312,9 @@ assert(legislativeBoundaries.metadata.coordinateReferenceSystem === 'EPSG:4326',
 assert(JSON.stringify(legislativeBoundaries.metadata.coordinateOrder) ===
   JSON.stringify(['longitude', 'latitude']),
   'Legislative boundary coordinate order must be longitude, latitude.')
+assert(legislativeBoundaries.metadata.sourceSha256 ===
+  boundaryReferenceManifest.sha256,
+  'Legislative boundaries must record the cached input checksum.')
 
 const expectedBoundaryIds = new Set<string>(
   legislative.data
@@ -214,6 +358,28 @@ for (const feature of activeBoundaryFeatures) {
   assert(['Polygon', 'MultiPolygon'].includes(feature.geometry.type),
     `${districtId} geometry must be Polygon or MultiPolygon.`)
 
+  const subdivisionMembership = legislativeSubdivisions.data.find(
+    (item: any) => item.legislativeDistrictId === districtId,
+  )
+  const district = legislative.data.find((item: any) => item.id === districtId)
+  assert(feature.properties.sourceSha256 === boundaryReferenceManifest.sha256,
+    `${districtId} does not record the cached boundary input checksum.`)
+  assert(feature.properties.inputBarangayCount ===
+    subdivisionMembership.units.filter((unit: any) => unit.type === 'barangay').length,
+  `${districtId} has an incorrect input barangay count.`)
+  assert(feature.properties.inputWholeLocalityCount ===
+    district.memberships.filter((item: any) => item.coverage === 'whole').length,
+  `${districtId} has an incorrect whole-locality input count.`)
+  assert(typeof feature.properties.inputAreaSquareDegrees === 'number' &&
+    feature.properties.inputAreaSquareDegrees > 0 &&
+    typeof feature.properties.dissolvedAreaSquareDegrees === 'number' &&
+    feature.properties.dissolvedAreaSquareDegrees > 0,
+  `${districtId} has invalid generation area metrics.`)
+  const overlapRatio = (feature.properties.overlapRemovedSquareDegrees ?? Infinity) /
+    feature.properties.inputAreaSquareDegrees
+  assert(overlapRatio <= 1e-6,
+    `${districtId} removed too much overlapping input area (${overlapRatio}).`)
+
   if (feature.geometry.type === 'Polygon') {
     validatePolygon(feature.geometry.coordinates, districtId)
   } else {
@@ -228,6 +394,40 @@ for (const feature of activeBoundaryFeatures) {
     assert(typeof feature.properties.source === 'string' &&
       feature.properties.source.trim().length > 0,
     `${districtId} is verified but has no boundary source.`)
+  }
+}
+
+const asClippingMultiPolygon = (feature: BoundaryFeature): ClippingMultiPolygon => {
+  assert(feature.geometry !== null,
+    `${feature.id ?? '(missing id)'} has no geometry for overlap validation.`)
+  return feature.geometry.type === 'Polygon'
+    ? [feature.geometry.coordinates as ClippingPolygon]
+    : feature.geometry.coordinates as ClippingMultiPolygon
+}
+const clippingArea = (geometry: ClippingMultiPolygon) => geometry.reduce(
+  (total, polygon) => total + polygon.reduce(
+    (polygonTotal, ring, index) => polygonTotal +
+      Math.abs(signedRingArea(ring as TopologyPosition[])) *
+      (index === 0 ? 1 : -1),
+    0,
+  ),
+  0,
+)
+
+for (let first = 0; first < activeBoundaryFeatures.length; first += 1) {
+  for (let second = first + 1; second < activeBoundaryFeatures.length; second += 1) {
+    const firstFeature = activeBoundaryFeatures[first]
+    const secondFeature = activeBoundaryFeatures[second]
+    if (!(firstFeature.properties.localityCodes ?? []).some(code =>
+      secondFeature.properties.localityCodes?.includes(code)
+    )) continue
+
+    const overlap = polygonClipping.intersection(
+      asClippingMultiPolygon(firstFeature),
+      asClippingMultiPolygon(secondFeature),
+    )
+    assert(clippingArea(overlap) <= 1e-10,
+      `${firstFeature.id} and ${secondFeature.id} have overlapping district area.`)
   }
 }
 

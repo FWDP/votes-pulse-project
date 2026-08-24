@@ -8,6 +8,7 @@ import {
     getLegislativeDistrict,
     getLegislativeDistrictBoundary,
     getLegislativeDistrictLocalities,
+    getLegislativeDistrictSubdivisions,
     getPartyList,
     listLegislativeDistricts,
     listPartyLists,
@@ -31,10 +32,17 @@ test('reports election dataset and boundary readiness', () => {
     assert.equal(status.proclaimedNominees, 64)
     assert.deepEqual(status.boundaries, {
         totalRequired: 36,
-        missing: 30,
-        draft: 6,
+        missing: 0,
+        draft: 36,
         verified: 0,
-        withGeometry: 6,
+        withGeometry: 36,
+    })
+    assert.deepEqual(status.subdivisions, {
+        totalRequired: 36,
+        missing: 0,
+        draft: 0,
+        verified: 36,
+        units: 1824,
     })
 })
 
@@ -61,6 +69,44 @@ test('returns district details and their locality memberships', () => {
         getLegislativeDistrict(id)?.memberships,
     )
     assert.equal(getLegislativeDistrict('missing'), undefined)
+})
+
+test('returns and filters verified barangay district memberships', () => {
+    const firstDistrict = getLegislativeDistrictSubdivisions(
+        'ld-2025-1381300000-1',
+    )
+    assert.equal(firstDistrict?.membershipStatus, 'verified')
+    assert.equal(firstDistrict?.units.length, 37)
+    assert.ok(firstDistrict?.units.some(unit =>
+        unit.code === '1381300001' && unit.name === 'Alicia'
+    ))
+    assert.deepEqual(
+        getLegislativeDistrict('ld-2025-1381300000-1')?.subdivisionMembership,
+        { status: 'verified', unitCount: 37 },
+    )
+
+    const byBarangay = listLegislativeDistricts({ barangay: '1381300001' })
+    assert.deepEqual(byBarangay.map(district => district.id), [
+        'ld-2025-1381300000-1',
+    ])
+
+    const davaoFirstDistrict = getLegislativeDistrictSubdivisions(
+        'ld-2025-1130700000-1',
+    )
+    assert.equal(davaoFirstDistrict?.membershipStatus, 'verified')
+    assert.equal(davaoFirstDistrict?.units.length, 54)
+
+    const manilaThirdDistrict = getLegislativeDistrictSubdivisions(
+        'ld-2025-1380600000-3',
+    )
+    assert.ok(manilaThirdDistrict?.units.some(unit =>
+        unit.code === '1380602000' && unit.type === 'submunicipality'
+    ))
+    assert.deepEqual(
+        listLegislativeDistricts({ submunicipality: '1380602000' })
+            .map(district => district.id),
+        ['ld-2025-1380600000-3'],
+    )
 })
 
 test('returns a closed polygon for the converted Quezon City boundary', () => {
@@ -123,6 +169,10 @@ test('rejects unsupported years and malformed PSGC filters', () => {
     )
     assert.throws(
         () => listLegislativeDistricts({ region: '13' }),
+        ElectionQueryError,
+    )
+    assert.throws(
+        () => listLegislativeDistricts({ barangay: '13813' }),
         ElectionQueryError,
     )
 })

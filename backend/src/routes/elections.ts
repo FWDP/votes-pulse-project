@@ -7,6 +7,8 @@ import {
     getLegislativeDistrict,
     getLegislativeDistrictBoundary,
     getLegislativeDistrictLocalities,
+    getLegislativeDistrictSubdivisions,
+    getLegislativeSubdivisionDatasetMetadata,
     getPartyList,
     getPartyListDatasetMetadata,
     listLegislativeDistricts,
@@ -57,6 +59,8 @@ router.get('/legislative-districts', (request, response) => {
             province: queryString(request, 'province'),
             locality: queryString(request, 'locality'),
             jurisdiction: queryString(request, 'jurisdiction'),
+            barangay: queryString(request, 'barangay'),
+            submunicipality: queryString(request, 'submunicipality'),
             q: queryString(request, 'q'),
         })
         sendList(response, getLegislativeDatasetMetadata(), data)
@@ -96,6 +100,26 @@ router.get('/legislative-districts/:id/boundary', (request, response) => {
             type: 'FeatureCollection',
             features: [feature],
         })
+    } catch (error) {
+        sendError(error, response)
+    }
+})
+
+router.get('/legislative-districts/:id/subdivisions', (request, response) => {
+    try {
+        const membership = getLegislativeDistrictSubdivisions(
+            request.params.id,
+            queryString(request, 'year'),
+        )
+        if (!membership) {
+            response.status(404).json({ message: 'Legislative district not found' })
+            return
+        }
+        sendList(response, {
+            ...getLegislativeSubdivisionDatasetMetadata(),
+            membershipStatus: membership.membershipStatus,
+            sources: membership.sources,
+        }, membership.units)
     } catch (error) {
         sendError(error, response)
     }

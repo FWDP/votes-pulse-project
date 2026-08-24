@@ -14,6 +14,11 @@ elections.
   municipality subset of the July 8, 2025 PSGC data. The snapshot was derived
   from the PSA Q2 2025 publication data packaged by
   [`barangay` 2025.7.31.1](https://pypi.org/project/barangay/2025.7.31.1/).
+- `reference/legislative-barangay-boundaries-2025.geojson` — cached GeoRiskPH
+  PSA boundary inputs for the 1,814 barangays assigned to split-city districts,
+  plus the whole Pateros locality used by the mixed Taguig-Pateros district.
+- `reference/legislative-barangay-boundaries-2025.manifest.json` — retrieval
+  metadata and SHA-256 checksum for the cached geometry input.
 
 Every normalized dataset records the SHA-256 checksum of its source document.
 
@@ -22,6 +27,7 @@ Every normalized dataset records the SHA-256 checksum of its source document.
 - `normalized/legislative-districts-2025.json`
 - `normalized/party-lists-2025.json`
 - `normalized/legislative-district-boundaries-2025.geojson`
+- `normalized/legislative-district-subdivisions-2025.json`
 - `normalized/validation/legislative-district-psgc-crosswalk.json`
 - `normalized/validation/legislative-district-exceptions.json`
 - `normalized/validation/party-list-exceptions.json`
@@ -50,6 +56,27 @@ partial-city districts:
 npm run data:sync:election-boundaries
 ```
 
+Regenerate the barangay/submunicipality district crosswalk from the pinned
+`barangay` package's `barangay_flat.json`:
+
+```bash
+npm run data:normalize:election-subdivisions -- --psgc /path/to/barangay_flat.json
+```
+
+Fetch and pin the boundary inputs from GeoRiskPH after regenerating subdivision
+membership. This is the only network-dependent step:
+
+```bash
+npm run data:fetch:election-barangay-boundaries
+```
+
+Dissolve the cached barangay polygons into all 36 partial-city legislative
+district boundaries without accessing the network:
+
+```bash
+npm run data:generate:election-boundaries
+```
+
 Clean self-intersections, close rings, and normalize outer-ring winding after
 entering or importing coordinates:
 
@@ -59,7 +86,8 @@ npm run data:clean:election-boundaries
 
 The sync command adds newly detected partial districts and updates their
 descriptive properties. It preserves existing geometry, sources, notes, and
-any stale hand-entered features.
+any stale hand-entered features. The generation command replaces all active
+partial-city geometry with one consistent source-derived set.
 
 ### Entering legislative boundary coordinates
 
@@ -111,6 +139,7 @@ every coordinate edit.
 - `GET /api/elections/legislative-districts?year=2025`
 - `GET /api/elections/legislative-districts/:id`
 - `GET /api/elections/legislative-districts/:id/localities`
+- `GET /api/elections/legislative-districts/:id/subdivisions`
 - `GET /api/elections/legislative-districts/:id/boundary`
 - `GET /api/elections/party-lists?year=2025`
 - `GET /api/elections/party-lists/:id?year=2025`
@@ -133,8 +162,22 @@ npm run data:normalize:elections -- --psgc /path/to/psgc-flat.json
 - Councilor and provincial-board districts are excluded from the legislative
   dataset.
 - Cities represented by multiple legislative districts are marked with
-  `coverage: "partial"`. The workbook does not contain the barangay membership
-  needed to construct their internal boundaries.
+  `coverage: "partial"`. Their barangay crosswalk is maintained separately
+  because the source workbook does not contain internal membership. All 36
+  partial-city districts have verified subdivision coverage: 1,814 barangays
+  plus the ten Manila submunicipalities whose barangays lie wholly within one
+  district. Cross-district submunicipalities are represented by their
+  constituent barangays instead of being assigned wholesale.
+- GeoRiskPH currently exposes the ten EMBO polygons under their former Makati
+  PSGC codes. The cached boundary input records an explicit `legacy-code`
+  reconciliation for their current Taguig codes.
+- GeoRiskPH currently exposes Caloocan's former Barangay 176 as one polygon,
+  not separate polygons for Barangays 176-A through 176-F. Because all six
+  successors belong to the same legislative district, generation uses the
+  predecessor footprint as one `aggregate-predecessor` input. It must not be
+  used to infer boundaries between those six barangays.
+- Generated legislative polygons begin with `boundaryStatus: "draft"` and
+  should be promoted to `verified` only after visual review.
 - The workbook places Sulu under Region IX, while the July 8, 2025 PSGC
   reference places it under BARMM. The normalized records use the PSGC parent
   and retain a warning documenting the source difference.

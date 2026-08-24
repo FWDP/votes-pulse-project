@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "data:normalize:elections": "tsx backend/scripts/normalizeElectionData.ts",
+    "data:normalize:election-subdivisions": "tsx backend/scripts/normalizeLegislativeDistrictSubdivisions.ts",
+    "data:fetch:election-barangay-boundaries": "tsx backend/scripts/fetchLegislativeBarangayBoundaries.ts",
+    "data:generate:election-boundaries": "tsx backend/scripts/generateLegislativeDistrictBoundaries.ts",
     "data:sync:election-boundaries": "tsx backend/scripts/syncLegislativeBoundaryTemplate.ts",
     "data:clean:election-boundaries": "tsx backend/scripts/cleanLegislativeBoundaryTopology.ts",
     "data:validate:elections": "tsx backend/scripts/validateElectionData.ts",
@@ -29,6 +32,7 @@
     "lucide-react": "^0.468.0",
     "multer": "^2.2.0",
     "pg": "^8.23.0",
+    "polygon-clipping": "^0.15.7",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.18.2",

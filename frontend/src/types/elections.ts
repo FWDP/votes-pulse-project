@@ -43,6 +43,27 @@ export interface LegislativeDistrictMembership {
     sourceName: string
 }
 
+export interface LegislativeDistrictSubdivision {
+    code: string
+    name: string
+    type: 'barangay' | 'submunicipality'
+    parentCode: string
+}
+
+export interface LegislativeSubdivisionListMetadata {
+    datasetId: string
+    electionYear: number
+    psgcReferenceDate: string
+    description: string
+    notes: string[]
+    membershipStatus: 'missing' | 'draft' | 'verified'
+    sources: Array<{
+        name: string
+        url: string
+        role: 'legislative-district-assignment' | 'unit-identity-and-hierarchy'
+    }>
+}
+
 export interface LegislativeDistrict {
     id: string
     electionYear: number
@@ -59,6 +80,10 @@ export interface LegislativeDistrict {
         type: 'city' | 'province' | 'multi-locality'
     } | null
     status: 'locality-resolved' | 'partial-boundary'
+    subdivisionMembership: {
+        status: 'not-required' | 'missing' | 'draft' | 'verified'
+        unitCount: number
+    }
     memberships: LegislativeDistrictMembership[]
     sourceRows: number[]
 }
@@ -108,5 +133,12 @@ export interface ElectionDataStatus {
         draft: number
         verified: number
         withGeometry: number
+    }
+    subdivisions: {
+        totalRequired: number
+        missing: number
+        draft: number
+        verified: number
+        units: number
     }
 }

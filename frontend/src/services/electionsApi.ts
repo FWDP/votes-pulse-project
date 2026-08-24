@@ -4,6 +4,8 @@ import type {
     ElectionListResponse,
     LegislativeDistrict,
     LegislativeDistrictMembership,
+    LegislativeDistrictSubdivision,
+    LegislativeSubdivisionListMetadata,
     PartyListResult,
 } from '../types/elections'
 import { getApiUrl } from '../utils/getApiUrl'
@@ -15,6 +17,8 @@ export interface LegislativeDistrictQuery {
     province?: string
     locality?: string
     jurisdiction?: string
+    barangay?: string
+    submunicipality?: string
     q?: string
 }
 
@@ -69,6 +73,19 @@ export const getLegislativeDistrictLocalities = (
     signal?: AbortSignal,
 ) => requestJson<ElectionListResponse<LegislativeDistrictMembership>>(
     `/api/elections/legislative-districts/${encodeURIComponent(id)}/localities${buildQuery({ year })}`,
+    signal,
+)
+
+export const getLegislativeDistrictSubdivisions = (
+    id: string,
+    year = 2025,
+    signal?: AbortSignal,
+) => requestJson<
+    Omit<ElectionListResponse<LegislativeDistrictSubdivision>, 'metadata'> & {
+        metadata: LegislativeSubdivisionListMetadata
+    }
+>(
+    `/api/elections/legislative-districts/${encodeURIComponent(id)}/subdivisions${buildQuery({ year })}`,
     signal,
 )
 

@@ -146,16 +146,73 @@ export const findRingTopologyIssues = (ring: Position[]): string[] => {
   const issues: string[] = []
   const segmentCount = ring.length - 1
 
-  for (let first = 0; first < segmentCount; first += 1) {
-    for (let second = first + 2; second < segmentCount; second += 1) {
-      if (first === 0 && second === segmentCount - 1) continue
-      if (segmentsTouchOrCross(
-        ring[first],
-        ring[first + 1],
-        ring[second],
-        ring[second + 1],
-      )) {
-        issues.push(`segments ${first} and ${second} intersect`)
+  const inspectPair = (first: number, second: number) => {
+    if (second < first) [first, second] = [second, first]
+    if (second <= first + 1) return
+    if (first === 0 && second === segmentCount - 1) return
+    if (segmentsTouchOrCross(
+      ring[first],
+      ring[first + 1],
+      ring[second],
+      ring[second + 1],
+    )) {
+      issues.push(`segments ${first} and ${second} intersect`)
+    }
+  }
+
+  if (segmentCount <= 500) {
+    for (let first = 0; first < segmentCount; first += 1) {
+      for (let second = first + 2; second < segmentCount; second += 1) {
+        inspectPair(first, second)
+      }
+    }
+    return issues
+  }
+
+  // Large generated administrative rings can contain tens of thousands of
+  // segments. A uniform spatial index keeps intersection validation practical
+  // while preserving the exact segment test used for smaller manual rings.
+  const xs = ring.map(position => position[0])
+  const ys = ring.map(position => position[1])
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+  const gridSize = Math.max(1, Math.ceil(Math.sqrt(segmentCount)))
+  const cellWidth = (maxX - minX) / gridSize || 1
+  const cellHeight = (maxY - minY) / gridSize || 1
+  const cells = new Map<string, number[]>()
+  const cellIndex = (value: number, minimum: number, size: number) =>
+    Math.max(0, Math.min(gridSize - 1, Math.floor((value - minimum) / size)))
+
+  for (let segment = 0; segment < segmentCount; segment += 1) {
+    const start = ring[segment]
+    const end = ring[segment + 1]
+    const firstX = cellIndex(Math.min(start[0], end[0]), minX, cellWidth)
+    const lastX = cellIndex(Math.max(start[0], end[0]), minX, cellWidth)
+    const firstY = cellIndex(Math.min(start[1], end[1]), minY, cellHeight)
+    const lastY = cellIndex(Math.max(start[1], end[1]), minY, cellHeight)
+
+    for (let x = firstX; x <= lastX; x += 1) {
+      for (let y = firstY; y <= lastY; y += 1) {
+        const key = `${x}:${y}`
+        const members = cells.get(key) ?? []
+        members.push(segment)
+        cells.set(key, members)
+      }
+    }
+  }
+
+  const inspectedPairs = new Set<string>()
+  for (const members of cells.values()) {
+    for (let firstIndex = 0; firstIndex < members.length; firstIndex += 1) {
+      for (let secondIndex = firstIndex + 1; secondIndex < members.length; secondIndex += 1) {
+        const first = Math.min(members[firstIndex], members[secondIndex])
+        const second = Math.max(members[firstIndex], members[secondIndex])
+        const key = `${first}:${second}`
+        if (inspectedPairs.has(key)) continue
+        inspectedPairs.add(key)
+        inspectPair(first, second)
       }
     }
   }

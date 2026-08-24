@@ -7,6 +7,8 @@ import type {
     ElectionDataStatus,
     LegislativeDistrict,
     LegislativeDistrictMembership,
+    LegislativeDistrictSubdivisionMembership,
+    LegislativeDistrictSubdivisionMetadata,
     LegislativeBoundaryCollection,
     LegislativeBoundaryFeature,
     PartyListResult,
@@ -28,7 +30,9 @@ const readJson = <T>(relativePath: string): T => JSON.parse(
     readFileSync(path.resolve(process.cwd(), relativePath), 'utf8'),
 ) as T
 
-const legislativeDataset = readJson<ElectionDataset<LegislativeDistrict>>(
+type StoredLegislativeDistrict = Omit<LegislativeDistrict, 'subdivisionMembership'>
+
+const legislativeDataset = readJson<ElectionDataset<StoredLegislativeDistrict>>(
     'backend/src/data/normalized/legislative-districts-2025.json',
 )
 const partyListDataset = readJson<ElectionDataset<PartyListResult>>(
@@ -40,6 +44,33 @@ const psgcDataset = readJson<PSGCDataset>(
 const legislativeBoundaryCollection = readJson<LegislativeBoundaryCollection>(
     'backend/src/data/normalized/legislative-district-boundaries-2025.geojson',
 )
+const legislativeSubdivisionDataset = readJson<{
+    metadata: LegislativeDistrictSubdivisionMetadata
+    data: LegislativeDistrictSubdivisionMembership[]
+}>(
+    'backend/src/data/normalized/legislative-district-subdivisions-2025.json',
+)
+
+const subdivisionsByDistrictId = new Map(
+    legislativeSubdivisionDataset.data.map(item => [item.legislativeDistrictId, item]),
+)
+
+const withSubdivisionSummary = (
+    district: StoredLegislativeDistrict,
+): LegislativeDistrict => {
+    const membership = subdivisionsByDistrictId.get(district.id)
+
+    return {
+        ...district,
+        subdivisionMembership: membership ? {
+            status: membership.membershipStatus,
+            unitCount: membership.units.length,
+        } : {
+            status: 'not-required',
+            unitCount: 0,
+        },
+    }
+}
 
 const psgcByCode = new Map<string, PSGCLocality>(
     psgcDataset.data.map(unit => [unit.code, unit]),
@@ -95,6 +126,8 @@ export interface LegislativeDistrictFilters {
     province?: string
     locality?: string
     jurisdiction?: string
+    barangay?: string
+    submunicipality?: string
     q?: string
 }
 
@@ -106,6 +139,8 @@ export const listLegislativeDistricts = (
     assertPSGCCode('province', filters.province)
     assertPSGCCode('locality', filters.locality)
     assertPSGCCode('jurisdiction', filters.jurisdiction)
+    assertPSGCCode('barangay', filters.barangay)
+    assertPSGCCode('submunicipality', filters.submunicipality)
     const query = normalizeSearch(filters.q ?? '')
 
     return legislativeDataset.data.filter(district => {
@@ -124,6 +159,20 @@ export const listLegislativeDistricts = (
             filters.jurisdiction &&
             district.jurisdiction?.code !== filters.jurisdiction
         ) return false
+        const subdivisions = subdivisionsByDistrictId.get(district.id)?.units ?? []
+        if (
+            filters.barangay &&
+            !subdivisions.some(item =>
+                item.type === 'barangay' && item.code === filters.barangay
+            )
+        ) return false
+        if (
+            filters.submunicipality &&
+            !subdivisions.some(item =>
+                item.type === 'submunicipality' &&
+                item.code === filters.submunicipality
+            )
+        ) return false
         if (query) {
             const searchable = [
                 district.label,
@@ -131,13 +180,14 @@ export const listLegislativeDistricts = (
                 district.region.name,
                 district.jurisdiction?.name ?? '',
                 ...district.memberships.flatMap(item => [item.localityName, item.sourceName]),
+                ...subdivisions.map(item => item.name),
             ].map(normalizeSearch)
 
             if (!searchable.some(value => value.includes(query))) return false
         }
 
         return true
-    })
+    }).map(withSubdivisionSummary)
 }
 
 export const getLegislativeDistrict = (
@@ -145,9 +195,10 @@ export const getLegislativeDistrict = (
     yearValue?: unknown,
 ): LegislativeDistrict | undefined => {
     const year = resolveElectionYear(yearValue)
-    return legislativeDataset.data.find(
+    const district = legislativeDataset.data.find(
         district => district.id === id && district.electionYear === year,
     )
+    return district ? withSubdivisionSummary(district) : undefined
 }
 
 export const getLegislativeDistrictLocalities = (
@@ -157,6 +208,16 @@ export const getLegislativeDistrictLocalities = (
     id,
     yearValue,
 )?.memberships
+
+export const getLegislativeDistrictSubdivisions = (
+    id: string,
+    yearValue?: unknown,
+): LegislativeDistrictSubdivisionMembership | undefined => {
+    const district = getLegislativeDistrict(id, yearValue)
+    if (!district) return undefined
+
+    return subdivisionsByDistrictId.get(district.id)
+}
 
 export const getLegislativeDistrictBoundary = (
     id: string,
@@ -206,6 +267,9 @@ export const getPartyList = (
 export const getLegislativeDatasetMetadata = (): ElectionDatasetMetadata =>
     legislativeDataset.metadata
 
+export const getLegislativeSubdivisionDatasetMetadata = (
+): LegislativeDistrictSubdivisionMetadata => legislativeSubdivisionDataset.metadata
+
 export const getPartyListDatasetMetadata = (): ElectionDatasetMetadata =>
     partyListDataset.metadata
 
@@ -223,6 +287,9 @@ export const getElectionDataStatus = (
         feature =>
             feature.properties.electionYear === year &&
             feature.properties.syncStatus !== 'stale',
+    )
+    const subdivisionMemberships = legislativeSubdivisionDataset.data.filter(
+        item => item.electionYear === year,
     )
 
     return {
@@ -255,6 +322,22 @@ export const getElectionDataStatus = (
                 feature => feature.properties.boundaryStatus === 'verified',
             ).length,
             withGeometry: boundaries.filter(feature => feature.geometry !== null).length,
+        },
+        subdivisions: {
+            totalRequired: subdivisionMemberships.length,
+            missing: subdivisionMemberships.filter(
+                item => item.membershipStatus === 'missing',
+            ).length,
+            draft: subdivisionMemberships.filter(
+                item => item.membershipStatus === 'draft',
+            ).length,
+            verified: subdivisionMemberships.filter(
+                item => item.membershipStatus === 'verified',
+            ).length,
+            units: subdivisionMemberships.reduce(
+                (total, item) => total + item.units.length,
+                0,
+            ),
         },
     }
 }
