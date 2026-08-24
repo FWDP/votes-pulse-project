@@ -475,6 +475,10 @@ interface DashboardBuildOptions {
   area?: string;
 }
 
+interface ExtendedDashboardBuildOptions extends DashboardBuildOptions {
+  product?: 'votes' | 'pulse'
+}
+
 function normalizeAreaFilter(value?: string): string | null {
   if (!value) return null
 
@@ -505,12 +509,11 @@ function applyAreaScope(data: DashboardData, area?: string): DashboardData {
   const normalized = normalizeAreaFilter(area)
   if (!normalized || !data.areas.length) return data
 
-  const selectedArea =
-    data.areas.find((areaItem) => {
+  const selectedArea = data.areas.find((areaItem) => {
       const areaName = areaItem.name.toLowerCase()
       const areaId = areaItem.id.toLowerCase()
       return areaId === normalized || areaName.includes(normalized)
-    }) ?? data.areas[0]
+    })
 
   if (!selectedArea) return data
 
@@ -537,10 +540,13 @@ function applyAreaScope(data: DashboardData, area?: string): DashboardData {
 
 export async function buildDashboard(
   range: DateRange,
-  options: DashboardBuildOptions = {},
+  options: ExtendedDashboardBuildOptions = {},
 ): Promise<DashboardData> {
-  const mainSearchId =
-    dashboardConfig.mainSearchId;
+  const product = options.product ?? 'votes'
+
+  // Allow product-specific overrides via env vars, e.g. MELTWATER_SEARCH_MAIN_PULSE
+  const envOverride = process.env[`MELTWATER_SEARCH_MAIN_${product.toUpperCase()}`]
+  const mainSearchId = envOverride ?? dashboardConfig.mainSearchId
 
   if (!mainSearchId) {
     throw new Error(

@@ -58,6 +58,16 @@ export const TEST_USERS: TestUser[] = [
     coverageCode: '0301411000',
     provinceCode: '0301400000',
   },
+  {
+    id: 'user-quezon-city-local',
+    displayName: 'Quezon City User',
+    email: 'quezoncity@example.test',
+    homeLocation: 'Quezon City',
+    coverageScope: 'locality',
+    coverageValue: 'Quezon City',
+    coverageCode: '1381300000',
+    regionCode: '1300000000',
+  },
 ]
 
 export const inferRegionCode = (code?: string): string | undefined => {
@@ -96,6 +106,8 @@ export const getCoverageLabel = (user?: Partial<TestUser>) => {
       return 'Coverage: City of Lucena'
     case 'Marilao, Bulacan':
       return 'Coverage: Municipality of Marilao'
+    case 'Quezon City':
+      return 'Coverage: Quezon City'
     default:
       return `Coverage: ${user.homeLocation ?? 'Assigned area'}`
   }
@@ -136,6 +148,13 @@ export const getAssignedGeographySelection = (user?: Partial<TestUser>): Geograp
         province: '0301400000',
         district: '',
         locality: '0301411000',
+      }
+    case 'Quezon City':
+      return {
+        region: '1300000000',
+        province: '',
+        district: '',
+        locality: '1381300000',
       }
     default:
       if (!user.coverageScope) {

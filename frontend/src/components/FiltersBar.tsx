@@ -2,8 +2,10 @@ import React from 'react'
 
 export default function FiltersBar({
   onChange,
+  showPeriod = true,
 }: {
   onChange?: (values: { period?: string; severity?: string }) => void
+  showPeriod?: boolean
 }) {
   const [period, setPeriod] = React.useState<string>('30d')
   const [severity, setSeverity] = React.useState<string>('all')
@@ -14,7 +16,7 @@ export default function FiltersBar({
 
   return (
     <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+      {showPeriod && <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
         <span>Time range</span>
         <select
           value={period}
@@ -26,7 +28,7 @@ export default function FiltersBar({
           <option value="30d">Last 30 days</option>
           <option value="90d">Last 90 days</option>
         </select>
-      </label>
+      </label>}
 
       <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
         <span>Severity</span>
