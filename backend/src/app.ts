@@ -6,6 +6,8 @@ import geographyRouter from './routes/geography'
 import adminRouter from './routes/admin'
 import dashboardRouter from './routes/dashboard'
 import reportsRouter from './routes/reports'
+import brandsRouter from './routes/brands'
+import electionsRouter from './routes/elections'
 
 const app = express()
 const distPath = path.resolve(process.cwd(), 'dist')
@@ -45,6 +47,20 @@ app.use(
 app.use('/api/admin', adminRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/reports', reportsRouter)
+app.use('/api/brands', brandsRouter)
+app.use('/api/elections', electionsRouter)
+
+// Pulse API namespace (mirror existing endpoints under /api/pulse/*)
+app.use(
+    '/api/pulse/geography',
+    geographyRouter,
+)
+
+app.use('/api/pulse/admin', adminRouter)
+app.use('/api/pulse/dashboard', dashboardRouter)
+app.use('/api/pulse/reports', reportsRouter)
+app.use('/api/pulse/brands', brandsRouter)
+app.use('/api/pulse/elections', electionsRouter)
 
 app.use(express.static(distPath))
 

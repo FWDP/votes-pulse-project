@@ -14,9 +14,16 @@ import FiltersBar from '../../components/FiltersBar'
 import MapPanelPlaceholder from '../../components/MapPanelPlaceholder'
 import GeoJsonMap from '../location/GeoJsonMap'
 import { getBoundaryGeoJson } from '../../services/boundaryApi'
+import { getLegislativeDistrictBoundary } from '../../services/electionsApi'
 import { useEffect, useState } from 'react'
 import { getAssignedGeographySelection, useAuth, getCoverageRestriction, getCoverageLabel } from '../../contexts/AuthContext'
 import { isSameGeography } from '../../utils/geography'
+import CoverageFilter from '../dashboard/CoverageFilter'
+import {
+    type LegislativeDistrict,
+    type PartyListResult,
+} from '../../types/elections'
+import { usePersistedElectionSelection } from '../../hooks/usePersistedElectionSelection'
 
 function toMeltwaterDate(
     date: Date,
@@ -55,6 +62,9 @@ export default function OverviewContent() {
     const [severity, setSeverity] = useState<string>('all')
     const [selectedArea, setSelectedArea] = useState<string | null>(restrictedCoverage?.value ?? null)
     const [geography, setGeography] = useState(assignedGeography)
+    const [election, setElection] = usePersistedElectionSelection()
+    const [selectedLegislativeDistrict, setSelectedLegislativeDistrict] = useState<LegislativeDistrict>()
+    const [selectedPartyList, setSelectedPartyList] = useState<PartyListResult>()
     const selectedAreaLabel = useMemo(() => {
         if (user?.isSuperadmin) return 'National coverage'
         return getCoverageLabel(user) || 'Selected area'
@@ -84,16 +94,27 @@ export default function OverviewContent() {
     } = useDashboard(
         range.start,
         range.end,
-        { severity, area: selectedArea ?? undefined },
-        assignedGeography,
+        {
+            severity,
+            area: election.coverageMode === 'administrative'
+                ? selectedArea ?? undefined
+                : undefined,
+            electionYear: election.electionYear,
+            coverageMode: election.coverageMode,
+            legislativeDistrictId: election.legislativeDistrictId || undefined,
+            partyListId: election.partyListId || undefined,
+        },
+        geography,
     );
 
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
     const coverageTitle = useMemo(() => {
-        const baseName = user?.isSuperadmin ? 'National coverage' : (user?.homeLocation || 'Assigned area')
+        const baseName = election.coverageMode === 'legislative' && selectedLegislativeDistrict
+            ? selectedLegislativeDistrict.label
+            : user?.isSuperadmin ? 'National coverage' : (user?.homeLocation || 'Assigned area')
         return baseName.replace(/^Coverage:\s*/i, '')
-    }, [user])
+    }, [election.coverageMode, selectedLegislativeDistrict, user])
 
     const liveFeedItems = useMemo(() => {
         const locationLabel = user?.isSuperadmin ? 'National coverage' : (user?.homeLocation || coverageTitle || 'Assigned area')
@@ -244,8 +265,16 @@ export default function OverviewContent() {
 
         void (async () => {
             try {
-                const payload = await getBoundaryGeoJson(geography, controller.signal)
-                if (mounted) setBoundaryData(payload)
+                const payload = election.coverageMode === 'legislative' && election.legislativeDistrictId
+                    ? await getLegislativeDistrictBoundary(
+                        election.legislativeDistrictId,
+                        election.electionYear,
+                        controller.signal,
+                    )
+                    : await getBoundaryGeoJson(geography, controller.signal)
+                if (mounted) {
+                    setBoundaryData(payload.features.some(feature => feature.geometry) ? payload : null)
+                }
             } catch (err) {
                 // silently fail and keep placeholder
                 if (mounted) setBoundaryData(null)
@@ -253,7 +282,7 @@ export default function OverviewContent() {
         })()
 
         return () => { mounted = false; controller.abort() }
-    }, [geography])
+    }, [election.coverageMode, election.electionYear, election.legislativeDistrictId, geography])
 
     useEffect(() => {
         if (!restrictedCoverage) return
@@ -268,7 +297,38 @@ export default function OverviewContent() {
 
     return (
         <>
-            <FiltersBar onChange={({ period: p, severity: s }) => { if (p) setPeriod(p); if (s) setSeverity(s) }} />
+            <CoverageFilter
+                geography={geography}
+                onGeographyChange={next => {
+                    setGeography(next)
+                    setSelectedArea(
+                        next.locality || next.district || next.province || next.region || null,
+                    )
+                }}
+                election={election}
+                onElectionChange={setElection}
+                onResolvedElectionChange={(district, partyList) => {
+                    setSelectedLegislativeDistrict(district)
+                    setSelectedPartyList(partyList)
+                }}
+                period={period}
+                onPeriodChange={setPeriod}
+            />
+
+            <div className="mt-4">
+                <FiltersBar
+                    showPeriod={false}
+                    onChange={({ severity: nextSeverity }) => {
+                        if (nextSeverity) setSeverity(nextSeverity)
+                    }}
+                />
+            </div>
+
+            {selectedPartyList && (
+                <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-2 text-xs text-indigo-800">
+                    Party-list focus: <strong>{selectedPartyList.officialName}</strong>
+                </div>
+            )}
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white rounded-xl border border-slate-200 p-4">
@@ -413,7 +473,15 @@ export default function OverviewContent() {
                                 </div>
                             )}
                             {boundaryData ? (
-                                <GeoJsonMap data={boundaryData} selectedKey={selectedArea} onAreaClick={(key) => setSelectedArea(prev => prev === key ? null : key)} />
+                                <GeoJsonMap
+                                    data={boundaryData}
+                                    selectedKey={election.coverageMode === 'legislative'
+                                        ? election.legislativeDistrictId
+                                        : selectedArea}
+                                    onAreaClick={election.coverageMode === 'administrative'
+                                        ? (key) => setSelectedArea(prev => prev === key ? null : key)
+                                        : undefined}
+                                />
                             ) : (
                                 <MapPanelPlaceholder />
                             )}

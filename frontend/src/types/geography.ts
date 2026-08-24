@@ -60,10 +60,19 @@ export interface BoundaryProperties {
     psgc_code?: string
     psgc_name?: string
     geographic_level?: string
+    legislativeDistrictId?: string
+    label?: string
+    boundaryStatus?: 'missing' | 'draft' | 'verified'
+    localityCodes?: string[]
+    localityNames?: string[]
+    source?: string | null
+    sourceUrl?: string | null
+    notes?: string | null
 }
 
 export interface BoundaryFeature {
     type: 'Feature'
+    id?: string
     geometry: GeoJsonPolygon | GeoJsonMultiPolygon | null
     properties: BoundaryProperties
 }

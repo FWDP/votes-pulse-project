@@ -15,10 +15,12 @@ interface GeoJsonMapProps {
     metrics?: LocationSentimentMetric[]
     onAreaClick?: (key: string, feature: BoundaryFeature) => void
     selectedKey?: string | null
+    height?: number
+    ariaLabel?: string
 }
 
 const WIDTH = 480
-const HEIGHT = 390
+const DEFAULT_HEIGHT = 390
 const PADDING = 18
 
 const getPolygons = (
@@ -33,7 +35,8 @@ const getPolygons = (
 
 const getFeatureName = (
     feature: BoundaryFeature,
-) => feature.properties.city_name ??
+) => feature.properties.label ??
+    feature.properties.city_name ??
     feature.properties.prov_name ??
     feature.properties.reg_name ??
     feature.properties.psgc_name ??
@@ -41,7 +44,8 @@ const getFeatureName = (
 
 const getFeatureCode = (
     feature: BoundaryFeature,
-) => feature.properties.psgc_10d ??
+) => feature.properties.legislativeDistrictId ??
+    feature.properties.psgc_10d ??
     feature.properties.psgc_code
 
 const getShortLabel = (value: string) =>
@@ -55,6 +59,8 @@ export default function GeoJsonMap({
     metrics = [],
     onAreaClick,
     selectedKey = null,
+    height = DEFAULT_HEIGHT,
+    ariaLabel = 'Geographic boundary map',
 }: GeoJsonMapProps) {
     const [hoveredCode, setHoveredCode] = useState<string | null>(null)
 
@@ -77,12 +83,12 @@ export default function GeoJsonMap({
         const latitudeRange = Math.max(maxLatitude - minLatitude, 0.001)
         const scale = Math.min(
             (WIDTH - PADDING * 2) / longitudeRange,
-            (HEIGHT - PADDING * 2) / latitudeRange,
+            (height - PADDING * 2) / latitudeRange,
         )
         const drawingWidth = longitudeRange * scale
         const drawingHeight = latitudeRange * scale
         const offsetX = (WIDTH - drawingWidth) / 2
-        const offsetY = (HEIGHT - drawingHeight) / 2
+        const offsetY = (height - drawingHeight) / 2
         const project = ([longitude, latitude]: GeoJsonPosition) => [
             offsetX + (longitude - minLongitude) * scale,
             offsetY + (maxLatitude - latitude) * scale,
@@ -135,7 +141,7 @@ export default function GeoJsonMap({
                     .find(metric => metric !== undefined) ?? aggregateMetric,
             }
         })
-    }, [data, metrics])
+    }, [data, height, metrics])
 
     const hoveredFeature = projected.find(
         item => item.key === hoveredCode,
@@ -143,14 +149,15 @@ export default function GeoJsonMap({
     const showLabels = projected.length <= 16
 
     return (
-        <div className="relative h-full min-h-[390px] w-full">
+        <div className="relative h-full w-full" style={{ minHeight: height }}>
             <svg
-                viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-                className="h-full min-h-[390px] w-full"
+                viewBox={`0 0 ${WIDTH} ${height}`}
+                className="h-full w-full"
+                style={{ minHeight: height }}
                 role="img"
-                aria-label="Administrative boundary map"
+                aria-label={ariaLabel}
             >
-                <rect width={WIDTH} height={HEIGHT} rx="14" fill="#f8fafc" />
+                <rect width={WIDTH} height={height} rx="14" fill="#f8fafc" />
 
                 <g>
                     {projected.map(item => (
@@ -217,7 +224,8 @@ export default function GeoJsonMap({
                 </p>
                 {hoveredFeature && getFeatureCode(hoveredFeature) && (
                     <p className="mt-0.5 text-[10px] text-slate-500">
-                        PSGC {getFeatureCode(hoveredFeature)}
+                        {hoveredFeature.properties.legislativeDistrictId ? 'District' : 'PSGC'}{' '}
+                        {getFeatureCode(hoveredFeature)}
                     </p>
                 )}
             </div>
