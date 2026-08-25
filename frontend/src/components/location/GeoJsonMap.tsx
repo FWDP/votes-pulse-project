@@ -9,6 +9,7 @@ import type {
     GeoJsonPosition,
 } from '../../types/geography'
 import type { LocationSentimentMetric } from '../../types/sentiment'
+import { getGeoJsonBounds } from '../../utils/geojson'
 
 interface GeoJsonMapProps {
     data: BoundaryFeatureCollection
@@ -73,12 +74,14 @@ export default function GeoJsonMap({
 
         if (points.length === 0) return []
 
-        const longitudes = points.map(point => point[0])
-        const latitudes = points.map(point => point[1])
-        const minLongitude = Math.min(...longitudes)
-        const maxLongitude = Math.max(...longitudes)
-        const minLatitude = Math.min(...latitudes)
-        const maxLatitude = Math.max(...latitudes)
+        const bounds = getGeoJsonBounds(points)
+        if (!bounds) return []
+        const {
+            minLongitude,
+            maxLongitude,
+            minLatitude,
+            maxLatitude,
+        } = bounds
         const longitudeRange = Math.max(maxLongitude - minLongitude, 0.001)
         const latitudeRange = Math.max(maxLatitude - minLatitude, 0.001)
         const scale = Math.min(

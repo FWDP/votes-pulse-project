@@ -1,5 +1,9 @@
 import React from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import {
+  getUserLicenseLabel,
+  type TestUser,
+  useAuth,
+} from '../contexts/AuthContext'
 import { useTenantWorkspace } from '../contexts/TenantWorkspaceContext'
 import AdminControls from './AdminControls'
 
@@ -22,14 +26,19 @@ export default function Topbar() {
             onChange={(event) => switchUser(event.target.value)}
             className="rounded border border-slate-600 bg-slate-700 px-2 py-1 text-xs text-white outline-none focus:border-sky-400"
           >
-            {testUsers.map((candidate) => (
+            {testUsers.map((candidate: TestUser) => (
               <option key={candidate.id} value={candidate.id}>
-                {candidate.displayName}
+                {candidate.displayName} · {getUserLicenseLabel(candidate)}
               </option>
             ))}
           </select>
         </label>
-        <div className="text-xs text-slate-300">{user?.displayName}</div>
+        <div className="text-right text-xs text-slate-300">
+          <div>{user?.displayName}</div>
+          <div className="text-[9px] font-semibold tracking-wide text-amber-300">
+            {getUserLicenseLabel(user)}
+          </div>
+        </div>
       </div>
     </header>
   )

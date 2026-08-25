@@ -43,6 +43,9 @@ import {
     ALL_MUNICIPALITIES_FILTER,
     INDEPENDENT_CITIES_FILTER,
 } from '../../types/geography'
+import {
+    getNCRDistrictLocalityCodes,
+} from '../../../../shared/ncrDistricts'
 
 interface LocationSentimentPanelProps {
     geography: GeographySelection
@@ -154,8 +157,8 @@ export default function LocationSentimentPanel({
                     },
                     controller.signal,
                 )
-                const districtPrefix =
-                    selectedDistrict?.code.slice(0, 4)
+                const districtLocalityCodes =
+                    getNCRDistrictLocalityCodes(selectedDistrict?.code)
                 const provinceCodes = new Set(
                     provinces.map(provinceUnit => provinceUnit.prv),
                 )
@@ -164,11 +167,9 @@ export default function LocationSentimentPanel({
                         unit.geographic_level.trim().toLowerCase() === 'city' &&
                         !provinceCodes.has(unit.prv),
                     )
-                    : districtPrefix
+                    : districtLocalityCodes
                         ? localities.filter(unit =>
-                        unit.correspondence_code?.startsWith(
-                            districtPrefix,
-                        ),
+                            districtLocalityCodes.includes(unit.code),
                     )
                         : localities
                 const scopedLocalities = localityType
@@ -191,11 +192,11 @@ export default function LocationSentimentPanel({
                             code: districtUnit.code,
                             name: districtUnit.area_name,
                             units: sortUnits(
-                                administrativeLocalities.filter(locality =>
-                                    locality.correspondence_code?.startsWith(
-                                        districtUnit.code.slice(0, 4),
-                                    ),
-                                ),
+                                administrativeLocalities.filter(locality => {
+                                    const localityCodes =
+                                        getNCRDistrictLocalityCodes(districtUnit.code)
+                                    return localityCodes?.includes(locality.code)
+                                }),
                             ),
                         })),
                     )

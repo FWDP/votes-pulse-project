@@ -57,14 +57,24 @@ npm run data:sync:election-boundaries
 ```
 
 Regenerate the barangay/submunicipality district crosswalk from the pinned
-`barangay` package's `barangay_flat.json`:
+`barangay` package's `barangay_flat.json`. The first run downloads the pinned
+source archive, verifies its SHA-256 checksum, and caches the extracted JSON
+under the gitignored `data/cache/` directory:
+
+```bash
+npm run data:normalize:election-subdivisions
+```
+
+To use an existing copy instead, pass an explicit path or set
+`PSGC_BARANGAY_FLAT_PATH`:
 
 ```bash
 npm run data:normalize:election-subdivisions -- --psgc /path/to/barangay_flat.json
 ```
 
 Fetch and pin the boundary inputs from GeoRiskPH after regenerating subdivision
-membership. This is the only network-dependent step:
+membership. Normalization only accesses the network when its pinned PSGC file
+is absent from `data/cache/`; boundary retrieval is always network-dependent:
 
 ```bash
 npm run data:fetch:election-barangay-boundaries

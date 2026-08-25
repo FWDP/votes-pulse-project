@@ -15,6 +15,9 @@ import type {
     PSGCDataset,
     PSGCLocality,
 } from '../types/elections'
+import {
+    getNCRDistrictLocalityCodes,
+} from '../../../shared/ncrDistricts'
 
 export const DEFAULT_ELECTION_YEAR = 2025
 export const AVAILABLE_ELECTION_YEARS = [DEFAULT_ELECTION_YEAR] as const
@@ -120,9 +123,25 @@ const assertPSGCCode = (name: string, value?: string) => {
     }
 }
 
+const resolveNCRStatisticalDistrictLocalities = (
+    value?: string,
+): readonly string[] | undefined => {
+    if (value === undefined) return undefined
+
+    const localities = getNCRDistrictLocalityCodes(value)
+    if (!localities) {
+        throw new ElectionQueryError(
+            'ncrDistrict must be an official 9-digit NCR statistical district code',
+        )
+    }
+
+    return localities
+}
+
 export interface LegislativeDistrictFilters {
     year?: unknown
     region?: string
+    ncrDistrict?: string
     province?: string
     locality?: string
     jurisdiction?: string
@@ -141,11 +160,19 @@ export const listLegislativeDistricts = (
     assertPSGCCode('jurisdiction', filters.jurisdiction)
     assertPSGCCode('barangay', filters.barangay)
     assertPSGCCode('submunicipality', filters.submunicipality)
+    const ncrDistrictLocalities =
+        resolveNCRStatisticalDistrictLocalities(filters.ncrDistrict)
     const query = normalizeSearch(filters.q ?? '')
 
     return legislativeDataset.data.filter(district => {
         if (district.electionYear !== year) return false
         if (filters.region && district.region.code !== filters.region) return false
+        if (
+            ncrDistrictLocalities &&
+            !district.memberships.some(item =>
+                ncrDistrictLocalities.includes(item.localityCode)
+            )
+        ) return false
         if (
             filters.province &&
             !district.memberships.some(item => isWithin(item.localityCode, filters.province!)) &&

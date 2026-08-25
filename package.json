@@ -12,6 +12,8 @@
     "data:clean:election-boundaries": "tsx backend/scripts/cleanLegislativeBoundaryTopology.ts",
     "data:validate:elections": "tsx backend/scripts/validateElectionData.ts",
     "test:elections": "node --import tsx --test backend/tests/elections.service.test.ts frontend/tests/elections.utils.test.ts",
+    "test:auth": "node --import tsx --test frontend/tests/auth.license.test.ts",
+    "test:maps": "node --import tsx --test backend/tests/geography.boundaries.test.ts frontend/tests/geojson.test.ts frontend/tests/ncrDistricts.test.ts",
     "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite",
     "dev:server": "tsx watch backend/src/server.ts",
