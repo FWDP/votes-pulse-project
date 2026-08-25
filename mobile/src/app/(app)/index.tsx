@@ -19,9 +19,10 @@ const matchesFilter = (status: FieldReportStatus, filter: ReportFilter) => {
 }
 
 export default function ReportsScreen() {
-    const { reports, loading } = useReports()
+    const { reports, loading, refreshReports } = useReports()
     const { session } = useSession()
     const [filter, setFilter] = useState<ReportFilter>('all')
+    const [refreshing, setRefreshing] = useState(false)
     const visibleReports = useMemo(
         () => reports.filter(report => matchesFilter(report.status, filter)),
         [filter, reports],
@@ -67,6 +68,11 @@ export default function ReportsScreen() {
                     ItemSeparatorComponent={() => <View style={styles.separator} />}
                     ListEmptyComponent={<Text style={styles.empty}>No reports match this filter.</Text>}
                     showsVerticalScrollIndicator={false}
+                    refreshing={refreshing}
+                    onRefresh={() => {
+                        setRefreshing(true)
+                        void refreshReports().finally(() => setRefreshing(false))
+                    }}
                 />
             )}
         </Screen>

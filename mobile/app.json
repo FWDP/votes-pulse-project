@@ -11,10 +11,17 @@
       "bundleIdentifier": "ph.fwdp.votes.fieldreports"
     },
     "android": {
-      "package": "ph.fwdp.votes.fieldreports",
+      "package": "com.fwdp_rel8ph.votes",
       "adaptiveIcon": {
         "backgroundColor": "#172b4d"
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -37,7 +44,11 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": ""
+      "apiBaseUrl": "",
+      "eas": {
+        "projectId": "c5a147ac-96ba-4a16-b742-20d2353a5c64"
+      },
+      "router": {}
     }
   }
 }

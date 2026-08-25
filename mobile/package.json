@@ -4,8 +4,10 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
+    "start": "expo start --go",
+    "android": "expo start --go --android",
+    "start:dev-client": "expo start --dev-client",
+    "android:dev-client": "expo start --dev-client --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "type-check": "tsc --noEmit",
@@ -13,8 +15,10 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/netinfo": "12.0.1",
     "expo": "~57.0.16",
     "expo-constants": "~57.0.14",
+    "expo-dev-client": "~57.0.15",
     "expo-image-picker": "~57.0.13",
     "expo-linking": "~57.0.7",
     "expo-location": "~57.0.13",

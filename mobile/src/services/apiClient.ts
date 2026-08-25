@@ -31,5 +31,6 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
         throw new Error(payload?.message ?? payload?.error ?? `VOTES API returned ${response.status}`)
     }
 
+    if (response.status === 204) return undefined as T
     return response.json() as Promise<T>
 }

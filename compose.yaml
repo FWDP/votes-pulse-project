@@ -5,15 +5,19 @@ services:
       dockerfile: Dockerfile.api
     init: true
     restart: unless-stopped
+    # The development database runs on the Linux host and listens on loopback.
+    # Host networking lets DATABASE_URL=postgres://...@localhost:5432/... work
+    # inside the API container without exposing PostgreSQL to the LAN.
+    network_mode: host
     env_file:
       - path: ./backend/.env
         required: false
     environment:
       BACKEND_HOST: 0.0.0.0
       PORT: 8787
+      # Local prototype only. Production deployments must omit this override.
+      MOBILE_AUTH_PROTOTYPE_ONLY: 'true'
       CORS_ORIGIN: 'http://votes-pulse.local,http://localhost:5173,http://127.0.0.1:5173'
-    ports:
-      - "8787:8787"
     healthcheck:
       test:
         - CMD

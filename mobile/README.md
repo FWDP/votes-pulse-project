@@ -35,6 +35,24 @@ Or launch Android directly:
 npm run mobile:android
 ```
 
+These commands explicitly use Expo Go, avoiding an outdated custom development client after native dependencies change.
+
+Run Expo and EAS commands from `mobile/`, not from the repository root. The root project is the Vite Web App and does not contain a React Native `App.tsx` entrypoint.
+
+```bash
+cd mobile
+npx expo start --go --android
+npx eas-cli build --profile development --platform android
+```
+
+To use a custom development client, install the latest development APK produced by EAS, then run:
+
+```bash
+npm run mobile:android:dev-client
+```
+
+Rebuild and reinstall that client after adding or upgrading a native Expo module. An older client can otherwise fail with errors such as `Cannot find native module 'ExpoLinking'` even when the JavaScript dependency is installed.
+
 Without an API URL, the app runs in prototype mode. Use the prefilled login credentials; reports remain on the device.
 
 ## Connect to the backend
@@ -59,15 +77,25 @@ GET  /api/reports
 POST /api/reports
 POST /api/reports/upload
 GET  /api/reports/files/:filename
+PATCH /api/reports/:id
 ```
 
-Only attachment upload/download currently exists in the backend. Session and report CRUD endpoints are intentionally the next integration phase; setting an API URL before those endpoints exist will make connected sign-in fail visibly instead of silently using prototype data.
+These endpoints are implemented. When PostgreSQL is configured, apply the Field Reports migration before starting the connected client:
+
+```bash
+npm run db:migrate
+```
+
+Database users authenticate with their seeded password. In non-production environments, `field@example.test` with the configured `MOBILE_PROTOTYPE_PASSWORD` remains available as a development fallback. The fallback is disabled automatically in production.
+
+Submitted reports upload evidence first, synchronize idempotently using `clientId`, and appear in the Web App Field Reports review queue. Queued or failed reports retry when network connectivity returns.
 
 ## Verification
 
 ```bash
 npm run mobile:type-check
 npm --prefix mobile run doctor
+npm run test:reports
 ```
 
 ## Data and privacy notes

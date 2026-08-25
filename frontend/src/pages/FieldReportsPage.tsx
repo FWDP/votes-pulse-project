@@ -13,11 +13,20 @@ import {
 } from '../types/geography'
 import { getAssignedGeographySelection, getCoverageLabel, useAuth } from '../contexts/AuthContext'
 import { isSameGeography } from '../utils/geography'
+import {
+  createFieldReport as createFieldReportRecord,
+  listFieldReports as listFieldReportRecords,
+  updateFieldReport as updateFieldReportRecord,
+} from '../services/fieldReportsApi'
+import type {
+  FieldReport as SharedFieldReport,
+  FieldReportStatus,
+} from '../../../shared/fieldReports'
 
 type ReportStatus = 'Pending review' | 'Reviewed' | 'Follow-up'
 type LocalityType = 'city' | 'municipality'
 type ReportSeverity = 'Low' | 'Medium' | 'High' | 'Critical'
-type EvidenceType = 'Photo' | 'Interview' | 'Survey' | 'Other'
+type EvidenceType = 'Photo' | 'Interview' | 'Survey' | 'Document' | 'Other'
 
 interface AttachmentRecord {
   name: string
@@ -123,6 +132,43 @@ const sameArea = (left: string, right?: string) => {
   return normalizedLeft === normalizedRight || normalizedLeft.includes(normalizedRight) || normalizedRight.includes(normalizedLeft)
 }
 
+const dashboardStatusFromApi = (status: FieldReportStatus): ReportStatus => {
+  if (status === 'verified' || status === 'rejected') return 'Reviewed'
+  if (status === 'needs-follow-up') return 'Follow-up'
+  return 'Pending review'
+}
+
+const apiStatusFromDashboard = (status: ReportStatus): FieldReportStatus => {
+  if (status === 'Reviewed') return 'verified'
+  if (status === 'Follow-up') return 'needs-follow-up'
+  return 'under-review'
+}
+
+const toDashboardReport = (report: SharedFieldReport): FieldReport => ({
+  id: report.id,
+  title: report.title,
+  observation: report.observation,
+  topic: report.topic,
+  region: report.location.regionName ?? '',
+  province: report.location.provinceName ?? '',
+  district: report.location.barangayName,
+  location: report.location.localityName ?? report.location.label,
+  localityType: report.location.localityType ?? 'municipality',
+  submittedAt: (report.submittedAt ?? report.createdAt).slice(0, 10),
+  submittedBy: report.reporter.displayName,
+  status: dashboardStatusFromApi(report.status),
+  severity: `${report.severity.slice(0, 1).toUpperCase()}${report.severity.slice(1)}` as ReportSeverity,
+  evidenceType: `${report.evidenceType.slice(0, 1).toUpperCase()}${report.evidenceType.slice(1)}` as EvidenceType,
+  evidenceCount: report.attachments.length,
+  assignedTo: report.assignedTo || 'Operations desk',
+  attachments: report.attachments.map(attachment => ({
+    name: attachment.name,
+    type: attachment.mimeType,
+    size: attachment.size ?? 0,
+    path: attachment.remoteUrl,
+  })),
+})
+
 export default function FieldReportsPage() {
   const { user } = useAuth()
   const searchParams = new URLSearchParams(window.location.search)
@@ -151,6 +197,19 @@ export default function FieldReportsPage() {
   const [uploadedAttachments, setUploadedAttachments] = useState<AttachmentRecord[]>([])
   const [uploadingAttachments, setUploadingAttachments] = useState(false)
   const [summaryText, setSummaryText] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void listFieldReportRecords(controller.signal)
+      .then(response => {
+        if (response.data.length) setReports(response.data.map(toDashboardReport))
+      })
+      .catch(error => {
+        if (error instanceof Error && error.name === 'AbortError') return
+        console.warn('Using local Field Reports fallback:', error)
+      })
+    return () => controller.abort()
+  }, [])
 
   const topics = useMemo(() => Array.from(new Set(reports.map(report => report.topic))).sort(), [reports])
   const evidenceTypes = useMemo(() => Array.from(new Set(reports.map(report => report.evidenceType))).sort(), [reports])
@@ -229,7 +288,7 @@ export default function FieldReportsPage() {
     }
   }
 
-  const submitReport = (event: FormEvent<HTMLFormElement>) => {
+  const submitReport = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
     const data = new FormData(form)
@@ -261,8 +320,61 @@ export default function FieldReportsPage() {
       localityType: resolvedGeography.locality?.geographic_level.toLowerCase() === 'city' ? 'city' : 'municipality',
       submittedAt: '2026-03-31', submittedBy: 'Dashboard user', status: 'Pending review', severity, evidenceType, evidenceCount, assignedTo: assignee, attachments,
     }
-    setReports(current => [newReport, ...current])
-    setNotice(`${newReport.id} was added to ${coverageLabel}${attachments.length ? ` with ${attachments.length} attachment${attachments.length > 1 ? 's' : ''}` : ''}.`)
+    const now = new Date().toISOString()
+    const canonicalReport: SharedFieldReport = {
+      id: newReport.id,
+      clientId: `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title,
+      observation,
+      topic: reportTopic,
+      severity: severity.toLowerCase() as SharedFieldReport['severity'],
+      evidenceType: evidenceType.toLowerCase() as SharedFieldReport['evidenceType'],
+      status: 'queued',
+      location: {
+        label: location,
+        localityType: newReport.localityType,
+        regionCode: resolvedGeography.region?.code,
+        regionName: newReport.region,
+        provinceCode: resolvedGeography.province?.code,
+        provinceName: newReport.province,
+        localityCode: resolvedGeography.locality?.code,
+        localityName: location,
+      },
+      reporter: {
+        id: user?.id ?? 'dashboard-user',
+        displayName: user?.displayName ?? 'Dashboard user',
+        email: user?.email,
+      },
+      assignedTo: assignee,
+      attachments: attachments.map((attachment, index) => ({
+        id: `web-attachment-${Date.now()}-${index}`,
+        kind: attachment.type.startsWith('image/') ? 'image' : 'document',
+        name: attachment.name,
+        mimeType: attachment.type,
+        size: attachment.size,
+        remoteUrl: attachment.path,
+        uploadStatus: attachment.path ? 'uploaded' : 'local',
+      })),
+      occurredAt: now,
+      createdAt: now,
+      updatedAt: now,
+      submittedAt: now,
+      sync: { state: 'queued', retryCount: 0 },
+    }
+
+    let savedReport = newReport
+    let persisted = true
+    try {
+      const response = await createFieldReportRecord(canonicalReport)
+      savedReport = toDashboardReport(response.data)
+    } catch (error) {
+      persisted = false
+      console.warn('Field Report API unavailable; retaining local report:', error)
+    }
+    setReports(current => [savedReport, ...current])
+    setNotice(persisted
+      ? `${savedReport.id} was added to ${coverageLabel}${attachments.length ? ` with ${attachments.length} attachment${attachments.length > 1 ? 's' : ''}` : ''}.`
+      : 'The report was retained in this browser because the Field Reports API is unavailable.')
     setShowForm(false)
     setUploadedAttachments([])
     form.reset()
@@ -271,11 +383,19 @@ export default function FieldReportsPage() {
   const updateStatus = (id: string, nextStatus: ReportStatus) => {
     setReports(current => current.map(report => report.id === id ? { ...report, status: nextStatus } : report))
     setNotice(`${id} is now marked ${nextStatus.toLowerCase()}.`)
+    void updateFieldReportRecord(id, { status: apiStatusFromDashboard(nextStatus) }).catch(error => {
+      console.warn('Unable to persist Field Report status:', error)
+      setNotice(`${id} was updated locally, but the server update could not be saved.`)
+    })
   }
 
   const assignReport = (id: string, assignee: string) => {
     setReports(current => current.map(report => report.id === id ? { ...report, assignedTo: assignee } : report))
     setNotice(`${id} was assigned to ${assignee}.`)
+    void updateFieldReportRecord(id, { assignedTo: assignee }).catch(error => {
+      console.warn('Unable to persist Field Report assignment:', error)
+      setNotice(`${id} was assigned locally, but the server update could not be saved.`)
+    })
   }
 
   const pendingCount = coverageReports.filter(report => report.status === 'Pending review').length

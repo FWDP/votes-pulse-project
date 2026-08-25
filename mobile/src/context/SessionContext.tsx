@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
 
-import { signIn as requestSignIn } from '@/services/authApi'
+import { revokeSession, signIn as requestSignIn } from '@/services/authApi'
 import { clearStoredSession, loadStoredSession, storeSession } from '@/storage/sessionStorage'
 import type { MobileSession } from '@/types/session'
 
@@ -30,9 +30,14 @@ export function SessionProvider({ children }: PropsWithChildren) {
     }, [])
 
     const signOut = useCallback(async () => {
+        if (session) {
+            await revokeSession(session.token).catch(error => {
+                console.warn('Unable to revoke remote mobile session:', error)
+            })
+        }
         await clearStoredSession()
         setSession(null)
-    }, [])
+    }, [session])
 
     const value = useMemo(() => ({ session, loading, signIn, signOut }), [loading, session, signIn, signOut])
     return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>

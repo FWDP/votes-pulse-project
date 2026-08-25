@@ -18,7 +18,7 @@ export default function ReportDetailScreen() {
 
     const occurredAt = new Date(report.occurredAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
     return (
-        <Screen title="Report Detail" subtitle={report.id} action={<StatusBadge status={report.status} />}>
+        <Screen title="Report Detail" subtitle={report.serverId ?? report.id} action={<StatusBadge status={report.status} />}>
             <View style={styles.card}>
                 <Text style={styles.title}>{report.title}</Text>
                 <Text style={styles.observation}>{report.observation}</Text>
@@ -53,6 +53,7 @@ export default function ReportDetailScreen() {
                 <Text style={styles.heading}>Synchronization</Text>
                 <Text style={styles.value}>{report.sync.state}</Text>
                 {report.sync.lastError && <Text style={styles.error}>{report.sync.lastError}</Text>}
+                {report.status === 'draft' && <Button label="Submit draft" onPress={() => void retryReport(report.id)} />}
                 {report.sync.state === 'failed' && <Button label="Retry synchronization" onPress={() => void retryReport(report.id)} />}
             </View>
         </Screen>

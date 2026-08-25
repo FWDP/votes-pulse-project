@@ -32,7 +32,7 @@ npm --prefix mobile install
 npm run mobile:start
 ```
 
-The mobile app runs with local prototype persistence by default. Configure `EXPO_PUBLIC_API_BASE_URL` when the mobile session and Field Reports CRUD endpoints are available.
+The mobile app runs with local prototype persistence by default. Configure `EXPO_PUBLIC_API_BASE_URL` to enable authenticated synchronization with the Field Reports review queue in the Web App. For PostgreSQL-backed environments, run `npm run db:migrate` before starting the API.
 
 ## Run the API with Docker
 
@@ -52,6 +52,12 @@ Build and start the API in the background:
 ```bash
 docker compose up --build -d api
 ```
+
+On Linux, the API service uses host networking so a `DATABASE_URL` containing
+`localhost:5432` connects to PostgreSQL running on the host. PostgreSQL remains
+bound to loopback and is not exposed to other devices on the network.
+The local Compose service explicitly enables the prototype mobile account; omit
+`MOBILE_AUTH_PROTOTYPE_ONLY` from real production deployments.
 
 Verify the container and the regions endpoint:
 

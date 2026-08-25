@@ -1,4 +1,3 @@
 /// <reference types="expo/types" />
 
-// This file is generated-compatible and intentionally checked in so a clean
-// clone can type-check before Expo writes its local environment declarations.
+// NOTE: This file should not be edited and should be in your git ignore

@@ -27,7 +27,7 @@ export const runTenantOperation = async <T>(tenantId: string, fn: (client: any) 
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    await client.query("SET LOCAL app.current_tenant_id = $1", [tenantId])
+    await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId])
     const result = await fn(client)
     await client.query('COMMIT')
     return result

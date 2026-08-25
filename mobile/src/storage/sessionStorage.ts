@@ -12,7 +12,12 @@ export async function loadStoredSession(): Promise<MobileSession | null> {
     if (!value) return null
 
     try {
-        return JSON.parse(value) as MobileSession
+        const session = JSON.parse(value) as MobileSession
+        if (!session.expiresAt || Date.parse(session.expiresAt) <= Date.now()) {
+            await clearStoredSession()
+            return null
+        }
+        return session
     } catch {
         await clearStoredSession()
         return null

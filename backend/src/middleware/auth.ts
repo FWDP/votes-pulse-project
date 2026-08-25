@@ -1,4 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
+import { dbEnabled, query } from '../db'
+import { getPrototypeMobileSession } from '../services/mobileSessions.service'
 
 export interface AuthUser {
   id?: string
@@ -7,6 +9,11 @@ export interface AuthUser {
   displayName?: string
   isSuperadmin?: boolean
   roles?: string[]
+  tenantId?: string
+  workspaceId?: string
+  coverageLabel?: string
+  coverageCode?: string
+  role?: string
   [key: string]: any
 }
 
@@ -35,12 +42,55 @@ const normalizeUser = (value: unknown): AuthUser | null => {
   }
 }
 
-export const requireSession = (req: AuthRequest, res: Response, next: NextFunction) => {
+const resolveBearerUser = async (token: string): Promise<AuthUser | null> => {
+  const prototypeSession = getPrototypeMobileSession(token)
+  if (prototypeSession) return prototypeSession.user
+
+  if (!dbEnabled) return null
+
+  const { rows } = await query(`
+    SELECT u.id, u.email, u.display_name, m.tenant_id, m.role,
+      COALESCE((m.workspace_ids->>0), 'workspace-local') AS workspace_id
+    FROM sessions s
+    JOIN users u ON u.id = s.user_id
+    LEFT JOIN memberships m ON m.user_id = u.id AND m.status = 'active'
+    WHERE s.token = $1 AND s.expires_at > now()
+    LIMIT 1
+  `, [token])
+  const row = rows[0]
+  if (!row) return null
+
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    tenantId: row.tenant_id,
+    workspaceId: row.workspace_id,
+    role: row.role,
+  }
+}
+
+export const requireSession = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const existingUser = normalizeUser(req.auth?.user) ?? normalizeUser(req.user) ?? normalizeUser(req.session?.user)
 
   if (existingUser) {
     req.auth = { ...(req.auth ?? {}), user: existingUser }
     return next()
+  }
+
+  const authorization = req.get('authorization') ?? ''
+  const bearerToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1]
+  if (bearerToken) {
+    try {
+      const bearerUser = await resolveBearerUser(bearerToken)
+      if (bearerUser) {
+        req.auth = { user: bearerUser }
+        return next()
+      }
+    } catch (error) {
+      console.error('Unable to resolve bearer session:', error)
+      return res.status(500).json({ error: 'Unable to validate session' })
+    }
   }
 
   const isLocalDev = process.env.NODE_ENV !== 'production'
@@ -50,6 +100,8 @@ export const requireSession = (req: AuthRequest, res: Response, next: NextFuncti
       email: 'superadmin@example.test',
       displayName: 'Super Admin',
       isSuperadmin: true,
+      tenantId: 'tenant-local',
+      workspaceId: 'workspace-local',
     }
 
     req.auth = { user: devUser }

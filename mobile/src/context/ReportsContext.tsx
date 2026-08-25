@@ -1,8 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
+import NetInfo from '@react-native-community/netinfo'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react'
 
 import { seedReports } from '@/data/seedReports'
 import { isApiConfigured } from '@/services/apiClient'
-import { submitFieldReport } from '@/services/fieldReportsApi'
+import { listFieldReports, submitFieldReport, uploadFieldReportAttachments } from '@/services/fieldReportsApi'
 import { loadStoredReports, storeReports } from '@/storage/reportStorage'
 import type { CreateFieldReportInput, FieldReport } from '@/types/fieldReports'
 import { useSession } from './SessionContext'
@@ -14,6 +15,7 @@ interface ReportsContextValue {
     loading: boolean
     saveReport: (input: CreateFieldReportInput, intent: SaveIntent) => Promise<FieldReport>
     retryReport: (id: string) => Promise<void>
+    refreshReports: () => Promise<void>
     getReport: (id: string) => FieldReport | undefined
 }
 
@@ -25,6 +27,8 @@ const makeLocalId = (prefix: string) =>
 export function ReportsProvider({ children }: PropsWithChildren) {
     const { session } = useSession()
     const [reports, setReports] = useState<FieldReport[]>([])
+    const reportsRef = useRef<FieldReport[]>([])
+    const syncingClientIds = useRef(new Set<string>())
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -33,16 +37,24 @@ export function ReportsProvider({ children }: PropsWithChildren) {
             .finally(() => setLoading(false))
     }, [])
 
+    useEffect(() => {
+        reportsRef.current = reports
+    }, [reports])
+
     const replaceReport = useCallback((next: FieldReport) => {
         setReports(current => {
-            const updated = current.map(report => report.id === next.id ? next : report)
+            const updated = current.map(report =>
+                report.id === next.id || report.clientId === next.clientId ? next : report,
+            )
             void storeReports(updated)
             return updated
         })
     }, [])
 
-    const syncReport = useCallback(async (report: FieldReport) => {
+    const syncReport = useCallback(async (report: FieldReport): Promise<FieldReport | undefined> => {
         if (!session || !isApiConfigured) return
+        if (syncingClientIds.current.has(report.clientId)) return
+        syncingClientIds.current.add(report.clientId)
 
         const syncing: FieldReport = {
             ...report,
@@ -51,13 +63,22 @@ export function ReportsProvider({ children }: PropsWithChildren) {
         replaceReport(syncing)
 
         try {
-            const response = await submitFieldReport(syncing, session.token)
-            replaceReport({
+            const attachments = await uploadFieldReportAttachments(syncing.attachments, session.token)
+            const response = await submitFieldReport({ ...syncing, attachments }, session.token)
+            const synchronized = {
                 ...response.data,
+                id: syncing.id,
+                serverId: response.data.id,
+                attachments: response.data.attachments.map(attachment => ({
+                    ...attachment,
+                    localUri: syncing.attachments.find(local => local.name === attachment.name)?.localUri,
+                })),
                 sync: { state: 'synced', retryCount: syncing.sync.retryCount },
-            })
+            } satisfies FieldReport
+            replaceReport(synchronized)
+            return synchronized
         } catch (error) {
-            replaceReport({
+            const failed = {
                 ...syncing,
                 status: 'sync-failed',
                 sync: {
@@ -66,9 +87,58 @@ export function ReportsProvider({ children }: PropsWithChildren) {
                     lastAttemptAt: new Date().toISOString(),
                     lastError: error instanceof Error ? error.message : 'Unable to synchronize report',
                 },
-            })
+            } satisfies FieldReport
+            replaceReport(failed)
+            return failed
+        } finally {
+            syncingClientIds.current.delete(report.clientId)
         }
     }, [replaceReport, session])
+
+    const refreshReports = useCallback(async () => {
+        if (!session || !isApiConfigured) return
+        const response = await listFieldReports(session.token)
+        setReports(current => {
+            const localOnly = current.filter(report =>
+                ['draft', 'queued', 'sync-failed'].includes(report.status) &&
+                !response.data.some(serverReport => serverReport.clientId === report.clientId),
+            )
+            const synchronized = response.data.map(serverReport => {
+                const localReport = current.find(report => report.clientId === serverReport.clientId)
+                return localReport
+                    ? { ...serverReport, id: localReport.id, serverId: serverReport.id }
+                    : serverReport
+            })
+            const updated = [...localOnly, ...synchronized]
+                .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+            void storeReports(updated)
+            return updated
+        })
+    }, [session])
+
+    useEffect(() => {
+        if (loading || !session || !isApiConfigured) return
+        void refreshReports().catch(error => {
+            console.warn('Unable to refresh field reports:', error)
+        })
+    }, [loading, refreshReports, session])
+
+    useEffect(() => {
+        if (!session || !isApiConfigured) return
+
+        const synchronizePending = () => {
+            reportsRef.current
+                .filter(report => ['queued', 'sync-failed'].includes(report.status))
+                .forEach(report => { void syncReport(report) })
+        }
+        const unsubscribe = NetInfo.addEventListener(state => {
+            if (state.isConnected && state.isInternetReachable !== false) synchronizePending()
+        })
+        void NetInfo.fetch().then(state => {
+            if (state.isConnected && state.isInternetReachable !== false) synchronizePending()
+        })
+        return unsubscribe
+    }, [session, syncReport])
 
     const saveReport = useCallback(async (input: CreateFieldReportInput, intent: SaveIntent) => {
         if (!session) throw new Error('Sign in before saving a field report.')
@@ -96,19 +166,28 @@ export function ReportsProvider({ children }: PropsWithChildren) {
             return updated
         })
 
-        if (intent === 'submit') void syncReport(report)
+        if (intent === 'submit') return await syncReport(report) ?? report
         return report
     }, [session, syncReport])
 
     const retryReport = useCallback(async (id: string) => {
         const report = reports.find(item => item.id === id)
-        if (report) await syncReport({ ...report, status: 'queued', sync: { ...report.sync, state: 'queued' } })
-    }, [reports, syncReport])
+        if (!report) return
+        const queued: FieldReport = {
+            ...report,
+            status: 'queued',
+            submittedAt: report.submittedAt ?? new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            sync: { ...report.sync, state: 'queued', lastError: undefined },
+        }
+        replaceReport(queued)
+        await syncReport(queued)
+    }, [replaceReport, reports, syncReport])
 
     const getReport = useCallback((id: string) => reports.find(report => report.id === id), [reports])
     const value = useMemo(
-        () => ({ reports, loading, saveReport, retryReport, getReport }),
-        [getReport, loading, reports, retryReport, saveReport],
+        () => ({ reports, loading, saveReport, retryReport, refreshReports, getReport }),
+        [getReport, loading, refreshReports, reports, retryReport, saveReport],
     )
 
     return <ReportsContext.Provider value={value}>{children}</ReportsContext.Provider>
