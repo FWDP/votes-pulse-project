@@ -4,10 +4,14 @@ import type {
     FieldReportAttachment,
     FieldReportDetailResponse,
     FieldReportListResponse,
+    FieldReportRecipientListResponse,
 } from '@/types/fieldReports'
 
 export const listFieldReports = (token: string) =>
     requestJson<FieldReportListResponse>('/api/reports', { token })
+
+export const listFieldReportRecipients = (token: string) =>
+    requestJson<FieldReportRecipientListResponse>('/api/reports/recipients', { token })
 
 export const submitFieldReport = (report: FieldReport, token: string) =>
     requestJson<FieldReportDetailResponse>('/api/reports', {

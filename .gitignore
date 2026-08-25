@@ -3,6 +3,7 @@ node_modules/
 mobile/.expo/
 mobile/.env.local
 dist/
+dist-stale-*/
 dist-server/
 dist-root-owned/
 .env

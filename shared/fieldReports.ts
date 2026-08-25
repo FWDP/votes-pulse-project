@@ -67,6 +67,12 @@ export interface FieldReportReporter {
     email?: string
 }
 
+export interface FieldReportRecipient {
+    id: string
+    displayName: string
+    email?: string
+}
+
 export interface FieldReportSyncState {
     state: 'local' | 'queued' | 'syncing' | 'synced' | 'failed'
     retryCount: number
@@ -86,6 +92,7 @@ export interface FieldReport {
     status: FieldReportStatus
     location: FieldReportLocation
     reporter: FieldReportReporter
+    recipient?: FieldReportRecipient
     assignedTo?: string
     attachments: FieldReportAttachment[]
     occurredAt: string
@@ -102,6 +109,7 @@ export interface CreateFieldReportInput {
     severity: FieldReportSeverity
     evidenceType: FieldReportEvidenceType
     location: FieldReportLocation
+    recipient?: FieldReportRecipient
     attachments: FieldReportAttachment[]
     occurredAt: string
 }
@@ -113,6 +121,11 @@ export interface FieldReportListResponse {
 
 export interface FieldReportDetailResponse {
     data: FieldReport
+}
+
+export interface FieldReportRecipientListResponse {
+    data: FieldReportRecipient[]
+    count: number
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>

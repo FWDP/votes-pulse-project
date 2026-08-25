@@ -5,6 +5,7 @@ import {
     clearMemoryFieldReports,
     createFieldReport,
     getFieldReport,
+    listFieldReportRecipients,
     listFieldReports,
     updateFieldReport,
 } from '../src/services/fieldReports.service'
@@ -67,4 +68,10 @@ test('isolates report lists by tenant and workspace', async () => {
     await createFieldReport(scope, makeReport())
     assert.deepEqual(await listFieldReports({ tenantId: 'another-tenant', workspaceId: 'workspace-test' }), [])
     assert.deepEqual(await listFieldReports({ tenantId: 'tenant-test', workspaceId: 'another-workspace' }), [])
+})
+
+test('exposes an authorized fallback recipient without a database', async () => {
+    const recipients = await listFieldReportRecipients(scope)
+    assert.equal(recipients.length, 1)
+    assert.equal(recipients[0]?.id, 'operations-desk')
 })

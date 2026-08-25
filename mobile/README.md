@@ -10,6 +10,7 @@ Focused Expo/React Native client for collecting Field Reports and synchronizing 
 - Camera and photo-library evidence capture
 - Foreground GPS capture
 - Draft, queue, synchronization and retry states
+- Outbox multi-select for sending only chosen drafts or failed reports
 - Shared Field Report contract from `../shared/fieldReports.ts`
 - API boundary ready for authenticated backend integration
 
@@ -74,6 +75,7 @@ The mobile integration boundary expects:
 ```text
 POST /api/mobile/session
 GET  /api/reports
+GET  /api/reports/recipients
 POST /api/reports
 POST /api/reports/upload
 GET  /api/reports/files/:filename
@@ -89,6 +91,8 @@ npm run db:migrate
 Database users authenticate with their seeded password. In non-production environments, `field@example.test` with the configured `MOBILE_PROTOTYPE_PASSWORD` remains available as a development fallback. The fallback is disabled automatically in production.
 
 Submitted reports upload evidence first, synchronize idempotently using `clientId`, and appear in the Web App Field Reports review queue. Queued or failed reports retry when network connectivity returns.
+Reporters can select an authorized web recipient from their current tenant/workspace; the API validates the selection and assigns the synchronized report to that account.
+They can submit immediately or save multiple reports to the Outbox, select the reports to send, and synchronize only that batch.
 
 ## Verification
 

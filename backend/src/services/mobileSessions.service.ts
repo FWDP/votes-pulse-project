@@ -6,6 +6,9 @@ import { dbEnabled, query } from '../db'
 
 type StoredSession = MobileSession & { expiresAt: string }
 
+const prototypeTenantId = process.env.MOBILE_PROTOTYPE_TENANT_ID || 'tenant-ramon-de-la-cruz-office'
+const prototypeWorkspaceId = process.env.MOBILE_PROTOTYPE_WORKSPACE_ID || 'workspace-constituent-sentiment'
+
 const sessions = (() => {
     const root = globalThis as typeof globalThis & {
         __votesPulseMobileSessions?: Map<string, StoredSession>
@@ -18,19 +21,32 @@ const prototypeUsers: Record<string, Omit<MobileSessionUser, 'email'>> = {
     'field@example.test': {
         id: 'mobile-field-reporter-local',
         displayName: 'Field Reporter',
-        coverageLabel: 'Assigned field coverage',
+        coverageLabel: 'Municipality of Marilao',
+        coverageCode: '0301411000',
+        regionCode: '0300000000',
+        regionName: 'Region III (Central Luzon)',
+        provinceCode: '0301400000',
+        provinceName: 'Bulacan',
+        localityName: 'Marilao',
+        localityType: 'municipality',
         role: 'field-reporter',
-        tenantId: 'tenant-local',
-        workspaceId: 'workspace-local',
+        tenantId: prototypeTenantId,
+        workspaceId: prototypeWorkspaceId,
     },
     'marilao@example.test': {
         id: 'user-marilao-local',
         displayName: 'Marilao User',
         coverageLabel: 'Municipality of Marilao',
         coverageCode: '0301411000',
+        regionCode: '0300000000',
+        regionName: 'Region III (Central Luzon)',
+        provinceCode: '0301400000',
+        provinceName: 'Bulacan',
+        localityName: 'Marilao',
+        localityType: 'municipality',
         role: 'field-coordinator',
-        tenantId: 'tenant-local',
-        workspaceId: 'workspace-local',
+        tenantId: prototypeTenantId,
+        workspaceId: prototypeWorkspaceId,
     },
 }
 
@@ -48,8 +64,8 @@ const createPrototypeMobileSession = (email: string, password: string): MobileSe
         displayName: normalizedEmail.split('@')[0]?.replace(/[._-]+/g, ' ') || 'Field Reporter',
         coverageLabel: 'Assigned field coverage',
         role: 'field-reporter' as const,
-        tenantId: 'tenant-local',
-        workspaceId: 'workspace-local',
+        tenantId: prototypeTenantId,
+        workspaceId: prototypeWorkspaceId,
     }
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString()
     const session: StoredSession = {

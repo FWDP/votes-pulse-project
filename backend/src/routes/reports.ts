@@ -7,6 +7,7 @@ import { requireSession, type AuthRequest } from '../middleware/auth'
 import {
   createFieldReport,
   getFieldReport,
+  listFieldReportRecipients,
   listFieldReports,
   updateFieldReport,
 } from '../services/fieldReports.service'
@@ -61,8 +62,8 @@ const upload = multer({
 router.use(requireSession)
 
 const getScope = (request: AuthRequest) => ({
-  tenantId: request.auth?.user?.tenantId ?? 'tenant-local',
-  workspaceId: request.auth?.user?.workspaceId ?? 'workspace-local',
+  tenantId: request.auth?.user?.tenantId ?? process.env.MOBILE_PROTOTYPE_TENANT_ID ?? 'tenant-ramon-de-la-cruz-office',
+  workspaceId: request.auth?.user?.workspaceId ?? process.env.MOBILE_PROTOTYPE_WORKSPACE_ID ?? 'workspace-constituent-sentiment',
 })
 
 router.get('/', async (request: AuthRequest, response) => {
@@ -75,10 +76,37 @@ router.get('/', async (request: AuthRequest, response) => {
   }
 })
 
+router.get('/recipients', async (request: AuthRequest, response) => {
+  try {
+    const data = await listFieldReportRecipients(getScope(request))
+    return response.json({ data, count: data.length })
+  } catch (error) {
+    console.error('Unable to list Field Report recipients:', error)
+    return response.status(500).json({ error: 'Unable to list Field Report recipients.' })
+  }
+})
+
 router.post('/', async (request: AuthRequest, response) => {
   const user = request.auth?.user
+  const submittedReport = request.body as FieldReport
+  const submittedLocation = submittedReport.location ?? { label: '' }
+  const assignedCoverageLabel = user?.coverageLabel
+  const locationLabel = submittedLocation.label === 'Assigned field coverage' && assignedCoverageLabel
+    ? assignedCoverageLabel
+    : submittedLocation.label
   const report: FieldReport = {
-    ...(request.body as FieldReport),
+    ...submittedReport,
+    location: {
+      ...submittedLocation,
+      label: locationLabel,
+      localityType: submittedLocation.localityType ?? user?.localityType,
+      regionCode: submittedLocation.regionCode ?? user?.regionCode,
+      regionName: submittedLocation.regionName ?? user?.regionName,
+      provinceCode: submittedLocation.provinceCode ?? user?.provinceCode,
+      provinceName: submittedLocation.provinceName ?? user?.provinceName,
+      localityCode: submittedLocation.localityCode ?? user?.coverageCode,
+      localityName: submittedLocation.localityName ?? user?.localityName,
+    },
     reporter: {
       id: user?.id ?? user?.userId ?? 'local-user',
       displayName: user?.displayName ?? user?.email ?? 'Field Reporter',
@@ -89,6 +117,15 @@ router.post('/', async (request: AuthRequest, response) => {
   if (errors.length) return response.status(400).json({ error: 'Invalid field report.', details: errors })
 
   try {
+    if (submittedReport.recipient?.id) {
+      const recipients = await listFieldReportRecipients(getScope(request))
+      const authorizedRecipient = recipients.find(recipient => recipient.id === submittedReport.recipient?.id)
+      if (!authorizedRecipient) {
+        return response.status(400).json({ error: 'The selected recipient is not available in this workspace.' })
+      }
+      report.recipient = authorizedRecipient
+      report.assignedTo = authorizedRecipient.displayName
+    }
     const data = await createFieldReport(getScope(request), report)
     return response.status(201).json({ data })
   } catch (error) {

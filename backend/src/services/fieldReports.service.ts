@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import type { FieldReport, FieldReportStatus } from '../../../shared/fieldReports'
+import type { FieldReport, FieldReportRecipient, FieldReportStatus } from '../../../shared/fieldReports'
 import { dbEnabled, runTenantOperation } from '../db'
 
 export interface FieldReportScope {
@@ -17,6 +17,10 @@ const reportStore = (() => {
 })()
 
 const useDatabase = () => dbEnabled && process.env.FIELD_REPORTS_MEMORY_ONLY !== 'true'
+
+const fallbackRecipients: FieldReportRecipient[] = [
+    { id: 'operations-desk', displayName: 'VOTES Operations Desk' },
+]
 
 const scopeKey = (scope: FieldReportScope, report: Pick<FieldReport, 'id'>) =>
     `${scope.tenantId}:${scope.workspaceId}:${report.id}`
@@ -36,6 +40,28 @@ const prepareStoredReport = (input: FieldReport): FieldReport => {
             uploadStatus: attachment.remoteUrl ? 'uploaded' : attachment.uploadStatus,
         })),
     }
+}
+
+export async function listFieldReportRecipients(scope: FieldReportScope): Promise<FieldReportRecipient[]> {
+    if (!useDatabase()) return fallbackRecipients
+
+    return runTenantOperation(scope.tenantId, async client => {
+        const { rows } = await client.query(`
+            SELECT DISTINCT u.id, u.display_name, u.email
+            FROM memberships m
+            JOIN users u ON u.id = m.user_id
+            WHERE m.tenant_id = $1
+              AND m.status = 'active'
+              AND u.status = 'active'
+              AND (m.workspace_ids IS NULL OR m.workspace_ids ? $2)
+            ORDER BY u.display_name, u.email
+        `, [scope.tenantId, scope.workspaceId])
+        return rows.map((row: { id: string; display_name?: string; email?: string }) => ({
+            id: row.id,
+            displayName: row.display_name ?? row.email ?? 'VOTES account',
+            email: row.email,
+        }))
+    })
 }
 
 export async function listFieldReports(scope: FieldReportScope): Promise<FieldReport[]> {

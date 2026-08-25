@@ -9,6 +9,8 @@ export type {
     FieldReportListResponse,
     FieldReportLocation,
     FieldReportReporter,
+    FieldReportRecipient,
+    FieldReportRecipientListResponse,
     FieldReportSeverity,
     FieldReportStatus,
     FieldReportSyncState,

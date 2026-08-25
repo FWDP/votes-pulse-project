@@ -100,8 +100,8 @@ export const requireSession = async (req: AuthRequest, res: Response, next: Next
       email: 'superadmin@example.test',
       displayName: 'Super Admin',
       isSuperadmin: true,
-      tenantId: 'tenant-local',
-      workspaceId: 'workspace-local',
+      tenantId: process.env.MOBILE_PROTOTYPE_TENANT_ID || 'tenant-ramon-de-la-cruz-office',
+      workspaceId: process.env.MOBILE_PROTOTYPE_WORKSPACE_ID || 'workspace-constituent-sentiment',
     }
 
     req.auth = { user: devUser }

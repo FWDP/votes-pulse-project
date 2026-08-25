@@ -14,6 +14,7 @@ import {
 import { getAssignedGeographySelection, getCoverageLabel, useAuth } from '../contexts/AuthContext'
 import { isSameGeography } from '../utils/geography'
 import {
+  createFieldReportsSession,
   createFieldReport as createFieldReportRecord,
   listFieldReports as listFieldReportRecords,
   updateFieldReport as updateFieldReportRecord,
@@ -41,9 +42,12 @@ interface FieldReport {
   observation: string
   topic: string
   region: string
+  regionCode?: string
   province: string
+  provinceCode?: string
   district?: string
   location: string
+  localityCode?: string
   localityType: LocalityType
   submittedAt: string
   submittedBy: string
@@ -150,9 +154,12 @@ const toDashboardReport = (report: SharedFieldReport): FieldReport => ({
   observation: report.observation,
   topic: report.topic,
   region: report.location.regionName ?? '',
+  regionCode: report.location.regionCode,
   province: report.location.provinceName ?? '',
+  provinceCode: report.location.provinceCode,
   district: report.location.barangayName,
   location: report.location.localityName ?? report.location.label,
+  localityCode: report.location.localityCode,
   localityType: report.location.localityType ?? 'municipality',
   submittedAt: (report.submittedAt ?? report.createdAt).slice(0, 10),
   submittedBy: report.reporter.displayName,
@@ -197,19 +204,42 @@ export default function FieldReportsPage() {
   const [uploadedAttachments, setUploadedAttachments] = useState<AttachmentRecord[]>([])
   const [uploadingAttachments, setUploadingAttachments] = useState(false)
   const [summaryText, setSummaryText] = useState('')
+  const [apiToken, setApiToken] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
-    void listFieldReportRecords(controller.signal)
-      .then(response => {
+    if (!user?.email) return () => controller.abort()
+
+    let token = ''
+    const loadReports = async () => {
+      if (!token) return
+      const response = await listFieldReportRecords(token, controller.signal)
+      if (!controller.signal.aborted) {
         if (response.data.length) setReports(response.data.map(toDashboardReport))
-      })
-      .catch(error => {
+      }
+    }
+    const connect = async () => {
+      const session = await createFieldReportsSession(user.email, controller.signal)
+      token = session.token
+      setApiToken(token)
+      await loadReports()
+    }
+    const refreshOnFocus = () => {
+      void loadReports().catch(error => console.warn('Unable to refresh Field Reports:', error))
+    }
+    const interval = window.setInterval(refreshOnFocus, 15_000)
+    window.addEventListener('focus', refreshOnFocus)
+
+    void connect().catch(error => {
         if (error instanceof Error && error.name === 'AbortError') return
         console.warn('Using local Field Reports fallback:', error)
       })
-    return () => controller.abort()
-  }, [])
+    return () => {
+      controller.abort()
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshOnFocus)
+    }
+  }, [user?.email])
 
   const topics = useMemo(() => Array.from(new Set(reports.map(report => report.topic))).sort(), [reports])
   const evidenceTypes = useMemo(() => Array.from(new Set(reports.map(report => report.evidenceType))).sort(), [reports])
@@ -218,18 +248,32 @@ export default function FieldReportsPage() {
     resolvedGeography.province?.area_name ?? resolvedGeography.region?.area_name ?? 'National coverage'
 
   const coverageReports = useMemo(() => {
-    const cutoff = new Date(DATA_AS_OF)
+    const latestReportTime = reports.reduce(
+      (latest, report) => Math.max(latest, Date.parse(`${report.submittedAt}T12:00:00+08:00`)),
+      DATA_AS_OF.getTime(),
+    )
+    const cutoff = new Date(latestReportTime)
     cutoff.setDate(cutoff.getDate() - (periodDays[period] ?? 30))
 
     return reports.filter(report => {
       if (new Date(`${report.submittedAt}T23:59:59+08:00`) < cutoff) return false
-      if (geography.region && (!resolvedGeography.region || !sameArea(report.region, resolvedGeography.region.area_name))) return false
-      if (geography.province && (!resolvedGeography.province || !sameArea(report.province, resolvedGeography.province.area_name))) return false
+      if (geography.region && (
+        report.regionCode
+          ? report.regionCode !== geography.region
+          : (!resolvedGeography.region || !sameArea(report.region, resolvedGeography.region.area_name))
+      )) return false
+      if (geography.province && (
+        report.provinceCode
+          ? report.provinceCode !== geography.province
+          : (!resolvedGeography.province || !sameArea(report.province, resolvedGeography.province.area_name))
+      )) return false
       if (geography.district && (!resolvedGeography.district || !sameArea(report.district ?? '', resolvedGeography.district.area_name))) return false
       if (geography.locality === ALL_CITIES_FILTER && report.localityType !== 'city') return false
       if (geography.locality === ALL_MUNICIPALITIES_FILTER && report.localityType !== 'municipality') return false
       if (geography.locality && geography.locality !== ALL_CITIES_FILTER && geography.locality !== ALL_MUNICIPALITIES_FILTER) {
-        if (!resolvedGeography.locality || !sameArea(report.location, resolvedGeography.locality.area_name)) return false
+        if (report.localityCode) {
+          if (report.localityCode !== geography.locality) return false
+        } else if (!resolvedGeography.locality || !sameArea(report.location, resolvedGeography.locality.area_name)) return false
       }
       return true
     })
@@ -255,6 +299,11 @@ export default function FieldReportsPage() {
       setUploadedAttachments([])
       return
     }
+    if (!apiToken) {
+      setNotice('The Field Reports session is still connecting. Please try the upload again.')
+      event.target.value = ''
+      return
+    }
 
     const formData = new FormData()
     nextFiles.forEach(file => formData.append('attachments', file))
@@ -263,6 +312,7 @@ export default function FieldReportsPage() {
     try {
       const response = await fetch(getApiUrl('/api/reports/upload'), {
         method: 'POST',
+        headers: { Authorization: `Bearer ${apiToken}` },
         body: formData,
       })
 
@@ -314,9 +364,12 @@ export default function FieldReportsPage() {
       id: `FR-2026-${String(nextNumber).padStart(3, '0')}`,
       title, observation, topic: reportTopic,
       region: resolvedGeography.region?.area_name ?? 'National coverage',
+      regionCode: resolvedGeography.region?.code,
       province: resolvedGeography.province?.area_name ?? '',
+      provinceCode: resolvedGeography.province?.code,
       district: resolvedGeography.district?.area_name,
       location,
+      localityCode: resolvedGeography.locality?.code,
       localityType: resolvedGeography.locality?.geographic_level.toLowerCase() === 'city' ? 'city' : 'municipality',
       submittedAt: '2026-03-31', submittedBy: 'Dashboard user', status: 'Pending review', severity, evidenceType, evidenceCount, assignedTo: assignee, attachments,
     }
@@ -365,7 +418,8 @@ export default function FieldReportsPage() {
     let savedReport = newReport
     let persisted = true
     try {
-      const response = await createFieldReportRecord(canonicalReport)
+      if (!apiToken) throw new Error('The Field Reports session is not ready.')
+      const response = await createFieldReportRecord(canonicalReport, apiToken)
       savedReport = toDashboardReport(response.data)
     } catch (error) {
       persisted = false
@@ -383,7 +437,11 @@ export default function FieldReportsPage() {
   const updateStatus = (id: string, nextStatus: ReportStatus) => {
     setReports(current => current.map(report => report.id === id ? { ...report, status: nextStatus } : report))
     setNotice(`${id} is now marked ${nextStatus.toLowerCase()}.`)
-    void updateFieldReportRecord(id, { status: apiStatusFromDashboard(nextStatus) }).catch(error => {
+    if (!apiToken) {
+      setNotice(`${id} was updated locally, but the Field Reports session is unavailable.`)
+      return
+    }
+    void updateFieldReportRecord(id, { status: apiStatusFromDashboard(nextStatus) }, apiToken).catch(error => {
       console.warn('Unable to persist Field Report status:', error)
       setNotice(`${id} was updated locally, but the server update could not be saved.`)
     })
@@ -392,7 +450,11 @@ export default function FieldReportsPage() {
   const assignReport = (id: string, assignee: string) => {
     setReports(current => current.map(report => report.id === id ? { ...report, assignedTo: assignee } : report))
     setNotice(`${id} was assigned to ${assignee}.`)
-    void updateFieldReportRecord(id, { assignedTo: assignee }).catch(error => {
+    if (!apiToken) {
+      setNotice(`${id} was assigned locally, but the Field Reports session is unavailable.`)
+      return
+    }
+    void updateFieldReportRecord(id, { assignedTo: assignee }, apiToken).catch(error => {
       console.warn('Unable to persist Field Report assignment:', error)
       setNotice(`${id} was assigned locally, but the server update could not be saved.`)
     })

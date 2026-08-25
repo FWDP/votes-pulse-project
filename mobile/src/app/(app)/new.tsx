@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker'
 import * as Location from 'expo-location'
 import { router } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { Button } from '@/components/Button'
@@ -10,10 +10,13 @@ import { Screen } from '@/components/Screen'
 import { colors, reportTopics } from '@/constants/theme'
 import { useReports } from '@/context/ReportsContext'
 import { useSession } from '@/context/SessionContext'
+import { isApiConfigured } from '@/services/apiClient'
+import { listFieldReportRecipients } from '@/services/fieldReportsApi'
 import type {
     FieldReportAttachment,
     FieldReportEvidenceType,
     FieldReportLocation,
+    FieldReportRecipient,
     FieldReportSeverity,
 } from '@/types/fieldReports'
 
@@ -38,14 +41,47 @@ export default function NewReportScreen() {
     const [topic, setTopic] = useState<string>(reportTopics[0])
     const [severity, setSeverity] = useState<FieldReportSeverity>('medium')
     const [evidenceType, setEvidenceType] = useState<FieldReportEvidenceType>('photo')
-    const [location, setLocation] = useState<FieldReportLocation>({ label: session?.user.coverageLabel ?? 'Assigned field coverage' })
+    const [location, setLocation] = useState<FieldReportLocation>({
+        label: session?.user.coverageLabel ?? 'Assigned field coverage',
+        localityType: session?.user.localityType,
+        regionCode: session?.user.regionCode,
+        regionName: session?.user.regionName,
+        provinceCode: session?.user.provinceCode,
+        provinceName: session?.user.provinceName,
+        localityCode: session?.user.coverageCode,
+        localityName: session?.user.localityName,
+    })
     const [attachments, setAttachments] = useState<FieldReportAttachment[]>([])
+    const [recipients, setRecipients] = useState<FieldReportRecipient[]>([])
+    const [recipient, setRecipient] = useState<FieldReportRecipient | undefined>()
+    const [recipientsLoading, setRecipientsLoading] = useState(Boolean(session && isApiConfigured))
     const [saving, setSaving] = useState(false)
     const [errors, setErrors] = useState<Record<string, string>>({})
     const locationSummary = useMemo(() => {
         if (!location.coordinates) return 'GPS not captured'
         return `${location.coordinates.latitude.toFixed(5)}, ${location.coordinates.longitude.toFixed(5)}`
     }, [location.coordinates])
+
+    useEffect(() => {
+        if (!session || !isApiConfigured) return
+        let active = true
+        void listFieldReportRecipients(session.token)
+            .then(response => {
+                if (!active) return
+                setRecipients(response.data)
+                if (response.data.length === 1) setRecipient(response.data[0])
+            })
+            .catch(error => {
+                if (active) setErrors(current => ({
+                    ...current,
+                    recipient: error instanceof Error ? error.message : 'Unable to load recipient accounts.',
+                }))
+            })
+            .finally(() => {
+                if (active) setRecipientsLoading(false)
+            })
+        return () => { active = false }
+    }, [session])
 
     const addAsset = (asset?: ImagePicker.ImagePickerAsset) => {
         if (asset) setAttachments(current => [...current, makeAttachment(asset)])
@@ -94,6 +130,7 @@ export default function NewReportScreen() {
         if (!title.trim()) nextErrors.title = 'Enter a short report title.'
         if (!observation.trim()) nextErrors.observation = 'Describe the field observation.'
         if (!location.label.trim()) nextErrors.location = 'Enter the observed location.'
+        if (isApiConfigured && !recipient) nextErrors.recipient = 'Select the web account that should receive this report.'
         setErrors(nextErrors)
         if (Object.keys(nextErrors).length) return
 
@@ -106,6 +143,7 @@ export default function NewReportScreen() {
                 severity,
                 evidenceType,
                 location: { ...location, label: location.label.trim() },
+                recipient,
                 attachments,
                 occurredAt: new Date().toISOString(),
             }, intent)
@@ -133,6 +171,25 @@ export default function NewReportScreen() {
                 <View style={styles.optionWrap}>{severityOptions.map(item => <Choice key={item} label={item} selected={severity === item} onPress={() => setSeverity(item)} />)}</View>
                 <Text style={styles.fieldLabel}>Primary evidence</Text>
                 <View style={styles.optionWrap}>{evidenceOptions.map(item => <Choice key={item} label={item} selected={evidenceType === item} onPress={() => setEvidenceType(item)} />)}</View>
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Send to web account</Text>
+                <Text style={styles.locationText}>{recipientsLoading ? 'Loading authorized accounts…' : 'Choose who should receive and review this report in the VOTES Web App.'}</Text>
+                <View style={styles.optionWrap}>
+                    {recipients.map(item => (
+                        <Choice
+                            key={item.id}
+                            label={item.displayName}
+                            selected={recipient?.id === item.id}
+                            onPress={() => {
+                                setRecipient(item)
+                                setErrors(current => ({ ...current, recipient: '' }))
+                            }}
+                        />
+                    ))}
+                </View>
+                {errors.recipient ? <Text style={styles.errorText}>{errors.recipient}</Text> : null}
             </View>
 
             <View style={styles.section}>
@@ -188,4 +245,5 @@ const styles = StyleSheet.create({
     attachmentName: { color: colors.text, fontSize: 12, fontWeight: '700' },
     attachmentMeta: { color: colors.muted, fontSize: 9, marginTop: 2 },
     remove: { color: colors.danger, fontSize: 10, fontWeight: '700' },
+    errorText: { color: colors.danger, fontSize: 11 },
 })

@@ -4,6 +4,12 @@ export interface MobileSessionUser {
     email: string
     coverageLabel: string
     coverageCode?: string
+    regionCode?: string
+    regionName?: string
+    provinceCode?: string
+    provinceName?: string
+    localityName?: string
+    localityType?: 'city' | 'municipality'
     role: 'field-reporter' | 'field-coordinator' | 'superadmin'
     tenantId: string
     workspaceId: string

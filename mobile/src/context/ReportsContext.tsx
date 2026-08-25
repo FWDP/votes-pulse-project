@@ -15,6 +15,7 @@ interface ReportsContextValue {
     loading: boolean
     saveReport: (input: CreateFieldReportInput, intent: SaveIntent) => Promise<FieldReport>
     retryReport: (id: string) => Promise<void>
+    submitReports: (ids: string[]) => Promise<{ sent: number; failed: number }>
     refreshReports: () => Promise<void>
     getReport: (id: string) => FieldReport | undefined
 }
@@ -61,10 +62,11 @@ export function ReportsProvider({ children }: PropsWithChildren) {
             sync: { ...report.sync, state: 'syncing', lastAttemptAt: new Date().toISOString() },
         }
         replaceReport(syncing)
+        let synchronizedAttachments = syncing.attachments
 
         try {
-            const attachments = await uploadFieldReportAttachments(syncing.attachments, session.token)
-            const response = await submitFieldReport({ ...syncing, attachments }, session.token)
+            synchronizedAttachments = await uploadFieldReportAttachments(syncing.attachments, session.token)
+            const response = await submitFieldReport({ ...syncing, attachments: synchronizedAttachments }, session.token)
             const synchronized = {
                 ...response.data,
                 id: syncing.id,
@@ -80,6 +82,7 @@ export function ReportsProvider({ children }: PropsWithChildren) {
         } catch (error) {
             const failed = {
                 ...syncing,
+                attachments: synchronizedAttachments,
                 status: 'sync-failed',
                 sync: {
                     state: 'failed',
@@ -170,24 +173,34 @@ export function ReportsProvider({ children }: PropsWithChildren) {
         return report
     }, [session, syncReport])
 
+    const submitReports = useCallback(async (ids: string[]) => {
+        const selectedIds = new Set(ids)
+        const selected = reportsRef.current.filter(report =>
+            selectedIds.has(report.id) && ['draft', 'sync-failed'].includes(report.status),
+        )
+        const results = await Promise.all(selected.map(async report => {
+            const queued: FieldReport = {
+                ...report,
+                status: 'queued',
+                submittedAt: report.submittedAt ?? new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                sync: { ...report.sync, state: 'queued', lastError: undefined },
+            }
+            replaceReport(queued)
+            return syncReport(queued)
+        }))
+        const sent = results.filter(result => result?.sync.state === 'synced').length
+        return { sent, failed: selected.length - sent }
+    }, [replaceReport, syncReport])
+
     const retryReport = useCallback(async (id: string) => {
-        const report = reports.find(item => item.id === id)
-        if (!report) return
-        const queued: FieldReport = {
-            ...report,
-            status: 'queued',
-            submittedAt: report.submittedAt ?? new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            sync: { ...report.sync, state: 'queued', lastError: undefined },
-        }
-        replaceReport(queued)
-        await syncReport(queued)
-    }, [replaceReport, reports, syncReport])
+        await submitReports([id])
+    }, [submitReports])
 
     const getReport = useCallback((id: string) => reports.find(report => report.id === id), [reports])
     const value = useMemo(
-        () => ({ reports, loading, saveReport, retryReport, refreshReports, getReport }),
-        [getReport, loading, refreshReports, reports, retryReport, saveReport],
+        () => ({ reports, loading, saveReport, retryReport, submitReports, refreshReports, getReport }),
+        [getReport, loading, refreshReports, reports, retryReport, saveReport, submitReports],
     )
 
     return <ReportsContext.Provider value={value}>{children}</ReportsContext.Provider>

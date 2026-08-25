@@ -29,6 +29,7 @@ export default function ReportDetailScreen() {
                 <Detail label="Severity" value={report.severity} />
                 <Detail label="Evidence" value={report.evidenceType} />
                 <Detail label="Occurred" value={occurredAt} />
+                {report.recipient && <Detail label="Sent to" value={report.recipient.displayName} />}
             </View>
 
             <View style={styles.card}>
