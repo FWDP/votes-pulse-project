@@ -55,6 +55,65 @@ test('filters legislative districts by locality and search text', () => {
     assert.ok(searched.length >= manila.length)
 })
 
+test('filters NCR legislative districts by statistical district member cities', () => {
+    const expected = new Map([
+        ['133900000', { count: 6, cityCodes: ['1380600000'] }],
+        ['137400000', {
+            count: 11,
+            cityCodes: [
+                '1380500000',
+                '1380700000',
+                '1381200000',
+                '1381300000',
+                '1381400000',
+            ],
+        }],
+        ['137500000', {
+            count: 7,
+            cityCodes: [
+                '1380100000',
+                '1380400000',
+                '1380900000',
+                '1381600000',
+            ],
+        }],
+        ['137600000', {
+            count: 9,
+            cityCodes: [
+                '1380200000',
+                '1380300000',
+                '1380800000',
+                '1381000000',
+                '1381100000',
+                '1381500000',
+                '1381701000',
+            ],
+        }],
+    ])
+
+    for (const [ncrDistrict, selection] of expected) {
+        const districts = listLegislativeDistricts({
+            region: '1300000000',
+            ncrDistrict,
+        })
+
+        assert.equal(districts.length, selection.count)
+        assert.ok(districts.every(district =>
+            district.memberships.some(membership =>
+                selection.cityCodes.includes(membership.localityCode)
+            )
+        ))
+    }
+
+    const quezonCity = listLegislativeDistricts({
+        region: '1300000000',
+        ncrDistrict: '137400000',
+        locality: '1381300000',
+    })
+    assert.equal(quezonCity.length, 6)
+    assert.ok(quezonCity.every(district => district.label.includes('Quezon City')))
+})
+
 test('filters legislative districts through PSGC province ancestry', () => {
     const cavite = listLegislativeDistricts({ province: '0402100000' })
     assert.ok(cavite.length > 0)
@@ -173,6 +232,10 @@ test('rejects unsupported years and malformed PSGC filters', () => {
     )
     assert.throws(
         () => listLegislativeDistricts({ barangay: '13813' }),
+        ElectionQueryError,
+    )
+    assert.throws(
+        () => listLegislativeDistricts({ ncrDistrict: '130000000' }),
         ElectionQueryError,
     )
 })

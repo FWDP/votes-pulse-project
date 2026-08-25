@@ -18,6 +18,9 @@ import {
     getBoundaryGeoJson,
 } from '../../services/boundaryApi'
 import {
+    getLegislativeDistrictBoundary,
+} from '../../services/electionsApi'
+import {
     getPlaceholderLocationMetrics,
 } from '../../data/placeholderLocationMetrics'
 import {
@@ -43,11 +46,20 @@ import {
     ALL_MUNICIPALITIES_FILTER,
     INDEPENDENT_CITIES_FILTER,
 } from '../../types/geography'
+import {
+    getNCRDistrictLocalityCodes,
+} from '../../../../shared/ncrDistricts'
+import type {
+    ElectionSelection,
+    LegislativeDistrict,
+} from '../../types/elections'
 
 interface LocationSentimentPanelProps {
     geography: GeographySelection
     onGeographyChange: (geography: GeographySelection) => void
     period: string
+    election: ElectionSelection
+    legislativeDistrict?: LegislativeDistrict
 }
 
 const PERIOD_LABELS: Record<string, string> = {
@@ -75,6 +87,8 @@ export default function LocationSentimentPanel({
     geography,
     onGeographyChange,
     period,
+    election,
+    legislativeDistrict,
 }: LocationSentimentPanelProps) {
     const { user } = useAuth()
     const assignedGeography = useMemo(() => getAssignedGeographySelection(user), [user])
@@ -94,6 +108,9 @@ export default function LocationSentimentPanel({
     const [boundaryData, setBoundaryData] = useState<BoundaryFeatureCollection | null>(null)
     const [boundaryLoading, setBoundaryLoading] = useState(true)
     const [boundaryError, setBoundaryError] = useState<string | null>(null)
+    const [boundaryNotice, setBoundaryNotice] = useState<string | null>(null)
+    const [showingLegislativeBoundary, setShowingLegislativeBoundary] =
+        useState(false)
     const [administrativeGroups, setAdministrativeGroups] = useState<AdministrativeGroup[]>([])
     const [groupKind, setGroupKind] = useState<'district' | 'province' | 'locality-type'>('province')
 
@@ -154,8 +171,8 @@ export default function LocationSentimentPanel({
                     },
                     controller.signal,
                 )
-                const districtPrefix =
-                    selectedDistrict?.code.slice(0, 4)
+                const districtLocalityCodes =
+                    getNCRDistrictLocalityCodes(selectedDistrict?.code)
                 const provinceCodes = new Set(
                     provinces.map(provinceUnit => provinceUnit.prv),
                 )
@@ -164,11 +181,9 @@ export default function LocationSentimentPanel({
                         unit.geographic_level.trim().toLowerCase() === 'city' &&
                         !provinceCodes.has(unit.prv),
                     )
-                    : districtPrefix
+                    : districtLocalityCodes
                         ? localities.filter(unit =>
-                        unit.correspondence_code?.startsWith(
-                            districtPrefix,
-                        ),
+                            districtLocalityCodes.includes(unit.code),
                     )
                         : localities
                 const scopedLocalities = localityType
@@ -191,11 +206,11 @@ export default function LocationSentimentPanel({
                             code: districtUnit.code,
                             name: districtUnit.area_name,
                             units: sortUnits(
-                                administrativeLocalities.filter(locality =>
-                                    locality.correspondence_code?.startsWith(
-                                        districtUnit.code.slice(0, 4),
-                                    ),
-                                ),
+                                administrativeLocalities.filter(locality => {
+                                    const localityCodes =
+                                        getNCRDistrictLocalityCodes(districtUnit.code)
+                                    return localityCodes?.includes(locality.code)
+                                }),
                             ),
                         })),
                     )
@@ -319,12 +334,45 @@ export default function LocationSentimentPanel({
         const loadBoundaries = async () => {
             setBoundaryLoading(true)
             setBoundaryError(null)
+            setBoundaryNotice(null)
+            setShowingLegislativeBoundary(false)
 
             try {
-                const data = await getBoundaryGeoJson(
-                    geography,
-                    controller.signal,
-                )
+                let data: BoundaryFeatureCollection
+
+                if (
+                    election.coverageMode === 'legislative' &&
+                    election.legislativeDistrictId
+                ) {
+                    try {
+                        data = await getLegislativeDistrictBoundary(
+                            election.legislativeDistrictId,
+                            election.electionYear,
+                            controller.signal,
+                        )
+
+                        if (!data.features.some(feature => feature.geometry)) {
+                            throw new Error('District boundary has no geometry')
+                        }
+
+                        setShowingLegislativeBoundary(true)
+                    } catch (districtError) {
+                        if (isAbortError(districtError)) throw districtError
+
+                        data = await getBoundaryGeoJson(
+                            geography,
+                            controller.signal,
+                        )
+                        setBoundaryNotice(
+                            'Dedicated district geometry is unavailable; showing the selected administrative coverage.',
+                        )
+                    }
+                } else {
+                    data = await getBoundaryGeoJson(
+                        geography,
+                        controller.signal,
+                    )
+                }
 
                 setBoundaryData(data)
             } catch (loadError) {
@@ -335,8 +383,9 @@ export default function LocationSentimentPanel({
                     loadError,
                 )
                 setBoundaryData(null)
+                setShowingLegislativeBoundary(false)
                 setBoundaryError(
-                    'The administrative boundary layer could not be loaded.',
+                    'The selected boundary layer could not be loaded.',
                 )
             } finally {
                 if (!controller.signal.aborted) {
@@ -348,7 +397,12 @@ export default function LocationSentimentPanel({
         void loadBoundaries()
 
         return () => controller.abort()
-    }, [geography])
+    }, [
+        election.coverageMode,
+        election.electionYear,
+        election.legislativeDistrictId,
+        geography,
+    ])
 
     const isLocalityTypeFilter =
         geography.locality === ALL_CITIES_FILTER ||
@@ -395,6 +449,8 @@ export default function LocationSentimentPanel({
     }, [administrativeGroups, geography.region, units])
 
     const displayedBoundaryData = useMemo(() => {
+        if (showingLegislativeBoundary) return boundaryData
+
         if (
             (
                 geography.province !== INDEPENDENT_CITIES_FILTER &&
@@ -419,7 +475,10 @@ export default function LocationSentimentPanel({
                 ].some(code => Boolean(code && localityCodes.has(code)))
             }),
         }
-    }, [boundaryData, geography.province, isLocalityTypeFilter, units])
+    }, [boundaryData, geography.province, isLocalityTypeFilter, showingLegislativeBoundary, units])
+    const mapScopeName = showingLegislativeBoundary && legislativeDistrict
+        ? legislativeDistrict.label
+        : scopeName
     const locationMetrics = useMemo(
         () => getPlaceholderLocationMetrics(units, period),
         [period, units],
@@ -531,11 +590,18 @@ export default function LocationSentimentPanel({
             <header className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <h2 className="text-sm font-bold text-slate-800">
-                        {scopeName} — Sentiment Map
+                        {mapScopeName} — Sentiment Map
                     </h2>
                     <p className="mt-1 text-xs text-slate-500">
-                        {PERIOD_LABELS[period] ?? 'Selected period'} · Official PSGC coverage
+                        {PERIOD_LABELS[period] ?? 'Selected period'} · {showingLegislativeBoundary
+                            ? `${election.electionYear} legislative district boundary`
+                            : 'Official PSGC coverage'}
                     </p>
+                    {boundaryNotice && (
+                        <p className="mt-2 text-xs font-medium text-amber-700" role="status">
+                            {boundaryNotice}
+                        </p>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 text-[11px] font-medium text-slate-600">

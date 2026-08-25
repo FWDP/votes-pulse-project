@@ -56,6 +56,7 @@ router.get('/legislative-districts', (request, response) => {
         const data = listLegislativeDistricts({
             year: queryString(request, 'year'),
             region: queryString(request, 'region'),
+            ncrDistrict: queryString(request, 'ncrDistrict'),
             province: queryString(request, 'province'),
             locality: queryString(request, 'locality'),
             jurisdiction: queryString(request, 'jurisdiction'),

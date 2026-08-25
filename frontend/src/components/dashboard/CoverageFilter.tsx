@@ -124,7 +124,7 @@ export default function CoverageFilter({
             case 'Cavite':
                 return 'Assigned area: CALABARZON · Cavite'
             case 'Lucena City':
-                return 'Assigned area: CALABARZON · Quezon · Lucena City'
+                return 'Assigned area: CALABARZON · Lucena City (independent city)'
             case 'Marilao, Bulacan':
                 return 'Assigned area: Central Luzon · Bulacan · Marilao'
             case 'Quezon City':

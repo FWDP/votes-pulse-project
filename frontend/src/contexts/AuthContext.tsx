@@ -1,13 +1,19 @@
 import React, { createContext, useContext, useMemo, useState } from 'react'
+import {
+  getLicenseTierDefinition,
+  inferLicenseTier,
+  type LicenseTier,
+} from '../config/licenseTiers'
 import type { GeographySelection } from '../types/geography'
 
 export type TestUser = {
   id: string
   displayName: string
   email: string
+  licenseTier: LicenseTier
   isSuperadmin?: boolean
   homeLocation?: 'Navotas' | 'Cavite' | 'Lucena City' | 'Marilao, Bulacan' | string
-  coverageScope?: 'region' | 'locality' | 'province'
+  coverageScope?: 'national' | 'region' | 'locality' | 'province'
   coverageValue?: string
   coverageCode?: string
   provinceCode?: string
@@ -19,12 +25,14 @@ export const TEST_USERS: TestUser[] = [
     id: 'user-superadmin-local',
     displayName: 'Super Admin',
     email: 'superadmin@example.test',
+    licenseTier: 'national',
     isSuperadmin: true,
   },
   {
     id: 'user-navotas-local',
     displayName: 'Navotas User',
     email: 'navotas@example.test',
+    licenseTier: 'city-district-municipality',
     homeLocation: 'Navotas',
     coverageScope: 'locality',
     coverageValue: 'Navotas',
@@ -34,6 +42,7 @@ export const TEST_USERS: TestUser[] = [
     id: 'user-cavite-local',
     displayName: 'Cavite User',
     email: 'cavite@example.test',
+    licenseTier: 'provincial-partylist',
     homeLocation: 'Cavite',
     coverageScope: 'province',
     coverageValue: 'Cavite',
@@ -43,6 +52,7 @@ export const TEST_USERS: TestUser[] = [
     id: 'user-lucena-local',
     displayName: 'Lucena City User',
     email: 'lucena@example.test',
+    licenseTier: 'city-district-municipality',
     homeLocation: 'Lucena City',
     coverageScope: 'locality',
     coverageValue: 'Lucena City',
@@ -52,6 +62,7 @@ export const TEST_USERS: TestUser[] = [
     id: 'user-marilao-local',
     displayName: 'Marilao User',
     email: 'marilao@example.test',
+    licenseTier: 'city-district-municipality',
     homeLocation: 'Marilao, Bulacan',
     coverageScope: 'locality',
     coverageValue: 'Marilao, Bulacan',
@@ -62,6 +73,7 @@ export const TEST_USERS: TestUser[] = [
     id: 'user-quezon-city-local',
     displayName: 'Quezon City User',
     email: 'quezoncity@example.test',
+    licenseTier: 'city-district-municipality',
     homeLocation: 'Quezon City',
     coverageScope: 'locality',
     coverageValue: 'Quezon City',
@@ -75,8 +87,18 @@ export const inferRegionCode = (code?: string): string | undefined => {
   return `${code.slice(0, 2)}00000000`
 }
 
+export const getUserLicenseTier = (user?: Partial<TestUser>): LicenseTier =>
+  user?.licenseTier ?? inferLicenseTier(user ?? {})
+
+export const getUserLicenseLabel = (user?: Partial<TestUser>) =>
+  getLicenseTierDefinition(getUserLicenseTier(user)).label
+
 export const getCoverageRestriction = (user?: Partial<TestUser>) => {
-  if (!user?.homeLocation || user.isSuperadmin) return null
+  if (
+    !user?.homeLocation ||
+    user.isSuperadmin ||
+    getUserLicenseTier(user) === 'national'
+  ) return null
 
   const matched = TEST_USERS.find(candidate => candidate.homeLocation === user.homeLocation)
   const coverageScope = user.coverageScope ?? matched?.coverageScope ?? 'locality'
@@ -95,7 +117,11 @@ export const getCoverageRestriction = (user?: Partial<TestUser>) => {
 }
 
 export const getCoverageLabel = (user?: Partial<TestUser>) => {
-  if (!user || user.isSuperadmin) return 'National coverage'
+  if (
+    !user ||
+    user.isSuperadmin ||
+    getUserLicenseTier(user) === 'national'
+  ) return 'National coverage'
 
   switch (user.homeLocation) {
     case 'Navotas':
@@ -114,7 +140,11 @@ export const getCoverageLabel = (user?: Partial<TestUser>) => {
 }
 
 export const getAssignedGeographySelection = (user?: Partial<TestUser>): GeographySelection => {
-  if (!user?.homeLocation || user.isSuperadmin) {
+  if (
+    !user?.homeLocation ||
+    user.isSuperadmin ||
+    getUserLicenseTier(user) === 'national'
+  ) {
     return { region: '', province: '', district: '', locality: '' }
   }
 
@@ -185,17 +215,39 @@ export const getAssignedGeographySelection = (user?: Partial<TestUser>): Geograp
   }
 }
 
-export const hasCoverageLock = (user?: Partial<TestUser>) => Boolean(user?.homeLocation && !user?.isSuperadmin)
+export const hasCoverageLock = (user?: Partial<TestUser>) => Boolean(
+  user?.homeLocation &&
+  !user?.isSuperadmin &&
+  getUserLicenseTier(user) !== 'national',
+)
 
 const DEFAULT_TEST_USER_ID = TEST_USERS.find(candidate => candidate.homeLocation === 'Marilao, Bulacan')?.id ?? TEST_USERS[0].id
 const LEGACY_DEFAULT_USER_ID = 'user-navotas-local'
 const USERS_STORAGE_KEY = 'votespulse-users'
 
-const mergeUsers = (baseUsers: TestUser[], incomingUsers: TestUser[]) => {
+type PersistedTestUser = Omit<TestUser, 'licenseTier'> & {
+  licenseTier?: LicenseTier
+}
+
+const normalizePersistedUser = (
+  user: PersistedTestUser,
+  baseUser?: TestUser,
+): TestUser => {
+  const combined = { ...baseUser, ...user }
+  return {
+    ...combined,
+    licenseTier:
+      user.licenseTier ?? baseUser?.licenseTier ?? inferLicenseTier(combined),
+  } as TestUser
+}
+
+const mergeUsers = (baseUsers: TestUser[], incomingUsers: PersistedTestUser[]) => {
   const merged = new Map<string, TestUser>()
 
   baseUsers.forEach(user => merged.set(user.id, user))
-  incomingUsers.forEach(user => merged.set(user.id, user))
+  incomingUsers.forEach(user => {
+    merged.set(user.id, normalizePersistedUser(user, merged.get(user.id)))
+  })
 
   return Array.from(merged.values())
 }
@@ -207,7 +259,7 @@ const readPersistedUsers = (): TestUser[] => {
     const raw = window.localStorage.getItem(USERS_STORAGE_KEY)
     if (!raw) return TEST_USERS
 
-    const parsed = JSON.parse(raw) as TestUser[]
+    const parsed = JSON.parse(raw) as PersistedTestUser[]
     if (!Array.isArray(parsed) || parsed.length === 0) return TEST_USERS
 
     return mergeUsers(TEST_USERS, parsed)
@@ -264,19 +316,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const createTestUser = (input: Partial<TestUser> & { displayName: string; email: string; homeLocation: string }) => {
+  const createTestUser = (input: Partial<TestUser> & {
+    displayName: string
+    email: string
+    licenseTier: LicenseTier
+    homeLocation?: string
+  }) => {
     const sanitizedDisplayName = input.displayName.trim()
     const sanitizedEmail = input.email.trim()
-    const sanitizedHomeLocation = input.homeLocation.trim()
-    const coverageScope = input.coverageScope ?? 'locality'
-    const coverageCode = input.coverageCode?.trim() ?? ''
-    const provinceCode = input.provinceCode?.trim() ?? ''
-    const regionCode = input.regionCode?.trim() ?? inferRegionCode(coverageCode) ?? inferRegionCode(provinceCode) ?? ''
+    const isNational = input.licenseTier === 'national'
+    const sanitizedHomeLocation = isNational
+      ? 'National'
+      : input.homeLocation?.trim() ?? ''
+    const coverageScope = isNational
+      ? 'national'
+      : input.coverageScope ?? (
+          input.licenseTier === 'provincial-partylist' ? 'province' : 'locality'
+        )
+    const coverageCode = isNational ? '' : input.coverageCode?.trim() ?? ''
+    const provinceCode = isNational ? '' : input.provinceCode?.trim() ?? ''
+    const regionCode = isNational
+      ? ''
+      : input.regionCode?.trim() ??
+        inferRegionCode(coverageCode) ??
+        inferRegionCode(provinceCode) ??
+        ''
 
     const nextUser: TestUser = {
       id: `user-custom-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
       displayName: sanitizedDisplayName,
       email: sanitizedEmail,
+      licenseTier: input.licenseTier,
       homeLocation: sanitizedHomeLocation,
       coverageScope,
       coverageValue: sanitizedHomeLocation,

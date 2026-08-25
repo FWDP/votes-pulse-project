@@ -1,7 +1,13 @@
 import React from 'react'
 import { ArrowRight, LockKeyhole, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import {
+  getUserLicenseLabel,
+  getUserLicenseTier,
+  type TestUser,
+  useAuth,
+} from '../contexts/AuthContext'
+import { LICENSE_TIERS } from '../config/licenseTiers'
 
 export default function LoginPage({ product }: { product: 'votes' | 'pulse' }) {
   const { user, testUsers, switchUser } = useAuth()
@@ -37,9 +43,9 @@ export default function LoginPage({ product }: { product: 'votes' | 'pulse' }) {
               onChange={(event) => switchUser(event.target.value)}
               className="w-full bg-transparent pr-2 text-sm text-white outline-none"
             >
-              {testUsers.map((candidate) => (
+              {testUsers.map((candidate: TestUser) => (
                 <option key={candidate.id} value={candidate.id} className="bg-slate-800 text-white">
-                  {candidate.displayName} · {candidate.homeLocation}
+                  {candidate.displayName} · {getUserLicenseLabel(candidate)}
                 </option>
               ))}
             </select>
@@ -49,6 +55,12 @@ export default function LoginPage({ product }: { product: 'votes' | 'pulse' }) {
         <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-3 text-sm text-slate-300">
           <div className="font-semibold text-white">{user?.displayName}</div>
           <div className="text-xs text-slate-400">{user?.email}</div>
+          <div className="mt-2 text-xs font-semibold tracking-wide text-amber-300">
+            {getUserLicenseLabel(user)}
+          </div>
+          <div className="mt-1 text-xs leading-5 text-slate-400">
+            {LICENSE_TIERS[getUserLicenseTier(user)].description}
+          </div>
         </div>
 
         <button

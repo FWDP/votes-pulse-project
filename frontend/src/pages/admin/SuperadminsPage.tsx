@@ -1,9 +1,18 @@
 import React, { useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
+import {
+  getUserLicenseLabel,
+  type TestUser,
+  useAuth,
+} from '../../contexts/AuthContext'
+import {
+  LICENSE_TIERS,
+  type LicenseTier,
+} from '../../config/licenseTiers'
 
 const emptyForm = {
   displayName: '',
   email: '',
+  licenseTier: 'city-district-municipality' as LicenseTier,
   homeLocation: '',
   coverageScope: 'locality',
   regionCode: '',
@@ -19,22 +28,35 @@ export default function SuperadminsPage() {
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
 
-    if (!form.displayName.trim() || !form.email.trim() || !form.homeLocation.trim() || !form.coverageCode.trim()) {
-      setMessage('Please complete the name, email, coverage label, and PSGC code.')
+    const requiresAssignedArea = form.licenseTier !== 'national'
+    if (
+      !form.displayName.trim() ||
+      !form.email.trim() ||
+      (requiresAssignedArea && (
+        !form.homeLocation.trim() ||
+        !form.coverageCode.trim()
+      ))
+    ) {
+      setMessage(requiresAssignedArea
+        ? 'Please complete the name, email, license, coverage label, and PSGC code.'
+        : 'Please complete the name and email.')
       return
     }
 
     const created = createTestUser({
       displayName: form.displayName,
       email: form.email,
+      licenseTier: form.licenseTier,
       homeLocation: form.homeLocation,
-      coverageScope: form.coverageScope as 'region' | 'province' | 'locality',
+      coverageScope: form.coverageScope as 'national' | 'province' | 'locality',
       regionCode: form.regionCode,
       provinceCode: form.provinceCode,
       coverageCode: form.coverageCode,
     })
 
-    setMessage(`Created ${created.displayName} with ${created.homeLocation} coverage.`)
+    setMessage(
+      `Created ${created.displayName} with a ${getUserLicenseLabel(created)} license.`,
+    )
     setForm(emptyForm)
     switchUser(created.id)
   }
@@ -55,20 +77,24 @@ export default function SuperadminsPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-4 py-3 font-semibold">User</th>
+                <th className="px-4 py-3 font-semibold">License</th>
                 <th className="px-4 py-3 font-semibold">Coverage</th>
-                <th className="px-4 py-3 font-semibold">Scope</th>
                 <th className="px-4 py-3 font-semibold">Action</th>
               </tr>
             </thead>
             <tbody>
-              {testUsers.map((user) => (
+              {testUsers.map((user: TestUser) => (
                 <tr key={user.id} className="border-t border-slate-200">
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-800">{user.displayName}</div>
                     <div className="text-xs text-slate-500">{user.email}</div>
                   </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold tracking-wide text-amber-800 ring-1 ring-inset ring-amber-200">
+                      {getUserLicenseLabel(user)}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{user.homeLocation ?? 'National'}</td>
-                  <td className="px-4 py-3 text-slate-600 capitalize">{user.coverageScope ?? 'locality'}</td>
                   <td className="px-4 py-3">
                     {!user.isSuperadmin && (
                       <button
@@ -87,7 +113,7 @@ export default function SuperadminsPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-800">Create user with geographic coverage</h3>
+          <h3 className="text-lg font-semibold text-slate-800">Create licensed user</h3>
 
           <div className="mt-4 space-y-4">
             <label className="block text-sm text-slate-700">
@@ -112,6 +138,34 @@ export default function SuperadminsPage() {
             </label>
 
             <label className="block text-sm text-slate-700">
+              <span className="mb-1 block font-medium">License tier</span>
+              <select
+                value={form.licenseTier}
+                onChange={event => {
+                  const licenseTier = event.target.value as LicenseTier
+                  setForm(current => ({
+                    ...current,
+                    licenseTier,
+                    coverageScope: licenseTier === 'national'
+                      ? 'national'
+                      : licenseTier === 'provincial-partylist'
+                        ? 'province'
+                        : 'locality',
+                  }))
+                }}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 outline-none transition focus:border-blue-500 focus:bg-white"
+              >
+                {Object.entries(LICENSE_TIERS).map(([value, tier]) => (
+                  <option key={value} value={value}>{tier.label}</option>
+                ))}
+              </select>
+              <span className="mt-2 block text-xs leading-5 text-slate-500">
+                {LICENSE_TIERS[form.licenseTier].description}
+              </span>
+            </label>
+
+            {form.licenseTier !== 'national' && (<>
+            <label className="block text-sm text-slate-700">
               <span className="mb-1 block font-medium">Assigned area label</span>
               <input
                 value={form.homeLocation}
@@ -125,12 +179,17 @@ export default function SuperadminsPage() {
               <span className="mb-1 block font-medium">Coverage type</span>
               <select
                 value={form.coverageScope}
-                onChange={event => setForm(current => ({ ...current, coverageScope: event.target.value as 'region' | 'province' | 'locality' }))}
+                onChange={event => setForm(current => ({
+                  ...current,
+                  coverageScope: event.target.value as 'province' | 'locality',
+                }))}
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 outline-none transition focus:border-blue-500 focus:bg-white"
               >
-                <option value="locality">Locality / City</option>
-                <option value="province">Province</option>
-                <option value="region">Region</option>
+                {form.licenseTier === 'provincial-partylist' ? (
+                  <option value="province">Province / Party-list base</option>
+                ) : (
+                  <option value="locality">City / District / Municipality</option>
+                )}
               </select>
             </label>
 
@@ -165,6 +224,7 @@ export default function SuperadminsPage() {
                 placeholder="0301411000"
               />
             </label>
+            </>)}
           </div>
 
           {message && (
@@ -177,7 +237,7 @@ export default function SuperadminsPage() {
             type="submit"
             className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            Create user and assign coverage
+            Create licensed user
           </button>
         </form>
       </div>

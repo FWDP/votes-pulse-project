@@ -27,6 +27,13 @@ const CLIENT_CACHE_SECONDS = 60 * 60
 
 const NCR_REGION_CODE = '1300000000'
 
+// GeoRiskPH represents Manila as its 14 PSGC submunicipalities instead of a
+// single parent-city feature. Resolve the parent selection to those child
+// polygons so administrative city views can still draw Manila in full.
+const LOCALITY_BOUNDARY_DESCENDANT_PREFIXES: Record<string, string> = {
+    '1380600000': '13806',
+}
+
 const NCR_DISTRICTS = [
     {
         code: '133900000',
@@ -483,6 +490,35 @@ const inferRegionCodeFromNestedSelection = (
     return `${regionPrefix}00000000`
 }
 
+export const getBoundaryWhereClause = (
+    {
+        region,
+        province,
+        district,
+        locality,
+    }: {
+        region?: string
+        province?: string
+        district?: string
+        locality?: string
+    },
+) => {
+    if (locality) {
+        const descendantPrefix =
+            LOCALITY_BOUNDARY_DESCENDANT_PREFIXES[locality]
+
+        return descendantPrefix
+            ? `psgc_10d LIKE '${descendantPrefix}%'`
+            : `psgc_10d='${locality}'`
+    }
+
+    if (district) return `prov_code='${district}'`
+    if (province) return `psgc_10d LIKE '${province.slice(0, 5)}%'`
+    if (region) return `psgc_10d LIKE '${region.slice(0, 2)}%'`
+
+    return '1=1'
+}
+
 const getBoundaryData = async (
     {
         region,
@@ -502,17 +538,12 @@ const getBoundaryData = async (
         )
         : new URL(NATIONAL_BOUNDARY_URL)
 
-    let where = '1=1'
-
-    if (locality) {
-        where = `psgc_10d='${locality}'`
-    } else if (district) {
-        where = `prov_code='${district}'`
-    } else if (province) {
-        where = `psgc_10d LIKE '${province.slice(0, 5)}%'`
-    } else if (region) {
-        where = `psgc_10d LIKE '${region.slice(0, 2)}%'`
-    }
+    const where = getBoundaryWhereClause({
+        region,
+        province,
+        district,
+        locality,
+    })
 
     if (region) {
         url.searchParams.set('where', where)
