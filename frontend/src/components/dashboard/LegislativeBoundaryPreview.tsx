@@ -60,17 +60,17 @@ export default function LegislativeBoundaryPreview({
     if (!district) return null
 
     return (
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50/70">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
+        <section className="w-full max-w-xl overflow-hidden rounded-lg border border-slate-200 bg-slate-50/70">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2">
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                         Legislative coverage preview
                     </p>
-                    <h3 className="mt-1 text-sm font-semibold text-slate-800">
+                    <h3 className="mt-0.5 text-xs font-semibold text-slate-800">
                         {district.label}
                     </h3>
                 </div>
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
                     feature?.properties.boundaryStatus === 'verified'
                         ? 'bg-emerald-100 text-emerald-700'
                         : hasGeometry
@@ -90,28 +90,28 @@ export default function LegislativeBoundaryPreview({
             </div>
 
             {loading ? (
-                <div className="flex min-h-48 items-center justify-center text-sm text-slate-500" role="status">
+                <div className="flex min-h-36 items-center justify-center text-xs text-slate-500" role="status">
                     Loading legislative boundary…
                 </div>
             ) : hasGeometry && boundary ? (
                 <GeoJsonMap
                     data={boundary}
                     selectedKey={district.id}
-                    height={260}
+                    height={180}
                     ariaLabel={`${district.label} boundary preview`}
                 />
             ) : (
-                <div className="space-y-3 px-4 py-4">
-                    <p className="text-sm text-slate-600">
+                <div className="space-y-2 px-3 py-3">
+                    <p className="text-xs text-slate-600">
                         {district.status === 'locality-resolved'
                             ? 'This district is resolved from whole city and municipality memberships.'
                             : 'An internal city boundary has not been entered yet. The listed locality remains a partial coverage reference.'}
                     </p>
-                    <div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto">
+                    <div className="flex max-h-20 flex-wrap gap-1.5 overflow-y-auto">
                         {membershipSummary.map(membership => (
                             <span
                                 key={`${membership.code}-${membership.coverage}`}
-                                className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600"
+                                className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600"
                                 title={`PSGC ${membership.code}`}
                             >
                                 {membership.label}

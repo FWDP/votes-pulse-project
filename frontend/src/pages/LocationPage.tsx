@@ -12,6 +12,8 @@ import type {
 } from '../types/geography'
 import { getAssignedGeographySelection, getCoverageLabel, useAuth } from '../contexts/AuthContext'
 import { isSameGeography } from '../utils/geography'
+import { usePersistedElectionSelection } from '../hooks/usePersistedElectionSelection'
+import type { LegislativeDistrict } from '../types/elections'
 
 const getLocationFocus = (user: ReturnType<typeof useAuth>['user']) => {
   if (!user?.homeLocation) return 'local service delivery and public trust'
@@ -31,6 +33,9 @@ export default function LocationPage() {
   const candidate = workspace === 'candidate'
   const [geography, setGeography] = useState<GeographySelection>(getAssignedGeographySelection(user))
   const [period, setPeriod] = useState('30d')
+  const [election, setElection] = usePersistedElectionSelection()
+  const [selectedLegislativeDistrict, setSelectedLegislativeDistrict] =
+    useState<LegislativeDistrict>()
 
   useEffect(() => {
     if (!user?.homeLocation || user.isSuperadmin) return
@@ -40,7 +45,8 @@ export default function LocationPage() {
   }, [user])
 
   const locationSummary = useMemo(() => {
-    const coverage = getCoverageLabel(user) || 'Selected location'
+    const coverage = selectedLegislativeDistrict?.label ??
+      (getCoverageLabel(user) || 'Selected location')
     const focusArea = getLocationFocus(user)
 
     return {
@@ -57,7 +63,7 @@ export default function LocationPage() {
         description: `The selected geography is currently centered on ${focusArea}.`,
       }],
     }
-  }, [period, user])
+  }, [period, selectedLegislativeDistrict, user])
 
   const locationPrompts = [
     'What is driving sentiment in this area right now?',
@@ -76,6 +82,11 @@ export default function LocationPage() {
         <CoverageFilter
           geography={geography}
           onGeographyChange={setGeography}
+          election={election}
+          onElectionChange={setElection}
+          onResolvedElectionChange={district => {
+            setSelectedLegislativeDistrict(district)
+          }}
           period={period}
           onPeriodChange={setPeriod}
         />
@@ -89,6 +100,8 @@ export default function LocationPage() {
         <LocationSentimentPanel
           geography={geography}
           onGeographyChange={setGeography}
+          election={election}
+          legislativeDistrict={selectedLegislativeDistrict}
           period={period}
         />
       </div>

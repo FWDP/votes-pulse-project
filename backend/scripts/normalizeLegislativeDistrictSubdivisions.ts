@@ -1,4 +1,13 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -27,15 +36,89 @@ const districtPath = resolve(
   'backend/src/data/normalized/legislative-districts-2025.json',
 )
 
+const PINNED_PSGC_ARCHIVE_URL =
+  'https://files.pythonhosted.org/packages/1d/28/a67fa13061700f7a3c3f24012b0e15c229a6fc2141006355465e74ad968f/barangay-2025.7.31.1.tar.gz'
+const PINNED_PSGC_ARCHIVE_SHA256 =
+  'aa0b0a18b1ce114cca4a32374c885a115879b6abd4b6b99b57ab7df7d384543f'
+const PINNED_PSGC_ARCHIVE_ENTRY =
+  'barangay-2025.7.31.1/barangay/data/2025-07-08/barangay_flat.json'
+const cachedPsgcPath = resolve(
+  repositoryRoot,
+  'data/cache/psgc-2025-07-08/barangay_flat.json',
+)
+
+const fetchPinnedPsgcReference = async () => {
+  const response = await fetch(PINNED_PSGC_ARCHIVE_URL, {
+    signal: AbortSignal.timeout(60_000),
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      `Unable to download pinned PSGC reference: HTTP ${response.status}. ` +
+      'Pass --psgc /path/to/barangay_flat.json to use a local copy.',
+    )
+  }
+
+  const archive = Buffer.from(await response.arrayBuffer())
+  const checksum = createHash('sha256').update(archive).digest('hex')
+
+  if (checksum !== PINNED_PSGC_ARCHIVE_SHA256) {
+    throw new Error(
+      `Pinned PSGC archive checksum mismatch: expected ${PINNED_PSGC_ARCHIVE_SHA256}, received ${checksum}.`,
+    )
+  }
+
+  const archivePath = resolve(
+    tmpdir(),
+    `votes-pulse-barangay-2025.7.31.1-${process.pid}.tar.gz`,
+  )
+
+  writeFileSync(archivePath, archive)
+
+  try {
+    const extracted = spawnSync(
+      'tar',
+      ['-xOzf', archivePath, PINNED_PSGC_ARCHIVE_ENTRY],
+      {
+        encoding: null,
+        maxBuffer: 16 * 1024 * 1024,
+      },
+    )
+
+    if (extracted.error || extracted.status !== 0 || !extracted.stdout?.length) {
+      const reason = extracted.error?.message ??
+        extracted.stderr?.toString('utf8').trim() ??
+        `tar exited with status ${extracted.status}`
+      throw new Error(`Unable to extract pinned PSGC reference: ${reason}`)
+    }
+
+    mkdirSync(dirname(cachedPsgcPath), { recursive: true })
+    writeFileSync(cachedPsgcPath, extracted.stdout)
+  } finally {
+    rmSync(archivePath, { force: true })
+  }
+
+  console.log(`Cached pinned PSGC reference at ${cachedPsgcPath}`)
+}
+
 const psgcArgumentIndex = process.argv.indexOf('--psgc')
-const psgcPath = psgcArgumentIndex >= 0
+let psgcPath = psgcArgumentIndex >= 0
   ? process.argv[psgcArgumentIndex + 1]
-  : undefined
+  : process.env.PSGC_BARANGAY_FLAT_PATH || cachedPsgcPath
 
 if (!psgcPath) {
   throw new Error(
     'Pass --psgc with the barangay_flat.json file from barangay 2025.7.31.1.',
   )
+}
+
+if (!existsSync(resolve(psgcPath))) {
+  if (psgcArgumentIndex >= 0 || process.env.PSGC_BARANGAY_FLAT_PATH) {
+    throw new Error(`PSGC reference file does not exist: ${resolve(psgcPath)}`)
+  }
+
+  await fetchPinnedPsgcReference()
+  psgcPath = cachedPsgcPath
 }
 
 const QUEZON_CITY_CODE = '1381300000'

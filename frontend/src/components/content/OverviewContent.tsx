@@ -24,6 +24,7 @@ import {
     type PartyListResult,
 } from '../../types/elections'
 import { usePersistedElectionSelection } from '../../hooks/usePersistedElectionSelection'
+import type { BoundaryFeatureCollection } from '../../types/geography'
 
 function toMeltwaterDate(
     date: Date,
@@ -168,7 +169,13 @@ export default function OverviewContent() {
     const assignedAreaLabel = useMemo(() => {
         if (user?.isSuperadmin) return 'National'
         if (restrictedCoverage?.field === 'province') return 'Province'
-        if (restrictedCoverage?.field === 'locality') return 'Municipality'
+        if (restrictedCoverage?.field === 'locality') {
+            return user?.homeLocation === 'Lucena City' ||
+                user?.homeLocation === 'Navotas' ||
+                user?.homeLocation === 'Quezon City'
+                ? 'City'
+                : 'Municipality'
+        }
         if (restrictedCoverage?.field === 'region') return 'Region'
         return 'Area'
     }, [restrictedCoverage, user])
@@ -258,26 +265,61 @@ export default function OverviewContent() {
         }
     }, [coverageTitle, data.issues, data.positiveSentiment, data.sentiment, period, selectedAreaLabel])
 
-    const [boundaryData, setBoundaryData] = useState<any | null>(null)
+    const [boundaryData, setBoundaryData] = useState<BoundaryFeatureCollection | null>(null)
+    const [boundaryLoading, setBoundaryLoading] = useState(true)
+    const [boundaryNotice, setBoundaryNotice] = useState<string | null>(null)
+    const [usingAdministrativeBoundaryFallback, setUsingAdministrativeBoundaryFallback] = useState(false)
     useEffect(() => {
         const controller = new AbortController()
         let mounted = true
 
+        setBoundaryLoading(true)
+        setBoundaryNotice(null)
+        setUsingAdministrativeBoundaryFallback(false)
+
         void (async () => {
             try {
-                const payload = election.coverageMode === 'legislative' && election.legislativeDistrictId
-                    ? await getLegislativeDistrictBoundary(
-                        election.legislativeDistrictId,
-                        election.electionYear,
-                        controller.signal,
-                    )
-                    : await getBoundaryGeoJson(geography, controller.signal)
+                let payload: BoundaryFeatureCollection
+                if (
+                    election.coverageMode === 'legislative' &&
+                    election.legislativeDistrictId
+                ) {
+                    try {
+                        payload = await getLegislativeDistrictBoundary(
+                            election.legislativeDistrictId,
+                            election.electionYear,
+                            controller.signal,
+                        )
+
+                        if (!payload.features.some(feature => feature.geometry)) {
+                            throw new Error('District boundary has no geometry')
+                        }
+                    } catch (error) {
+                        if (error instanceof Error && error.name === 'AbortError') throw error
+                        payload = await getBoundaryGeoJson(geography, controller.signal)
+                        if (mounted) {
+                            setUsingAdministrativeBoundaryFallback(true)
+                            setBoundaryNotice(
+                                'District geometry is unavailable; showing its selected administrative coverage.',
+                            )
+                        }
+                    }
+                } else {
+                    payload = await getBoundaryGeoJson(geography, controller.signal)
+                }
+
                 if (mounted) {
                     setBoundaryData(payload.features.some(feature => feature.geometry) ? payload : null)
                 }
-            } catch (err) {
-                // silently fail and keep placeholder
-                if (mounted) setBoundaryData(null)
+            } catch (error) {
+                if (error instanceof Error && error.name === 'AbortError') return
+                if (mounted) {
+                    setBoundaryData(null)
+                    setUsingAdministrativeBoundaryFallback(false)
+                    setBoundaryNotice('Unable to load boundary geometry for this coverage.')
+                }
+            } finally {
+                if (mounted) setBoundaryLoading(false)
             }
         })()
 
@@ -285,12 +327,12 @@ export default function OverviewContent() {
     }, [election.coverageMode, election.electionYear, election.legislativeDistrictId, geography])
 
     useEffect(() => {
-        if (!restrictedCoverage) return
-
         setGeography(current => isSameGeography(current, assignedGeography) ? current : assignedGeography)
 
         setSelectedArea(current => {
-            const next = restrictedCoverage.value ?? restrictedCoverage.provinceValue ?? null
+            const next = restrictedCoverage
+                ? restrictedCoverage.value ?? restrictedCoverage.provinceValue ?? null
+                : null
             return current === next ? current : next
         })
     }, [assignedGeography, restrictedCoverage])
@@ -467,7 +509,7 @@ export default function OverviewContent() {
                         </div>
 
                         <div className="relative min-h-[260px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                            {loading && (
+                            {boundaryLoading && (
                                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60">
                                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-slate-700" />
                                 </div>
@@ -475,7 +517,7 @@ export default function OverviewContent() {
                             {boundaryData ? (
                                 <GeoJsonMap
                                     data={boundaryData}
-                                    selectedKey={election.coverageMode === 'legislative'
+                                    selectedKey={election.coverageMode === 'legislative' && !usingAdministrativeBoundaryFallback
                                         ? election.legislativeDistrictId
                                         : selectedArea}
                                     onAreaClick={election.coverageMode === 'administrative'
@@ -484,6 +526,11 @@ export default function OverviewContent() {
                                 />
                             ) : (
                                 <MapPanelPlaceholder />
+                            )}
+                            {boundaryNotice && (
+                                <div className="absolute inset-x-3 bottom-3 rounded-lg border border-amber-200 bg-amber-50/95 px-3 py-2 text-[11px] font-medium text-amber-800 shadow-sm">
+                                    {boundaryNotice}
+                                </div>
                             )}
                         </div>
                     </div>

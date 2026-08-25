@@ -47,6 +47,7 @@ export default function ElectionCoverageControls({
         geography.locality !== ALL_CITIES_FILTER &&
         geography.locality !== ALL_MUNICIPALITIES_FILTER,
     )
+    const isNCR = geography.region === '1300000000'
     const hasGeographicCoverage = Boolean(
         geography.region ||
         geography.province ||
@@ -108,9 +109,17 @@ export default function ElectionCoverageControls({
             ? geography.locality
             : undefined
 
-        if (value.coverageMode !== 'legislative' && !locality) {
+        if (
+            (value.coverageMode !== 'legislative' && !locality) ||
+            (isNCR && !locality)
+        ) {
             setDistricts([])
             setLoadingDistricts(false)
+
+            if (value.legislativeDistrictId) {
+                onChange({ ...value, legislativeDistrictId: '' })
+            }
+
             return () => controller.abort()
         }
 
@@ -124,21 +133,22 @@ export default function ElectionCoverageControls({
         void getLegislativeDistricts({
             year: value.electionYear,
             region: geography.region || undefined,
+            ncrDistrict: geography.district || undefined,
             province,
             locality,
         }, controller.signal)
             .then(response => {
                 setDistricts(response.data)
 
-                if (locality && response.data.length === 1) {
+                if (
+                    value.coverageMode === 'legislative' &&
+                    locality &&
+                    response.data.length === 1
+                ) {
                     const [district] = response.data
-                    if (
-                        value.coverageMode !== 'legislative' ||
-                        value.legislativeDistrictId !== district.id
-                    ) {
+                    if (value.legislativeDistrictId !== district.id) {
                         onChange({
                             ...value,
-                            coverageMode: 'legislative',
                             legislativeDistrictId: district.id,
                         })
                     }
@@ -165,8 +175,10 @@ export default function ElectionCoverageControls({
         return () => controller.abort()
     }, [
         geography.locality,
+        geography.district,
         geography.province,
         geography.region,
+        isNCR,
         value.coverageMode,
         value.electionYear,
     ])
@@ -179,9 +191,6 @@ export default function ElectionCoverageControls({
                 <SelectField
                     label="Coverage basis"
                     value={value.coverageMode}
-                    disabled={
-                        hasSpecificLocality && Boolean(value.legislativeDistrictId)
-                    }
                     onChange={event => onChange({
                         ...value,
                         coverageMode: event.target.value as ElectionSelection['coverageMode'],
@@ -195,9 +204,6 @@ export default function ElectionCoverageControls({
                 <SelectField
                     label="Election year"
                     value={value.electionYear}
-                    disabled={
-                        hasSpecificLocality && Boolean(value.legislativeDistrictId)
-                    }
                     onChange={event => onChange({
                         ...value,
                         electionYear: Number(event.target.value),
@@ -229,6 +235,10 @@ export default function ElectionCoverageControls({
                     <option value="">
                         {value.coverageMode !== 'legislative'
                             ? 'Choose legislative coverage first'
+                            : isNCR && !geography.district
+                                ? 'Select NCR district first'
+                            : isNCR && !hasSpecificLocality
+                                ? 'Select city or municipality first'
                             : loadingDistricts
                                 ? 'Loading districts…'
                                 : districts.length === 0

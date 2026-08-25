@@ -1,8 +1,8 @@
 {
   "datasetId": "legislative-barangay-boundaries-2025",
   "sourceUrl": "https://ulap-nga.georisk.gov.ph/arcgis/rest/services/PSA/BarangayPopMF/MapServer/0/query",
-  "retrievedAt": "2026-08-24T23:43:42.837Z",
-  "sha256": "c2e67b08d5fa604e03a7e25bbf833e717ae6e11257e836005cc3a8ad07c6cb5c",
+  "retrievedAt": "2026-08-25T02:51:21.843Z",
+  "sha256": "517485aeda92747c9f59580ab12b82e3f124fa28e31f970674ad126f0854c659",
   "featureCount": 1810,
   "coveredBarangayCount": 1814,
   "relativePath": "backend/src/data/reference/legislative-barangay-boundaries-2025.geojson"

@@ -23,6 +23,9 @@ import {
     type GeographyUnit,
     type ResolvedGeographySelection,
 } from '../../types/geography'
+import {
+    getNCRDistrictLocalityCodes,
+} from '../../../../shared/ncrDistricts'
 
 interface GeographyControlsProps {
     value: GeographySelection
@@ -262,15 +265,13 @@ export function GeographyControls({
             })
 
             if (isNCR) {
-                const districtPrefix =
-                    selectedDistrict?.code.slice(0, 4)
+                const districtLocalityCodes =
+                    getNCRDistrictLocalityCodes(district)
 
                 return sortGeographyUnits(
-                    districtPrefix
+                    districtLocalityCodes
                         ? citiesAndMunicipalities.filter(item =>
-                            item.correspondence_code?.startsWith(
-                                districtPrefix,
-                            ),
+                            districtLocalityCodes.includes(item.code),
                         )
                         : citiesAndMunicipalities,
                 )
@@ -287,12 +288,25 @@ export function GeographyControls({
             }
 
             return independentCities
-        }, [independentCities, isIndependentCitiesSelection, isNCR, localities, selectedDistrict, selectedProvince])
+        }, [district, independentCities, isIndependentCitiesSelection, isNCR, localities, selectedProvince])
 
-    const selectedLocality = useMemo(
-        () => filteredLocalities.find(item => item.code === locality) ?? (locality ? FALLBACK_GEOGRAPHY[locality] : undefined),
-        [filteredLocalities, locality],
-    )
+    const selectedLocality = useMemo(() => {
+        const selected = filteredLocalities.find(item => item.code === locality)
+        if (selected) return selected
+
+        const fallback = locality ? FALLBACK_GEOGRAPHY[locality] : undefined
+        const districtLocalityCodes = isNCR
+            ? getNCRDistrictLocalityCodes(district)
+            : undefined
+
+        if (
+            fallback &&
+            districtLocalityCodes &&
+            !districtLocalityCodes.includes(fallback.code)
+        ) return undefined
+
+        return fallback
+    }, [district, filteredLocalities, isNCR, locality])
 
     useEffect(() => {
         onResolvedChange?.({
@@ -636,6 +650,8 @@ export function GeographyControls({
                     value={locality}
                     disabled={
                         disabled || !region ||
+                        (isNCR &&
+                            (!district || isLoadingDistricts)) ||
                         (!isNCR &&
                             isLoadingProvinces) ||
                         isLoadingLocalities
@@ -650,8 +666,12 @@ export function GeographyControls({
                     <option value="">
                         {!region
                             ? 'Select region first'
+                            : isNCR && !district
+                                ? 'Select district first'
                             : isLoadingLocalities
                                     ? 'Loading cities & municipalities…'
+                                    : isNCR
+                                        ? 'Select city or municipality'
                                     : !isNCR &&
                                         !province &&
                                         filteredLocalities.length === 0
@@ -664,7 +684,7 @@ export function GeographyControls({
                                             : 'All cities & municipalities'}
                     </option>
 
-                    {filteredLocalities.some(item =>
+                    {!isNCR && filteredLocalities.some(item =>
                         item.geographic_level.trim().toLowerCase() === 'city'
                     ) && (
                         <option value={ALL_CITIES_FILTER}>
@@ -672,7 +692,7 @@ export function GeographyControls({
                         </option>
                     )}
 
-                    {filteredLocalities.some(item =>
+                    {!isNCR && filteredLocalities.some(item =>
                         item.geographic_level.trim().toLowerCase() === 'mun'
                     ) && (
                         <option value={ALL_MUNICIPALITIES_FILTER}>

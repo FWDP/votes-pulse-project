@@ -14,6 +14,7 @@ import type { BoundaryFeatureCollection } from '../types/geography'
 export interface LegislativeDistrictQuery {
     year?: number
     region?: string
+    ncrDistrict?: string
     province?: string
     locality?: string
     jurisdiction?: string
@@ -94,7 +95,10 @@ export const getLegislativeDistrictBoundary = (
     year = 2025,
     signal?: AbortSignal,
 ) => requestJson<BoundaryFeatureCollection>(
-    `/api/elections/legislative-districts/${encodeURIComponent(id)}/boundary${buildQuery({ year })}`,
+    `/api/elections/legislative-districts/${encodeURIComponent(id)}/boundary${buildQuery({
+        year,
+        boundaryRevision: 'barangay-dissolve-v1',
+    })}`,
     signal,
 )
 
