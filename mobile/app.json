@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "VOTES Field Reports",
+    "slug": "votes-field-reports",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "votesfieldreports",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ph.fwdp.votes.fieldreports"
+    },
+    "android": {
+      "package": "ph.fwdp.votes.fieldreports",
+      "adaptiveIcon": {
+        "backgroundColor": "#172b4d"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow VOTES to attach field-report evidence from this device.",
+          "cameraPermission": "Allow VOTES to capture field-report evidence."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow VOTES to record the location of a field report."
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": ""
+    }
+  }
+}

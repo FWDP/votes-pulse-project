@@ -1,0 +1,47 @@
+import type { FieldReport } from '@/types/fieldReports'
+
+export const seedReports: FieldReport[] = [
+    {
+        id: 'FR-MOBILE-001',
+        clientId: 'seed-mobile-001',
+        title: 'Drainage obstruction near public market',
+        observation: 'Residents and vendors reported recurring street-level flooding after afternoon rain.',
+        topic: 'Flooding & Disaster Risk',
+        severity: 'high',
+        evidenceType: 'photo',
+        status: 'submitted',
+        location: { label: 'Assigned field coverage · Public Market' },
+        reporter: {
+            id: 'mobile-field-reporter-local',
+            displayName: 'Field Reporter',
+            email: 'field@example.test',
+        },
+        attachments: [],
+        occurredAt: '2026-08-24T07:30:00.000Z',
+        createdAt: '2026-08-24T08:05:00.000Z',
+        updatedAt: '2026-08-24T08:05:00.000Z',
+        submittedAt: '2026-08-24T08:05:00.000Z',
+        sync: { state: 'synced', retryCount: 0 },
+    },
+    {
+        id: 'DRAFT-LOCAL-001',
+        clientId: 'seed-draft-001',
+        title: 'Community health-center queue',
+        observation: 'Draft observation awaiting an interview summary and supporting photo.',
+        topic: 'Health Services',
+        severity: 'medium',
+        evidenceType: 'interview',
+        status: 'draft',
+        location: { label: 'Assigned field coverage' },
+        reporter: {
+            id: 'mobile-field-reporter-local',
+            displayName: 'Field Reporter',
+            email: 'field@example.test',
+        },
+        attachments: [],
+        occurredAt: '2026-08-25T01:00:00.000Z',
+        createdAt: '2026-08-25T01:15:00.000Z',
+        updatedAt: '2026-08-25T01:15:00.000Z',
+        sync: { state: 'local', retryCount: 0 },
+    },
+]

@@ -23,6 +23,17 @@ npm run dev
 
 `npm run dev` starts the Vite client on port 5173 and the API on port 8787. Vite proxies requests under `/api` to the local API. Configure an external API base in `.env` using `VITE_API_BASE_URL`, for example `https://your-api.example.com`.
 
+## Field Reports mobile prototype
+
+The focused Expo/React Native client lives in [`mobile/`](mobile/README.md). It provides the Field Reports foundation and core device workflow without duplicating the Web App dashboard.
+
+```bash
+npm --prefix mobile install
+npm run mobile:start
+```
+
+The mobile app runs with local prototype persistence by default. Configure `EXPO_PUBLIC_API_BASE_URL` when the mobile session and Field Reports CRUD endpoints are available.
+
 ## Run the API with Docker
 
 Create the backend environment file and add your PSA PSGC token:
