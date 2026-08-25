@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker'
 import * as Location from 'expo-location'
-import { router } from 'expo-router'
-import { useEffect, useMemo, useState } from 'react'
+import { router, useLocalSearchParams } from 'expo-router'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { Button } from '@/components/Button'
@@ -34,8 +34,11 @@ const makeAttachment = (asset: ImagePicker.ImagePickerAsset): FieldReportAttachm
 })
 
 export default function NewReportScreen() {
-    const { saveReport } = useReports()
+    const { draftId } = useLocalSearchParams<{ draftId?: string }>()
+    const { getReport, saveReport, updateDraft } = useReports()
     const { session } = useSession()
+    const draft = draftId ? getReport(draftId) : undefined
+    const initializedDraftId = useRef<string | null>(null)
     const [title, setTitle] = useState('')
     const [observation, setObservation] = useState('')
     const [topic, setTopic] = useState<string>(reportTopics[0])
@@ -63,13 +66,26 @@ export default function NewReportScreen() {
     }, [location.coordinates])
 
     useEffect(() => {
+        if (!draft || draft.status !== 'draft' || initializedDraftId.current === draft.id) return
+        initializedDraftId.current = draft.id
+        setTitle(draft.title)
+        setObservation(draft.observation)
+        setTopic(draft.topic)
+        setSeverity(draft.severity)
+        setEvidenceType(draft.evidenceType)
+        setLocation(draft.location)
+        setAttachments(draft.attachments)
+        setRecipient(draft.recipient)
+    }, [draft])
+
+    useEffect(() => {
         if (!session || !isApiConfigured) return
         let active = true
         void listFieldReportRecipients(session.token)
             .then(response => {
                 if (!active) return
                 setRecipients(response.data)
-                if (response.data.length === 1) setRecipient(response.data[0])
+                if (response.data.length === 1) setRecipient(current => current ?? response.data[0])
             })
             .catch(error => {
                 if (active) setErrors(current => ({
@@ -136,7 +152,7 @@ export default function NewReportScreen() {
 
         setSaving(true)
         try {
-            const report = await saveReport({
+            const input = {
                 title: title.trim(),
                 observation: observation.trim(),
                 topic,
@@ -145,8 +161,11 @@ export default function NewReportScreen() {
                 location: { ...location, label: location.label.trim() },
                 recipient,
                 attachments,
-                occurredAt: new Date().toISOString(),
-            }, intent)
+                occurredAt: draft?.occurredAt ?? new Date().toISOString(),
+            }
+            const report = draft
+                ? await updateDraft(draft.id, input, intent)
+                : await saveReport(input, intent)
             router.replace({ pathname: '/(app)/reports/[id]', params: { id: report.id } })
         } catch (error) {
             Alert.alert('Unable to save report', error instanceof Error ? error.message : 'Please try again.')
@@ -156,7 +175,10 @@ export default function NewReportScreen() {
     }
 
     return (
-        <Screen title="New Field Report" subtitle="Record consent-safe observations and supporting evidence.">
+        <Screen
+            title={draft ? 'Edit Draft' : 'New Field Report'}
+            subtitle={draft ? 'Update this locally saved report before submission.' : 'Record consent-safe observations and supporting evidence.'}
+        >
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Observation</Text>
                 <FormField label="Report title" value={title} onChangeText={setTitle} placeholder="Summarize what happened" error={errors.title} />
@@ -194,7 +216,15 @@ export default function NewReportScreen() {
 
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Location</Text>
-                <FormField label="Location label" value={location.label} onChangeText={label => setLocation(current => ({ ...current, label }))} error={errors.location} />
+                <FormField
+                    label="Location label"
+                    value={location.label}
+                    onChangeText={label => setLocation(current => ({
+                        label,
+                        coordinates: current.coordinates,
+                    }))}
+                    error={errors.location}
+                />
                 <Text style={styles.locationText}>{locationSummary}</Text>
                 <Button label={location.coordinates ? 'Refresh GPS location' : 'Capture GPS location'} variant="secondary" onPress={() => void captureLocation()} />
             </View>
@@ -215,8 +245,8 @@ export default function NewReportScreen() {
             </View>
 
             <View style={styles.submitRow}>
-                <View style={styles.buttonCell}><Button label="Save draft" variant="secondary" disabled={saving} onPress={() => void persist('draft')} /></View>
-                <View style={styles.buttonCell}><Button label="Submit report" loading={saving} onPress={() => void persist('submit')} /></View>
+                <View style={styles.buttonCell}><Button label={draft ? 'Update draft' : 'Save draft'} variant="secondary" disabled={saving} onPress={() => void persist('draft')} /></View>
+                <View style={styles.buttonCell}><Button label={draft ? 'Submit draft' : 'Submit report'} loading={saving} onPress={() => void persist('submit')} /></View>
             </View>
         </Screen>
     )

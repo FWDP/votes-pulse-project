@@ -18,6 +18,14 @@ const sessions = (() => {
 })()
 
 const prototypeUsers: Record<string, Omit<MobileSessionUser, 'email'>> = {
+    'superadmin@example.test': {
+        id: 'user-superadmin-local',
+        displayName: 'Super Admin',
+        coverageLabel: 'National coverage',
+        role: 'superadmin',
+        tenantId: prototypeTenantId,
+        workspaceId: prototypeWorkspaceId,
+    },
     'field@example.test': {
         id: 'mobile-field-reporter-local',
         displayName: 'Field Reporter',
@@ -50,7 +58,11 @@ const prototypeUsers: Record<string, Omit<MobileSessionUser, 'email'>> = {
     },
 }
 
-const createPrototypeMobileSession = (email: string, password: string): MobileSession => {
+const createPrototypeMobileSession = (
+    email: string,
+    password: string,
+    databaseProfile?: Partial<Omit<MobileSessionUser, 'email'>>,
+): MobileSession => {
     if (process.env.NODE_ENV === 'production' && process.env.MOBILE_AUTH_PROTOTYPE_ONLY !== 'true') {
         throw new Error('Prototype mobile login is disabled in production.')
     }
@@ -59,7 +71,7 @@ const createPrototypeMobileSession = (email: string, password: string): MobileSe
     if (password !== expectedPassword) throw new Error('Invalid prototype credentials.')
 
     const normalizedEmail = email.trim().toLowerCase()
-    const profile = prototypeUsers[normalizedEmail] ?? {
+    const fallbackProfile = prototypeUsers[normalizedEmail] ?? {
         id: `mobile-${normalizedEmail.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
         displayName: normalizedEmail.split('@')[0]?.replace(/[._-]+/g, ' ') || 'Field Reporter',
         coverageLabel: 'Assigned field coverage',
@@ -67,6 +79,7 @@ const createPrototypeMobileSession = (email: string, password: string): MobileSe
         tenantId: prototypeTenantId,
         workspaceId: prototypeWorkspaceId,
     }
+    const profile = { ...fallbackProfile, ...databaseProfile }
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString()
     const session: StoredSession = {
         token: `dev-mobile-${randomUUID()}`,
@@ -80,17 +93,30 @@ const createPrototypeMobileSession = (email: string, password: string): MobileSe
 
 export const createMobileSession = async (email: string, password: string): Promise<MobileSession> => {
     const normalizedEmail = email.trim().toLowerCase()
+    let row: Record<string, any> | undefined
 
-    if (dbEnabled && process.env.MOBILE_AUTH_PROTOTYPE_ONLY !== 'true') {
-        const { rows } = await query(`
-            SELECT u.id, u.email, u.display_name, u.password_hash,
-              m.tenant_id, m.role, m.workspace_ids
-            FROM users u
-            LEFT JOIN memberships m ON m.user_id = u.id AND m.status = 'active'
-            WHERE lower(u.email) = $1 AND u.status = 'active'
-            LIMIT 1
-        `, [normalizedEmail])
-        const row = rows[0]
+    if (dbEnabled) {
+        try {
+            const result = await query(`
+                SELECT u.id, u.email, u.display_name, u.password_hash,
+                  m.tenant_id, m.role, m.workspace_ids
+                FROM users u
+                LEFT JOIN memberships m ON m.user_id = u.id AND m.status = 'active'
+                WHERE lower(u.email) = $1 AND u.status = 'active'
+                ORDER BY CASE WHEN m.tenant_id = $2 THEN 0 ELSE 1 END, m.tenant_id
+                LIMIT 1
+            `, [
+                normalizedEmail,
+                process.env.MOBILE_AUTH_PROTOTYPE_ONLY === 'true' ? prototypeTenantId : '',
+            ])
+            row = result.rows[0]
+        } catch (error) {
+            if (process.env.MOBILE_AUTH_PROTOTYPE_ONLY !== 'true') throw error
+            console.warn('Unable to load the prototype account profile from the database:', error)
+        }
+    }
+
+    if (process.env.MOBILE_AUTH_PROTOTYPE_ONLY !== 'true') {
         if (row) {
             const passwordMatches = row.password_hash
                 ? await bcrypt.compare(password, row.password_hash)
@@ -125,7 +151,18 @@ export const createMobileSession = async (email: string, password: string): Prom
         }
     }
 
-    return createPrototypeMobileSession(normalizedEmail, password)
+    const databaseRole = String(row?.role ?? '').toLowerCase()
+    const workspaceIds = Array.isArray(row?.workspace_ids) ? row.workspace_ids : []
+    const isKnownPrototypeSuperadmin = prototypeUsers[normalizedEmail]?.role === 'superadmin'
+    return createPrototypeMobileSession(normalizedEmail, password, row ? {
+        id: row.id,
+        displayName: row.display_name ?? row.email,
+        role: databaseRole === 'superadmin' || isKnownPrototypeSuperadmin
+            ? 'superadmin'
+            : ['owner', 'administrator'].includes(databaseRole) ? 'field-coordinator' : 'field-reporter',
+        tenantId: row.tenant_id ?? prototypeTenantId,
+        workspaceId: workspaceIds[0] ?? prototypeWorkspaceId,
+    } : undefined)
 }
 
 export const getPrototypeMobileSession = (token: string): MobileSession | null => {

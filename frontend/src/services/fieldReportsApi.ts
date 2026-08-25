@@ -2,6 +2,7 @@ import type {
     FieldReport,
     FieldReportDetailResponse,
     FieldReportListResponse,
+    FieldReportRecipientListResponse,
     FieldReportStatus,
 } from '../../../shared/fieldReports'
 import type { MobileSession } from '../../../shared/mobileSessions'
@@ -35,6 +36,17 @@ export const createFieldReportsSession = (email: string, signal?: AbortSignal) =
             password: import.meta.env.VITE_MOBILE_PROTOTYPE_PASSWORD ?? 'prototype',
         }),
     })
+
+export const synchronizeFieldReportRecipients = (
+    token: string,
+    accounts: Array<{ id: string; displayName: string; email: string; isSuperadmin?: boolean }>,
+    signal?: AbortSignal,
+) => requestJson<FieldReportRecipientListResponse>('/api/reports/recipients', {
+    method: 'PUT',
+    signal,
+    headers: withToken(token),
+    body: JSON.stringify({ accounts }),
+})
 
 export const listFieldReports = (token: string, signal?: AbortSignal) =>
     requestJson<FieldReportListResponse>('/api/reports', {

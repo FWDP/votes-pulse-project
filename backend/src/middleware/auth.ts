@@ -30,6 +30,8 @@ const normalizeUser = (value: unknown): AuthUser | null => {
   const id = typeof user.id === 'string' ? user.id : typeof user.userId === 'string' ? user.userId : typeof user.user_id === 'string' ? user.user_id : undefined
   const email = typeof user.email === 'string' ? user.email : undefined
   const displayName = typeof user.displayName === 'string' ? user.displayName : undefined
+  const role = typeof user.role === 'string' ? user.role.toLowerCase() : undefined
+  const roles = Array.isArray(user.roles) ? user.roles.filter(value => typeof value === 'string') : []
 
   if (!id && !email && !displayName) return null
 
@@ -38,7 +40,11 @@ const normalizeUser = (value: unknown): AuthUser | null => {
     id: id ?? email ?? 'local-user',
     email,
     displayName: displayName ?? email ?? 'Local User',
-    isSuperadmin: Boolean(user.isSuperadmin),
+    isSuperadmin: Boolean(
+      user.isSuperadmin ||
+      role === 'superadmin' ||
+      roles.some(value => value.toLowerCase() === 'superadmin'),
+    ),
   }
 }
 
@@ -67,6 +73,7 @@ const resolveBearerUser = async (token: string): Promise<AuthUser | null> => {
     tenantId: row.tenant_id,
     workspaceId: row.workspace_id,
     role: row.role,
+    isSuperadmin: String(row.role).toLowerCase() === 'superadmin',
   }
 }
 
@@ -84,7 +91,7 @@ export const requireSession = async (req: AuthRequest, res: Response, next: Next
     try {
       const bearerUser = await resolveBearerUser(bearerToken)
       if (bearerUser) {
-        req.auth = { user: bearerUser }
+        req.auth = { user: normalizeUser(bearerUser) ?? bearerUser }
         return next()
       }
     } catch (error) {

@@ -7,6 +7,7 @@ import {
     getFieldReport,
     listFieldReportRecipients,
     listFieldReports,
+    synchronizeFieldReportRecipients,
     updateFieldReport,
 } from '../src/services/fieldReports.service'
 import { validateFieldReportPayload, type FieldReport } from '../../shared/fieldReports'
@@ -74,4 +75,72 @@ test('exposes an authorized fallback recipient without a database', async () => 
     const recipients = await listFieldReportRecipients(scope)
     assert.equal(recipients.length, 1)
     assert.equal(recipients[0]?.id, 'operations-desk')
+})
+
+test('normalizes web accounts before synchronizing report recipients', async () => {
+    const recipients = await synchronizeFieldReportRecipients(scope, [
+        {
+            id: ' user-marilao-local ',
+            displayName: ' Marilao User ',
+            email: ' MARILAO@EXAMPLE.TEST ',
+        },
+        {
+            id: 'invalid-user',
+            displayName: 'Missing email',
+        },
+        {
+            id: 'user-superadmin-local',
+            displayName: 'Super Admin',
+            email: 'superadmin@example.test',
+            isSuperadmin: true,
+        },
+    ])
+
+    assert.deepEqual(recipients, [{
+        id: 'user-marilao-local',
+        displayName: 'Marilao User',
+        email: 'marilao@example.test',
+    }])
+})
+
+test('limits regular accounts to their reports while superadmins see every recipient', async () => {
+    const marilaoReport = await createFieldReport(scope, {
+        ...makeReport(),
+        clientId: 'client-marilao',
+        recipient: {
+            id: 'user-marilao-local',
+            displayName: 'Marilao User',
+            email: 'marilao@example.test',
+        },
+        assignedTo: 'Marilao User',
+    })
+    await createFieldReport(scope, {
+        ...makeReport(),
+        clientId: 'client-navotas',
+        recipient: {
+            id: 'user-navotas-local',
+            displayName: 'Navotas User',
+            email: 'navotas@example.test',
+        },
+        assignedTo: 'Navotas User',
+    })
+
+    const marilaoReports = await listFieldReports(scope, {
+        id: 'user-marilao-local',
+        email: 'marilao@example.test',
+        displayName: 'Marilao User',
+    })
+    const superadminReports = await listFieldReports(scope, {
+        id: 'user-superadmin-local',
+        isSuperadmin: true,
+    })
+    const reporterReports = await listFieldReports(scope, {
+        id: 'reporter-test',
+        displayName: 'Test Reporter',
+    })
+
+    assert.deepEqual(marilaoReports.map(report => report.clientId), ['client-marilao'])
+    assert.equal(superadminReports.length, 2)
+    assert.equal(reporterReports.length, 2)
+    assert.equal(await getFieldReport(scope, marilaoReport.id, { id: 'user-navotas-local' }), undefined)
 })

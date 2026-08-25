@@ -9,6 +9,7 @@ import {
   getFieldReport,
   listFieldReportRecipients,
   listFieldReports,
+  synchronizeFieldReportRecipients,
   updateFieldReport,
 } from '../services/fieldReports.service'
 import {
@@ -66,9 +67,24 @@ const getScope = (request: AuthRequest) => ({
   workspaceId: request.auth?.user?.workspaceId ?? process.env.MOBILE_PROTOTYPE_WORKSPACE_ID ?? 'workspace-constituent-sentiment',
 })
 
+const getViewer = (request: AuthRequest) => {
+  const user = request.auth?.user
+  const role = user?.role?.toLowerCase()
+  return {
+    id: user?.id ?? user?.userId,
+    email: user?.email,
+    displayName: user?.displayName,
+    isSuperadmin: Boolean(
+      user?.isSuperadmin ||
+      role === 'superadmin' ||
+      user?.roles?.some(candidate => candidate.toLowerCase() === 'superadmin'),
+    ),
+  }
+}
+
 router.get('/', async (request: AuthRequest, response) => {
   try {
-    const data = await listFieldReports(getScope(request))
+    const data = await listFieldReports(getScope(request), getViewer(request))
     return response.json({ data, count: data.length })
   } catch (error) {
     console.error('Unable to list field reports:', error)
@@ -86,11 +102,39 @@ router.get('/recipients', async (request: AuthRequest, response) => {
   }
 })
 
+router.put('/recipients', async (request: AuthRequest, response) => {
+  if (process.env.MOBILE_AUTH_PROTOTYPE_ONLY !== 'true') {
+    return response.status(403).json({ error: 'Web account synchronization is only available in prototype mode.' })
+  }
+  const accounts = Array.isArray(request.body?.accounts) ? request.body.accounts : null
+  if (!accounts || accounts.length > 100) {
+    return response.status(400).json({ error: 'accounts must contain at most 100 web users.' })
+  }
+  const invalid = accounts.some((account: unknown) => {
+    if (!account || typeof account !== 'object') return true
+    const candidate = account as Record<string, unknown>
+    return typeof candidate.id !== 'string' ||
+      typeof candidate.displayName !== 'string' ||
+      typeof candidate.email !== 'string'
+  })
+  if (invalid) return response.status(400).json({ error: 'Each web account requires an id, displayName, and email.' })
+
+  try {
+    const data = await synchronizeFieldReportRecipients(getScope(request), accounts)
+    return response.json({ data, count: data.length })
+  } catch (error) {
+    console.error('Unable to synchronize Field Report recipients:', error)
+    return response.status(500).json({ error: 'Unable to synchronize Field Report recipients.' })
+  }
+})
+
 router.post('/', async (request: AuthRequest, response) => {
   const user = request.auth?.user
   const submittedReport = request.body as FieldReport
   const submittedLocation = submittedReport.location ?? { label: '' }
   const assignedCoverageLabel = user?.coverageLabel
+  const usesAssignedCoverage = submittedLocation.label === 'Assigned field coverage' ||
+    Boolean(assignedCoverageLabel && submittedLocation.label === assignedCoverageLabel)
   const locationLabel = submittedLocation.label === 'Assigned field coverage' && assignedCoverageLabel
     ? assignedCoverageLabel
     : submittedLocation.label
@@ -99,13 +143,13 @@ router.post('/', async (request: AuthRequest, response) => {
     location: {
       ...submittedLocation,
       label: locationLabel,
-      localityType: submittedLocation.localityType ?? user?.localityType,
-      regionCode: submittedLocation.regionCode ?? user?.regionCode,
-      regionName: submittedLocation.regionName ?? user?.regionName,
-      provinceCode: submittedLocation.provinceCode ?? user?.provinceCode,
-      provinceName: submittedLocation.provinceName ?? user?.provinceName,
-      localityCode: submittedLocation.localityCode ?? user?.coverageCode,
-      localityName: submittedLocation.localityName ?? user?.localityName,
+      localityType: submittedLocation.localityType ?? (usesAssignedCoverage ? user?.localityType : undefined),
+      regionCode: submittedLocation.regionCode ?? (usesAssignedCoverage ? user?.regionCode : undefined),
+      regionName: submittedLocation.regionName ?? (usesAssignedCoverage ? user?.regionName : undefined),
+      provinceCode: submittedLocation.provinceCode ?? (usesAssignedCoverage ? user?.provinceCode : undefined),
+      provinceName: submittedLocation.provinceName ?? (usesAssignedCoverage ? user?.provinceName : undefined),
+      localityCode: submittedLocation.localityCode ?? (usesAssignedCoverage ? user?.coverageCode : undefined),
+      localityName: submittedLocation.localityName ?? (usesAssignedCoverage ? user?.localityName : undefined),
     },
     reporter: {
       id: user?.id ?? user?.userId ?? 'local-user',
@@ -171,7 +215,7 @@ router.get('/files/:filename', (req: AuthRequest, res) => {
 router.get('/:id', async (request: AuthRequest, response) => {
   const reportId = Array.isArray(request.params.id) ? request.params.id[0] ?? '' : request.params.id
   try {
-    const data = await getFieldReport(getScope(request), reportId)
+    const data = await getFieldReport(getScope(request), reportId, getViewer(request))
     if (!data) return response.status(404).json({ error: 'Field report not found.' })
     return response.json({ data })
   } catch (error) {
@@ -202,7 +246,7 @@ router.patch('/:id', async (request: AuthRequest, response) => {
   }
 
   try {
-    const data = await updateFieldReport(getScope(request), reportId, { status, assignedTo })
+    const data = await updateFieldReport(getScope(request), reportId, { status, assignedTo }, getViewer(request))
     if (!data) return response.status(404).json({ error: 'Field report not found.' })
     return response.json({ data })
   } catch (error) {

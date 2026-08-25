@@ -1,7 +1,6 @@
 import NetInfo from '@react-native-community/netinfo'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react'
 
-import { seedReports } from '@/data/seedReports'
 import { isApiConfigured } from '@/services/apiClient'
 import { listFieldReports, submitFieldReport, uploadFieldReportAttachments } from '@/services/fieldReportsApi'
 import { loadStoredReports, storeReports } from '@/storage/reportStorage'
@@ -14,6 +13,8 @@ interface ReportsContextValue {
     reports: FieldReport[]
     loading: boolean
     saveReport: (input: CreateFieldReportInput, intent: SaveIntent) => Promise<FieldReport>
+    updateDraft: (id: string, input: CreateFieldReportInput, intent: SaveIntent) => Promise<FieldReport>
+    deleteDraft: (id: string) => Promise<boolean>
     retryReport: (id: string) => Promise<void>
     submitReports: (ids: string[]) => Promise<{ sent: number; failed: number }>
     refreshReports: () => Promise<void>
@@ -34,7 +35,15 @@ export function ReportsProvider({ children }: PropsWithChildren) {
 
     useEffect(() => {
         void loadStoredReports()
-            .then(stored => setReports(stored ?? seedReports))
+            .then(stored => {
+                const genuineReports = (stored ?? []).filter(report =>
+                    !report.clientId.startsWith('seed-'),
+                )
+                setReports(genuineReports)
+                if ((stored?.length ?? 0) !== genuineReports.length) {
+                    void storeReports(genuineReports)
+                }
+            })
             .finally(() => setLoading(false))
     }, [])
 
@@ -173,6 +182,46 @@ export function ReportsProvider({ children }: PropsWithChildren) {
         return report
     }, [session, syncReport])
 
+    const updateDraft = useCallback(async (
+        id: string,
+        input: CreateFieldReportInput,
+        intent: SaveIntent,
+    ) => {
+        const current = reportsRef.current.find(report => report.id === id)
+        if (!current || current.status !== 'draft') {
+            throw new Error('Only a locally saved draft can be edited.')
+        }
+
+        const updated: FieldReport = {
+            ...current,
+            ...input,
+            status: intent === 'draft' ? 'draft' : 'queued',
+            submittedAt: intent === 'submit' ? new Date().toISOString() : undefined,
+            updatedAt: new Date().toISOString(),
+            sync: {
+                state: intent === 'draft' ? 'local' : 'queued',
+                retryCount: current.sync.retryCount,
+                lastError: undefined,
+            },
+        }
+        replaceReport(updated)
+
+        if (intent === 'submit') return await syncReport(updated) ?? updated
+        return updated
+    }, [replaceReport, syncReport])
+
+    const deleteDraft = useCallback(async (id: string) => {
+        const current = reportsRef.current.find(report => report.id === id)
+        if (!current || current.status !== 'draft') return false
+
+        setReports(reports => {
+            const updated = reports.filter(report => report.id !== id)
+            void storeReports(updated)
+            return updated
+        })
+        return true
+    }, [])
+
     const submitReports = useCallback(async (ids: string[]) => {
         const selectedIds = new Set(ids)
         const selected = reportsRef.current.filter(report =>
@@ -199,8 +248,8 @@ export function ReportsProvider({ children }: PropsWithChildren) {
 
     const getReport = useCallback((id: string) => reports.find(report => report.id === id), [reports])
     const value = useMemo(
-        () => ({ reports, loading, saveReport, retryReport, submitReports, refreshReports, getReport }),
-        [getReport, loading, refreshReports, reports, retryReport, saveReport, submitReports],
+        () => ({ reports, loading, saveReport, updateDraft, deleteDraft, retryReport, submitReports, refreshReports, getReport }),
+        [deleteDraft, getReport, loading, refreshReports, reports, retryReport, saveReport, submitReports, updateDraft],
     )
 
     return <ReportsContext.Provider value={value}>{children}</ReportsContext.Provider>

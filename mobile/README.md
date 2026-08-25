@@ -93,6 +93,9 @@ Database users authenticate with their seeded password. In non-production enviro
 Submitted reports upload evidence first, synchronize idempotently using `clientId`, and appear in the Web App Field Reports review queue. Queued or failed reports retry when network connectivity returns.
 Reporters can select an authorized web recipient from their current tenant/workspace; the API validates the selection and assigns the synchronized report to that account.
 They can submit immediately or save multiple reports to the Outbox, select the reports to send, and synchronize only that batch.
+Locally saved drafts can be reopened, edited, submitted, or permanently deleted from the Report Detail screen.
+In prototype mode, the Web App synchronizes its managed-user registry to the backend so the mobile recipient selector mirrors the accounts shown in Web administration. Superadmins are excluded from the recipient selector because they already have global Field Report visibility.
+The report register is sourced from the live API. The mobile app stores only genuine drafts and queued/failed submissions locally; bundled demonstration reports are not used.
 
 ## Verification
 

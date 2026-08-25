@@ -11,8 +11,7 @@ import {
   type GeographySelection,
   type ResolvedGeographySelection,
 } from '../types/geography'
-import { getAssignedGeographySelection, getCoverageLabel, useAuth } from '../contexts/AuthContext'
-import { isSameGeography } from '../utils/geography'
+import { getCoverageLabel, useAuth } from '../contexts/AuthContext'
 import {
   createFieldReportsSession,
   createFieldReport as createFieldReportRecord,
@@ -58,74 +57,6 @@ interface FieldReport {
   assignedTo: string
   attachments: AttachmentRecord[]
 }
-
-const DATA_AS_OF = new Date('2026-03-31T12:00:00+08:00')
-
-const INITIAL_REPORTS: FieldReport[] = [
-  {
-    id: 'FR-2026-031',
-    title: 'Recurring flooding near the market access road',
-    observation: 'Residents reported ankle-deep water after sustained rain, limiting access for vendors and public transport.',
-    topic: 'Flooding & Disaster Risk', region: 'MIMAROPA Region', province: 'Oriental Mindoro',
-    location: 'Pinamalayan', localityType: 'municipality', submittedAt: '2026-03-29',
-    submittedBy: 'Municipal field coordinator', status: 'Follow-up', severity: 'High', evidenceType: 'Photo', evidenceCount: 4, assignedTo: 'Local response desk',
-    attachments: [{ name: 'market-flooding-01.jpg', type: 'image/jpeg', size: 842000 }, { name: 'vendor-traffic-notes.pdf', type: 'application/pdf', size: 240000 }],
-  },
-  {
-    id: 'FR-2026-030',
-    title: 'Road surface deterioration along Palayan Road',
-    observation: 'Photos and resident interviews indicate expanding potholes affecting motorcycles and farm deliveries.',
-    topic: 'Infrastructure & Roads', region: 'MIMAROPA Region', province: 'Oriental Mindoro',
-    location: 'Calapan City', localityType: 'city', submittedAt: '2026-03-27',
-    submittedBy: 'City observation team', status: 'Pending review', severity: 'Medium', evidenceType: 'Photo', evidenceCount: 3, assignedTo: 'Engineering review',
-    attachments: [{ name: 'road-surface-crack.jpg', type: 'image/jpeg', size: 480000 }],
-  },
-  {
-    id: 'FR-2026-028',
-    title: 'Health-center staffing gap raised by residents',
-    observation: 'Interview participants cited irregular physician schedules and long travel times for follow-up care.',
-    topic: 'Health Services', region: 'MIMAROPA Region', province: 'Oriental Mindoro',
-    location: 'Naujan', localityType: 'municipality', submittedAt: '2026-03-20',
-    submittedBy: 'Community liaison', status: 'Reviewed', severity: 'High', evidenceType: 'Interview', evidenceCount: 8, assignedTo: 'Health coordination',
-    attachments: [{ name: 'clinic-operations-summary.docx', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 174000 }],
-  },
-  {
-    id: 'FR-2026-024',
-    title: 'Tourism transport improvements positively received',
-    observation: 'Operators and visitors described the upgraded pier flow as safer and easier to navigate during peak arrivals.',
-    topic: 'Tourism Development', region: 'MIMAROPA Region', province: 'Oriental Mindoro',
-    location: 'Puerto Galera', localityType: 'municipality', submittedAt: '2026-03-08',
-    submittedBy: 'Tourism monitoring desk', status: 'Reviewed', severity: 'Low', evidenceType: 'Survey', evidenceCount: 5, assignedTo: 'Tourism desk',
-    attachments: [],
-  },
-  {
-    id: 'FR-2026-019',
-    title: 'Farmers seek more predictable seedling support',
-    observation: 'Participants welcomed the latest distribution while noting that quantities did not cover all registered growers.',
-    topic: 'Agriculture & Livelihood', region: 'MIMAROPA Region', province: 'Oriental Mindoro',
-    location: 'Baco', localityType: 'municipality', submittedAt: '2026-02-18',
-    submittedBy: 'Agriculture field desk', status: 'Follow-up', severity: 'Medium', evidenceType: 'Interview', evidenceCount: 6, assignedTo: 'Agriculture desk',
-    attachments: [{ name: 'seedling-feedback.xlsx', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', size: 96000 }],
-  },
-  {
-    id: 'FR-2026-013',
-    title: 'Coastal signal gaps affect emergency coordination',
-    observation: 'Fishers identified shoreline areas where mobile coverage becomes unreliable during poor weather.',
-    topic: 'Power & Utilities', region: 'MIMAROPA Region', province: 'Oriental Mindoro',
-    location: 'Roxas', localityType: 'municipality', submittedAt: '2026-01-22',
-    submittedBy: 'Coastal observation team', status: 'Pending review', severity: 'Critical', evidenceType: 'Other', evidenceCount: 2, assignedTo: 'Emergency coordination',
-    attachments: [],
-  },
-  {
-    id: 'FR-2025-087',
-    title: 'Classroom repairs completed before enrollment',
-    observation: 'Teachers confirmed that roof and ventilation repairs were completed, with two rooms still awaiting furniture.',
-    topic: 'Education', region: 'MIMAROPA Region', province: 'Occidental Mindoro',
-    location: 'Mamburao', localityType: 'municipality', submittedAt: '2025-11-19',
-    submittedBy: 'Education monitoring desk', status: 'Reviewed', severity: 'Low', evidenceType: 'Survey', evidenceCount: 3, assignedTo: 'Education desk',
-    attachments: [{ name: 'classroom-repair-photos.zip', type: 'application/zip', size: 198000 }],
-  },
-]
 
 const periodDays: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 }
 const normalize = (value: string) => value.trim().toLocaleLowerCase()
@@ -181,17 +112,10 @@ export default function FieldReportsPage() {
   const searchParams = new URLSearchParams(window.location.search)
   const workspace = (searchParams.get('workspace') as 'national' | 'candidate') || 'national'
   const candidate = workspace === 'candidate'
-  const [geography, setGeography] = useState<GeographySelection>(getAssignedGeographySelection(user))
+  const [geography, setGeography] = useState<GeographySelection>({ region: '', province: '', district: '', locality: '' })
   const [resolvedGeography, setResolvedGeography] = useState<ResolvedGeographySelection>({})
   const [period, setPeriod] = useState('30d')
-
-  useEffect(() => {
-    if (!user?.homeLocation || user.isSuperadmin) return
-
-    const assigned = getAssignedGeographySelection(user)
-    setGeography(current => isSameGeography(current, assigned) ? current : assigned)
-  }, [user])
-  const [reports, setReports] = useState(INITIAL_REPORTS)
+  const [reports, setReports] = useState<FieldReport[]>([])
   const [query, setQuery] = useState('')
   const [topic, setTopic] = useState('all')
   const [status, setStatus] = useState<'all' | ReportStatus>('all')
@@ -215,7 +139,7 @@ export default function FieldReportsPage() {
       if (!token) return
       const response = await listFieldReportRecords(token, controller.signal)
       if (!controller.signal.aborted) {
-        if (response.data.length) setReports(response.data.map(toDashboardReport))
+        setReports(response.data.map(toDashboardReport))
       }
     }
     const connect = async () => {
@@ -232,7 +156,8 @@ export default function FieldReportsPage() {
 
     void connect().catch(error => {
         if (error instanceof Error && error.name === 'AbortError') return
-        console.warn('Using local Field Reports fallback:', error)
+        console.warn('Unable to load live Field Reports:', error)
+        setNotice('Unable to connect to the live Field Reports register. No fallback records are being shown.')
       })
     return () => {
       controller.abort()
@@ -244,15 +169,19 @@ export default function FieldReportsPage() {
   const topics = useMemo(() => Array.from(new Set(reports.map(report => report.topic))).sort(), [reports])
   const evidenceTypes = useMemo(() => Array.from(new Set(reports.map(report => report.evidenceType))).sort(), [reports])
   const assignees = useMemo(() => Array.from(new Set(reports.map(report => report.assignedTo))).sort(), [reports])
-  const coverageLabel = resolvedGeography.locality?.area_name ?? resolvedGeography.district?.area_name ??
-    resolvedGeography.province?.area_name ?? resolvedGeography.region?.area_name ?? 'National coverage'
+  const recipientInbox = !user?.isSuperadmin
+  const coverageLabel = recipientInbox
+    ? `Reports sent to ${user?.displayName ?? 'this account'}`
+    : resolvedGeography.locality?.area_name ?? resolvedGeography.district?.area_name ??
+      resolvedGeography.province?.area_name ?? resolvedGeography.region?.area_name ?? 'National coverage'
 
   const coverageReports = useMemo(() => {
-    const latestReportTime = reports.reduce(
-      (latest, report) => Math.max(latest, Date.parse(`${report.submittedAt}T12:00:00+08:00`)),
-      DATA_AS_OF.getTime(),
-    )
-    const cutoff = new Date(latestReportTime)
+    // Recipient authorization is already enforced by the API. Do not hide an
+    // addressed report merely because its observation occurred outside the
+    // recipient account's administrative coverage.
+    if (recipientInbox) return reports
+
+    const cutoff = new Date()
     cutoff.setDate(cutoff.getDate() - (periodDays[period] ?? 30))
 
     return reports.filter(report => {
@@ -277,7 +206,7 @@ export default function FieldReportsPage() {
       }
       return true
     })
-  }, [geography, period, reports, resolvedGeography])
+  }, [geography, period, recipientInbox, reports, resolvedGeography])
 
   const visibleReports = useMemo(() => {
     const normalizedQuery = normalize(query)
@@ -348,7 +277,6 @@ export default function FieldReportsPage() {
     const location = String(data.get('location') ?? '').trim()
     if (!title || !observation || !reportTopic || !location) return
 
-    const nextNumber = reports.length + 32
     const severity = String(data.get('severity') ?? 'Medium') as ReportSeverity
     const evidenceType = String(data.get('evidenceType') ?? 'Photo') as EvidenceType
     const evidenceCount = Number(data.get('evidenceCount') ?? 1) || 1
@@ -360,8 +288,9 @@ export default function FieldReportsPage() {
       path: file.path,
     }))
 
+    const now = new Date().toISOString()
     const newReport: FieldReport = {
-      id: `FR-2026-${String(nextNumber).padStart(3, '0')}`,
+      id: `WEB-PENDING-${Date.now()}`,
       title, observation, topic: reportTopic,
       region: resolvedGeography.region?.area_name ?? 'National coverage',
       regionCode: resolvedGeography.region?.code,
@@ -371,9 +300,8 @@ export default function FieldReportsPage() {
       location,
       localityCode: resolvedGeography.locality?.code,
       localityType: resolvedGeography.locality?.geographic_level.toLowerCase() === 'city' ? 'city' : 'municipality',
-      submittedAt: '2026-03-31', submittedBy: 'Dashboard user', status: 'Pending review', severity, evidenceType, evidenceCount, assignedTo: assignee, attachments,
+      submittedAt: now.slice(0, 10), submittedBy: user?.displayName ?? 'Dashboard user', status: 'Pending review', severity, evidenceType, evidenceCount, assignedTo: assignee, attachments,
     }
-    const now = new Date().toISOString()
     const canonicalReport: SharedFieldReport = {
       id: newReport.id,
       clientId: `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -398,6 +326,9 @@ export default function FieldReportsPage() {
         displayName: user?.displayName ?? 'Dashboard user',
         email: user?.email,
       },
+      recipient: !user?.isSuperadmin && user?.id && user?.displayName
+        ? { id: user.id, displayName: user.displayName, email: user.email }
+        : undefined,
       assignedTo: assignee,
       attachments: attachments.map((attachment, index) => ({
         id: `web-attachment-${Date.now()}-${index}`,
@@ -415,49 +346,51 @@ export default function FieldReportsPage() {
       sync: { state: 'queued', retryCount: 0 },
     }
 
-    let savedReport = newReport
-    let persisted = true
     try {
       if (!apiToken) throw new Error('The Field Reports session is not ready.')
       const response = await createFieldReportRecord(canonicalReport, apiToken)
-      savedReport = toDashboardReport(response.data)
+      const savedReport = toDashboardReport(response.data)
+      setReports(current => [savedReport, ...current])
+      setNotice(`${savedReport.id} was added to ${coverageLabel}${attachments.length ? ` with ${attachments.length} attachment${attachments.length > 1 ? 's' : ''}` : ''}.`)
+      setShowForm(false)
+      setUploadedAttachments([])
+      form.reset()
     } catch (error) {
-      persisted = false
-      console.warn('Field Report API unavailable; retaining local report:', error)
+      console.warn('Unable to persist Field Report:', error)
+      setNotice('The report was not saved because the live Field Reports API is unavailable. Your form remains open so you can retry.')
     }
-    setReports(current => [savedReport, ...current])
-    setNotice(persisted
-      ? `${savedReport.id} was added to ${coverageLabel}${attachments.length ? ` with ${attachments.length} attachment${attachments.length > 1 ? 's' : ''}` : ''}.`
-      : 'The report was retained in this browser because the Field Reports API is unavailable.')
-    setShowForm(false)
-    setUploadedAttachments([])
-    form.reset()
   }
 
-  const updateStatus = (id: string, nextStatus: ReportStatus) => {
-    setReports(current => current.map(report => report.id === id ? { ...report, status: nextStatus } : report))
-    setNotice(`${id} is now marked ${nextStatus.toLowerCase()}.`)
+  const updateStatus = async (id: string, nextStatus: ReportStatus) => {
     if (!apiToken) {
-      setNotice(`${id} was updated locally, but the Field Reports session is unavailable.`)
+      setNotice(`${id} was not updated because the live Field Reports session is unavailable.`)
       return
     }
-    void updateFieldReportRecord(id, { status: apiStatusFromDashboard(nextStatus) }, apiToken).catch(error => {
+    try {
+      const response = await updateFieldReportRecord(id, { status: apiStatusFromDashboard(nextStatus) }, apiToken)
+      const savedReport = toDashboardReport(response.data)
+      setReports(current => current.map(report => report.id === id ? savedReport : report))
+      setNotice(`${id} is now marked ${nextStatus.toLowerCase()}.`)
+    } catch (error) {
       console.warn('Unable to persist Field Report status:', error)
-      setNotice(`${id} was updated locally, but the server update could not be saved.`)
-    })
+      setNotice(`${id} was not updated because the live API could not save the change.`)
+    }
   }
 
-  const assignReport = (id: string, assignee: string) => {
-    setReports(current => current.map(report => report.id === id ? { ...report, assignedTo: assignee } : report))
-    setNotice(`${id} was assigned to ${assignee}.`)
+  const assignReport = async (id: string, assignee: string) => {
     if (!apiToken) {
-      setNotice(`${id} was assigned locally, but the Field Reports session is unavailable.`)
+      setNotice(`${id} was not reassigned because the live Field Reports session is unavailable.`)
       return
     }
-    void updateFieldReportRecord(id, { assignedTo: assignee }, apiToken).catch(error => {
+    try {
+      const response = await updateFieldReportRecord(id, { assignedTo: assignee }, apiToken)
+      const savedReport = toDashboardReport(response.data)
+      setReports(current => current.map(report => report.id === id ? savedReport : report))
+      setNotice(`${id} was assigned to ${assignee}.`)
+    } catch (error) {
       console.warn('Unable to persist Field Report assignment:', error)
-      setNotice(`${id} was assigned locally, but the server update could not be saved.`)
-    })
+      setNotice(`${id} was not reassigned because the live API could not save the change.`)
+    }
   }
 
   const pendingCount = coverageReports.filter(report => report.status === 'Pending review').length
@@ -562,7 +495,14 @@ export default function FieldReportsPage() {
   return (
     <PageShell title="Field Reports" subtitle={candidate ? 'Candidate workspace · Ramon de la Cruz' : getCoverageLabel(user)}>
       <div className="space-y-5">
-        <CoverageFilter geography={geography} onGeographyChange={setGeography} onResolvedGeographyChange={setResolvedGeography} period={period} onPeriodChange={setPeriod} />
+        {user?.isSuperadmin ? (
+          <CoverageFilter geography={geography} onGeographyChange={setGeography} onResolvedGeographyChange={setResolvedGeography} period={period} onPeriodChange={setPeriod} />
+        ) : (
+          <section className="rounded-xl border border-slate-200 bg-white px-5 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recipient inbox</p>
+            <p className="mt-1 text-sm text-slate-700">Showing every Field Report sent to {user?.displayName ?? 'this account'}, regardless of where the observation was recorded.</p>
+          </section>
+        )}
 
         <AiInsightPanel
           title="Field Reports AI Brief"

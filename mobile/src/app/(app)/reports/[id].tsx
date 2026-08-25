@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router'
-import { Image, StyleSheet, Text, View } from 'react-native'
+import { Alert, Image, StyleSheet, Text, View } from 'react-native'
 
 import { Button } from '@/components/Button'
 import { Screen } from '@/components/Screen'
@@ -9,7 +9,7 @@ import { useReports } from '@/context/ReportsContext'
 
 export default function ReportDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>()
-    const { getReport, retryReport } = useReports()
+    const { deleteDraft, getReport, retryReport } = useReports()
     const report = getReport(id)
 
     if (!report) {
@@ -17,6 +17,25 @@ export default function ReportDetailScreen() {
     }
 
     const occurredAt = new Date(report.occurredAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+    const confirmDraftDeletion = () => {
+        Alert.alert(
+            'Delete draft?',
+            'This draft will be permanently removed from this device.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                        void deleteDraft(report.id).then(deleted => {
+                            if (deleted) router.replace('/(app)')
+                        })
+                    },
+                },
+            ],
+        )
+    }
+
     return (
         <Screen title="Report Detail" subtitle={report.serverId ?? report.id} action={<StatusBadge status={report.status} />}>
             <View style={styles.card}>
@@ -54,7 +73,17 @@ export default function ReportDetailScreen() {
                 <Text style={styles.heading}>Synchronization</Text>
                 <Text style={styles.value}>{report.sync.state}</Text>
                 {report.sync.lastError && <Text style={styles.error}>{report.sync.lastError}</Text>}
-                {report.status === 'draft' && <Button label="Submit draft" onPress={() => void retryReport(report.id)} />}
+                {report.status === 'draft' && (
+                    <>
+                        <Button
+                            label="Edit draft"
+                            variant="secondary"
+                            onPress={() => router.push({ pathname: '/(app)/new', params: { draftId: report.id } })}
+                        />
+                        <Button label="Submit draft" onPress={() => void retryReport(report.id)} />
+                        <Button label="Delete draft" variant="danger" onPress={confirmDraftDeletion} />
+                    </>
+                )}
                 {report.sync.state === 'failed' && <Button label="Retry synchronization" onPress={() => void retryReport(report.id)} />}
             </View>
         </Screen>
