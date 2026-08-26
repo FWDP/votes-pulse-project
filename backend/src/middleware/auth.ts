@@ -1,4 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
+import { dbEnabled, query } from '../db'
+import { getPrototypeMobileSession } from '../services/mobileSessions.service'
 
 export interface AuthUser {
   id?: string
@@ -7,6 +9,11 @@ export interface AuthUser {
   displayName?: string
   isSuperadmin?: boolean
   roles?: string[]
+  tenantId?: string
+  workspaceId?: string
+  coverageLabel?: string
+  coverageCode?: string
+  role?: string
   [key: string]: any
 }
 
@@ -23,6 +30,8 @@ const normalizeUser = (value: unknown): AuthUser | null => {
   const id = typeof user.id === 'string' ? user.id : typeof user.userId === 'string' ? user.userId : typeof user.user_id === 'string' ? user.user_id : undefined
   const email = typeof user.email === 'string' ? user.email : undefined
   const displayName = typeof user.displayName === 'string' ? user.displayName : undefined
+  const role = typeof user.role === 'string' ? user.role.toLowerCase() : undefined
+  const roles = Array.isArray(user.roles) ? user.roles.filter(value => typeof value === 'string') : []
 
   if (!id && !email && !displayName) return null
 
@@ -31,16 +40,64 @@ const normalizeUser = (value: unknown): AuthUser | null => {
     id: id ?? email ?? 'local-user',
     email,
     displayName: displayName ?? email ?? 'Local User',
-    isSuperadmin: Boolean(user.isSuperadmin),
+    isSuperadmin: Boolean(
+      user.isSuperadmin ||
+      role === 'superadmin' ||
+      roles.some(value => value.toLowerCase() === 'superadmin'),
+    ),
   }
 }
 
-export const requireSession = (req: AuthRequest, res: Response, next: NextFunction) => {
+const resolveBearerUser = async (token: string): Promise<AuthUser | null> => {
+  const prototypeSession = getPrototypeMobileSession(token)
+  if (prototypeSession) return prototypeSession.user
+
+  if (!dbEnabled) return null
+
+  const { rows } = await query(`
+    SELECT u.id, u.email, u.display_name, m.tenant_id, m.role,
+      COALESCE((m.workspace_ids->>0), 'workspace-local') AS workspace_id
+    FROM sessions s
+    JOIN users u ON u.id = s.user_id
+    LEFT JOIN memberships m ON m.user_id = u.id AND m.status = 'active'
+    WHERE s.token = $1 AND s.expires_at > now()
+    LIMIT 1
+  `, [token])
+  const row = rows[0]
+  if (!row) return null
+
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    tenantId: row.tenant_id,
+    workspaceId: row.workspace_id,
+    role: row.role,
+    isSuperadmin: String(row.role).toLowerCase() === 'superadmin',
+  }
+}
+
+export const requireSession = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const existingUser = normalizeUser(req.auth?.user) ?? normalizeUser(req.user) ?? normalizeUser(req.session?.user)
 
   if (existingUser) {
     req.auth = { ...(req.auth ?? {}), user: existingUser }
     return next()
+  }
+
+  const authorization = req.get('authorization') ?? ''
+  const bearerToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1]
+  if (bearerToken) {
+    try {
+      const bearerUser = await resolveBearerUser(bearerToken)
+      if (bearerUser) {
+        req.auth = { user: normalizeUser(bearerUser) ?? bearerUser }
+        return next()
+      }
+    } catch (error) {
+      console.error('Unable to resolve bearer session:', error)
+      return res.status(500).json({ error: 'Unable to validate session' })
+    }
   }
 
   const isLocalDev = process.env.NODE_ENV !== 'production'
@@ -50,6 +107,8 @@ export const requireSession = (req: AuthRequest, res: Response, next: NextFuncti
       email: 'superadmin@example.test',
       displayName: 'Super Admin',
       isSuperadmin: true,
+      tenantId: process.env.MOBILE_PROTOTYPE_TENANT_ID || 'tenant-ramon-de-la-cruz-office',
+      workspaceId: process.env.MOBILE_PROTOTYPE_WORKSPACE_ID || 'workspace-constituent-sentiment',
     }
 
     req.auth = { user: devUser }

@@ -1,0 +1,43 @@
+import { isApiConfigured, requestJson } from './apiClient'
+import type { MobileSession } from '@/types/session'
+
+interface SignInInput {
+    email: string
+    password: string
+}
+
+const createPrototypeSession = (email: string): MobileSession => ({
+    token: 'prototype-mobile-session',
+    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
+    mode: 'prototype',
+    user: {
+        id: 'mobile-field-reporter-local',
+        displayName: email.split('@')[0]?.replace(/[._-]+/g, ' ') || 'Field Reporter',
+        email,
+        coverageLabel: 'Assigned field coverage',
+        role: 'field-reporter',
+        tenantId: 'tenant-local',
+        workspaceId: 'workspace-local',
+    },
+})
+
+export async function signIn(input: SignInInput): Promise<MobileSession> {
+    if (!input.email.trim() || !input.password) {
+        throw new Error('Enter both email and password.')
+    }
+
+    if (!isApiConfigured) return createPrototypeSession(input.email.trim())
+
+    return requestJson<MobileSession>('/api/mobile/session', {
+        method: 'POST',
+        body: JSON.stringify(input),
+    })
+}
+
+export async function revokeSession(token: string): Promise<void> {
+    if (!isApiConfigured || token === 'prototype-mobile-session') return
+    await requestJson<void>('/api/mobile/session', {
+        method: 'DELETE',
+        token,
+    })
+}
