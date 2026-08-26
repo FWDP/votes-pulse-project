@@ -9,7 +9,12 @@ if (!process.env.DATABASE_URL) {
 }
 
 const MIGRATIONS_DIR = path.resolve(process.cwd(), 'backend', 'db', 'migrations')
-const MIGRATION_FILES = ['001_init.sql','002_add_password.sql','003_add_brands.sql']
+const MIGRATION_FILES = [
+  '001_init.sql',
+  '002_add_password.sql',
+  '003_add_brands.sql',
+  '004_field_report_mobile.sql',
+]
 
 const connectionString = process.env.DATABASE_URL
 if (!connectionString) {

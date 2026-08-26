@@ -5,6 +5,10 @@ import {
   type LicenseTier,
 } from '../config/licenseTiers'
 import type { GeographySelection } from '../types/geography'
+import {
+  createFieldReportsSession,
+  synchronizeFieldReportRecipients,
+} from '../services/fieldReportsApi'
 
 export type TestUser = {
   id: string
@@ -292,6 +296,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const user = useMemo(() => {
     return testUsers.find(candidate => candidate.id === selectedUserId) ?? testUsers[0] ?? TEST_USERS[0]
   }, [selectedUserId, testUsers])
+
+  React.useEffect(() => {
+    if (!user?.email) return
+    const controller = new AbortController()
+    void createFieldReportsSession(user.email, controller.signal)
+      .then(session => synchronizeFieldReportRecipients(
+        session.token,
+        testUsers.map(candidate => ({
+          id: candidate.id,
+          displayName: candidate.displayName,
+          email: candidate.email,
+          isSuperadmin: candidate.isSuperadmin,
+        })),
+        controller.signal,
+      ))
+      .catch(error => {
+        if (error instanceof Error && error.name === 'AbortError') return
+        console.warn('Unable to synchronize Web App accounts:', error)
+      })
+    return () => controller.abort()
+  }, [testUsers, user?.email])
 
   const accessibleWorkspaces = useMemo(() => ([
     {

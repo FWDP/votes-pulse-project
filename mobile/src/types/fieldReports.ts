@@ -1,0 +1,17 @@
+export type {
+    CreateFieldReportInput,
+    FieldReport,
+    FieldReportAttachment,
+    FieldReportAttachmentKind,
+    FieldReportCoordinates,
+    FieldReportDetailResponse,
+    FieldReportEvidenceType,
+    FieldReportListResponse,
+    FieldReportLocation,
+    FieldReportReporter,
+    FieldReportRecipient,
+    FieldReportRecipientListResponse,
+    FieldReportSeverity,
+    FieldReportStatus,
+    FieldReportSyncState,
+} from '../../../shared/fieldReports'
