@@ -15,14 +15,19 @@ import { getCoverageLabel, useAuth } from '../contexts/AuthContext'
 import {
   createFieldReport as createFieldReportRecord,
   extendFieldReportIntegrityTtl,
+  getFieldReportIntegrityAudit,
+  getFieldReportIntegrityHealth,
   getFieldReportIntegrity,
   listFieldReports as listFieldReportRecords,
   retryFieldReportIntegrity,
+  reviseFieldReportEvidence,
   updateFieldReport as updateFieldReportRecord,
 } from '../services/fieldReportsApi'
 import type {
   FieldReport as SharedFieldReport,
   FieldReportIntegrity,
+  FieldReportIntegrityAuditEntry,
+  FieldReportIntegrityHealth,
   FieldReportStatus,
 } from '../../../shared/fieldReports'
 
@@ -140,6 +145,15 @@ export default function FieldReportsPage() {
   const [uploadedAttachments, setUploadedAttachments] = useState<AttachmentRecord[]>([])
   const [uploadingAttachments, setUploadingAttachments] = useState(false)
   const [summaryText, setSummaryText] = useState('')
+  const [integrityHealth, setIntegrityHealth] = useState<FieldReportIntegrityHealth | null>(null)
+  const [integrityAudit, setIntegrityAudit] = useState<FieldReportIntegrityAuditEntry[]>([])
+  const [evidenceRevision, setEvidenceRevision] = useState<{
+    title: string
+    observation: string
+    topic: string
+    severity: ReportSeverity
+    evidenceType: EvidenceType
+  } | null>(null)
   const sessionMatchesUser = fieldReportsSession?.user?.email?.toLowerCase() === user?.email?.toLowerCase()
   const apiToken = sessionMatchesUser ? fieldReportsSession.token : ''
 
@@ -180,6 +194,34 @@ export default function FieldReportsPage() {
       window.removeEventListener('focus', refreshOnFocus)
     }
   }, [apiToken, fieldReportsConnecting, fieldReportsConnectionError, user?.email])
+
+  useEffect(() => {
+    if (!apiToken || !user?.isSuperadmin) {
+      setIntegrityHealth(null)
+      setIntegrityAudit([])
+      return
+    }
+    const controller = new AbortController()
+    const loadOperations = async () => {
+      const [health, audit] = await Promise.all([
+        getFieldReportIntegrityHealth(apiToken, controller.signal),
+        getFieldReportIntegrityAudit(apiToken, controller.signal),
+      ])
+      if (!controller.signal.aborted) {
+        setIntegrityHealth(health.data)
+        setIntegrityAudit(audit.data)
+      }
+    }
+    void loadOperations().catch(error => {
+      if (error instanceof Error && error.name === 'AbortError') return
+      console.warn('Unable to load Stellar integrity operations:', error)
+    })
+    const interval = window.setInterval(() => void loadOperations(), 30_000)
+    return () => {
+      controller.abort()
+      window.clearInterval(interval)
+    }
+  }, [apiToken, user?.isSuperadmin])
 
   const topics = useMemo(() => Array.from(new Set(reports.map(report => report.topic))).sort(), [reports])
   const evidenceTypes = useMemo(() => Array.from(new Set(reports.map(report => report.evidenceType))).sort(), [reports])
@@ -412,6 +454,27 @@ export default function FieldReportsPage() {
     }
   }
 
+  const saveEvidenceRevision = async (id: string) => {
+    if (!apiToken || !evidenceRevision) return
+    try {
+      const response = await reviseFieldReportEvidence(id, {
+        title: evidenceRevision.title,
+        observation: evidenceRevision.observation,
+        topic: evidenceRevision.topic,
+        severity: evidenceRevision.severity.toLowerCase() as SharedFieldReport['severity'],
+        evidenceType: evidenceRevision.evidenceType.toLowerCase() as SharedFieldReport['evidenceType'],
+      }, apiToken)
+      const integrityResponse = await getFieldReportIntegrity(id, apiToken)
+      const savedReport = toDashboardReport({ ...response.data, integrity: integrityResponse.data })
+      setReports(current => current.map(report => report.id === id ? savedReport : report))
+      setEvidenceRevision(null)
+      setNotice(`${id} evidence revision ${savedReport.integrity?.revision ?? ''} was queued for Stellar verification.`)
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'Unable to save evidence revision.'
+      setNotice(`${id} evidence was not revised: ${reason}`)
+    }
+  }
+
   const pendingCount = coverageReports.filter(report => report.status === 'Pending review').length
   const followUpCount = coverageReports.filter(report => report.status === 'Follow-up').length
   const reviewedCount = coverageReports.filter(report => report.status === 'Reviewed').length
@@ -470,6 +533,8 @@ export default function FieldReportsPage() {
     () => coverageReports.find(report => report.id === selectedReportId) ?? null,
     [coverageReports, selectedReportId],
   )
+
+  useEffect(() => setEvidenceRevision(null), [selectedReportId])
 
   useEffect(() => {
     if (!selectedReportId || !apiToken) return
@@ -645,6 +710,32 @@ export default function FieldReportsPage() {
           </div>
         )}
 
+        {user?.isSuperadmin && integrityHealth && (
+          <section className={`rounded-xl border p-4 shadow-sm ${integrityHealth.healthy ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-violet-700">Stellar operations</p>
+                <p className="mt-1 text-sm font-semibold text-slate-800">
+                  {integrityHealth.healthy ? 'Integrity pipeline healthy' : 'Integrity pipeline needs attention'}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-700">
+                <span className="rounded-full bg-white px-2.5 py-1">Pending {integrityHealth.pending}</span>
+                <span className="rounded-full bg-white px-2.5 py-1">Failed {integrityHealth.failed}</span>
+                <span className="rounded-full bg-white px-2.5 py-1">TTL due {integrityHealth.ttlDue}</span>
+                <span className="rounded-full bg-white px-2.5 py-1">Incidents {integrityHealth.openIncidents ?? 0}</span>
+                <span className="rounded-full bg-white px-2.5 py-1">Reconcile failures {integrityHealth.reconciliationFailures ?? 0}</span>
+                <span className="rounded-full bg-white px-2.5 py-1 capitalize">Signer {integrityHealth.signerMode}</span>
+              </div>
+            </div>
+            {integrityHealth.alerts.length > 0 && (
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-900">
+                {integrityHealth.alerts.map(alert => <li key={alert}>{alert}</li>)}
+              </ul>
+            )}
+          </section>
+        )}
+
         {summaryText && (
           <section className="rounded-xl border border-sky-200 bg-sky-50 p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
@@ -703,8 +794,37 @@ export default function FieldReportsPage() {
             </div>
 
             <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
-              <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">Observation</div>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{selectedReport.observation}</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">Observation</div>
+                {!evidenceRevision && (user?.isSuperadmin || selectedReport.submittedBy === user?.displayName) && (
+                  <button
+                    type="button"
+                    onClick={() => setEvidenceRevision({
+                      title: selectedReport.title,
+                      observation: selectedReport.observation,
+                      topic: selectedReport.topic,
+                      severity: selectedReport.severity,
+                      evidenceType: selectedReport.evidenceType,
+                    })}
+                    className="text-xs font-semibold text-violet-700 hover:text-violet-900"
+                  >Create evidence revision</button>
+                )}
+              </div>
+              {evidenceRevision ? (
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <input value={evidenceRevision.title} onChange={event => setEvidenceRevision(current => current ? { ...current, title: event.target.value } : current)} aria-label="Revised report title" className="h-10 rounded-lg border border-slate-200 px-3 text-sm" />
+                  <input value={evidenceRevision.topic} onChange={event => setEvidenceRevision(current => current ? { ...current, topic: event.target.value } : current)} aria-label="Revised report topic" className="h-10 rounded-lg border border-slate-200 px-3 text-sm" />
+                  <select value={evidenceRevision.severity} onChange={event => setEvidenceRevision(current => current ? { ...current, severity: event.target.value as ReportSeverity } : current)} aria-label="Revised severity" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm"><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select>
+                  <select value={evidenceRevision.evidenceType} onChange={event => setEvidenceRevision(current => current ? { ...current, evidenceType: event.target.value as EvidenceType } : current)} aria-label="Revised evidence type" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm"><option>Photo</option><option>Interview</option><option>Survey</option><option>Document</option><option>Other</option></select>
+                  <textarea value={evidenceRevision.observation} onChange={event => setEvidenceRevision(current => current ? { ...current, observation: event.target.value } : current)} aria-label="Revised observation" rows={4} className="rounded-lg border border-slate-200 px-3 py-2 text-sm md:col-span-2" />
+                  <div className="flex justify-end gap-2 md:col-span-2">
+                    <button type="button" onClick={() => setEvidenceRevision(null)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">Cancel</button>
+                    <button type="button" onClick={() => void saveEvidenceRevision(selectedReport.id)} className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-semibold text-white">Save & anchor revision</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm leading-6 text-slate-600">{selectedReport.observation}</p>
+              )}
             </div>
 
             <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-600">
@@ -733,6 +853,14 @@ export default function FieldReportsPage() {
                     </li>
                   ))}
                 </ol>
+                {selectedReport.integrity.status === 'confirmed' && selectedReport.integrity.reportKey && (
+                  <a
+                    href={`/verify/${selectedReport.integrity.reportKey}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-semibold text-violet-800"
+                  >Open privacy-safe verification receipt</a>
+                )}
                 {user?.isSuperadmin && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {selectedReport.integrity.status === 'failed' && (
@@ -790,6 +918,34 @@ export default function FieldReportsPage() {
               >
                 {assignees.map(item => <option key={item}>{item}</option>)}
               </select>
+            </div>
+          </section>
+        )}
+
+        {user?.isSuperadmin && (
+          <section className="rounded-xl border border-violet-200 bg-white shadow-sm">
+            <div className="border-b border-violet-100 p-4 sm:p-5">
+              <h2 className="font-bold text-slate-800">Stellar-verified field report audit trail</h2>
+              <p className="mt-1 text-xs text-slate-500">Confirmed submissions, evidence revisions, and review attestations across this workspace.</p>
+            </div>
+            <div className="max-h-96 overflow-auto">
+              {integrityAudit.length ? (
+                <table className="w-full min-w-[780px] text-left text-xs">
+                  <thead className="sticky top-0 bg-violet-50 text-violet-800"><tr><th className="px-4 py-3">Report</th><th className="px-4 py-3">Revision</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Ledger</th><th className="px-4 py-3">Confirmed</th><th className="px-4 py-3">Transaction</th></tr></thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {integrityAudit.map(entry => (
+                      <tr key={`${entry.transactionHash}-${entry.revision}`}>
+                        <td className="px-4 py-3"><button type="button" onClick={() => setSelectedReportId(entry.reportId)} className="font-semibold text-slate-800 hover:text-violet-700">{entry.reportTitle}</button><div className="mt-1 font-mono text-[10px] text-slate-400">{entry.reportId}</div></td>
+                        <td className="px-4 py-3 font-semibold">{entry.revision}</td>
+                        <td className="px-4 py-3">{entry.anchorType === 'review-attestation' ? 'Review' : 'Evidence'}</td>
+                        <td className="px-4 py-3 font-mono">{entry.ledgerSequence}</td>
+                        <td className="px-4 py-3">{new Date(entry.confirmedAt).toLocaleString('en-PH')}</td>
+                        <td className="px-4 py-3"><a href={`https://stellar.expert/explorer/${integrityHealth?.network === 'public' ? 'public' : 'testnet'}/tx/${entry.transactionHash}`} target="_blank" rel="noreferrer" className="font-mono text-violet-700 hover:underline">{entry.transactionHash.slice(0, 12)}…</a></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <p className="p-5 text-sm text-slate-500">No confirmed Stellar anchors yet.</p>}
             </div>
           </section>
         )}

@@ -10,12 +10,14 @@ import {
   getFieldReport,
   listFieldReportRecipients,
   listFieldReports,
+  reviseFieldReportEvidence,
   synchronizeFieldReportRecipients,
   updateFieldReport,
 } from '../services/fieldReports.service'
 import {
   getIntegrityQueueHealth,
   getReportIntegrity,
+  listConfirmedIntegrityAudit,
   markReportIntegrityTtlExtended,
   retryReportIntegrity,
 } from '../integrity/integrityRepository'
@@ -23,6 +25,7 @@ import { extendReportAnchorTtl } from '../integrity/stellarClient'
 import {
   validateFieldReportPayload,
   type FieldReport,
+  type FieldReportEvidenceRevisionInput,
   type FieldReportStatus,
 } from '../../../shared/fieldReports'
 
@@ -255,6 +258,21 @@ router.get('/integrity/health', async (request: AuthRequest, response) => {
   }
 })
 
+router.get('/integrity/audit', async (request: AuthRequest, response) => {
+  if (!getViewer(request).isSuperadmin) {
+    return response.status(403).json({ error: 'Only a superadmin can view the Stellar audit trail.' })
+  }
+  const requestedLimit = Number(request.query.limit)
+  const limit = Number.isFinite(requestedLimit) ? requestedLimit : 200
+  try {
+    const data = await listConfirmedIntegrityAudit(getScope(request), limit)
+    return response.json({ data, count: data.length })
+  } catch (error) {
+    console.error('Unable to load the Stellar integrity audit trail:', error)
+    return response.status(500).json({ error: 'Unable to load the Stellar integrity audit trail.' })
+  }
+})
+
 router.get('/:id/integrity', async (request: AuthRequest, response) => {
   const reportId = Array.isArray(request.params.id) ? request.params.id[0] ?? '' : request.params.id
   try {
@@ -314,6 +332,63 @@ router.get('/:id', async (request: AuthRequest, response) => {
   } catch (error) {
     console.error('Unable to load field report:', error)
     return response.status(500).json({ error: 'Unable to load field report.' })
+  }
+})
+
+router.put('/:id/evidence', async (request: AuthRequest, response) => {
+  const reportId = Array.isArray(request.params.id) ? request.params.id[0] ?? '' : request.params.id
+  const viewer = getViewer(request)
+  try {
+    const current = await getFieldReport(getScope(request), reportId, viewer)
+    if (!current) return response.status(404).json({ error: 'Field report not found.' })
+    const viewerEmail = viewer.email?.trim().toLowerCase()
+    const isReporter = Boolean(
+      (viewer.id && viewer.id === current.reporter.id) ||
+      (viewerEmail && viewerEmail === current.reporter.email?.trim().toLowerCase()),
+    )
+    if (!viewer.isSuperadmin && !isReporter) {
+      return response.status(403).json({ error: 'Only the original reporter or a superadmin can revise evidence.' })
+    }
+    if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) {
+      return response.status(400).json({ error: 'A JSON evidence revision is required.' })
+    }
+    const body = request.body as FieldReportEvidenceRevisionInput
+    const update: FieldReportEvidenceRevisionInput = {
+      ...(typeof body.title === 'string' ? { title: body.title.trim() } : {}),
+      ...(typeof body.observation === 'string' ? { observation: body.observation.trim() } : {}),
+      ...(typeof body.topic === 'string' ? { topic: body.topic.trim() } : {}),
+      ...(typeof body.severity === 'string' ? { severity: body.severity } : {}),
+      ...(typeof body.evidenceType === 'string' ? { evidenceType: body.evidenceType } : {}),
+      ...(body.location && typeof body.location === 'object' ? { location: body.location } : {}),
+      ...(Array.isArray(body.attachments) ? { attachments: body.attachments } : {}),
+      ...(typeof body.occurredAt === 'string' ? { occurredAt: body.occurredAt } : {}),
+    }
+    if (!Object.keys(update).length) {
+      return response.status(400).json({ error: 'No supported evidence changes were supplied.' })
+    }
+
+    if (update.attachments) {
+      const tenantPrefix = getScope(request).tenantId.replace(/[^a-zA-Z0-9_-]/g, '_')
+      update.attachments = await Promise.all(update.attachments.map(async attachment => {
+        if (!attachment.remoteUrl) return { ...attachment, sha256: undefined }
+        const filename = path.basename(attachment.remoteUrl)
+        if (!filename.startsWith(`${tenantPrefix}-`)) throw new Error('An attachment is outside the report tenant.')
+        const filePath = path.join(uploadDir, filename)
+        if (!fs.existsSync(filePath)) throw new Error(`Attachment ${attachment.name} is unavailable.`)
+        return { ...attachment, sha256: await hashFile(filePath) }
+      }))
+    }
+    const candidate: FieldReport = { ...current, ...update, integrity: undefined }
+    const errors = validateFieldReportPayload(candidate)
+    if (errors.length) return response.status(400).json({ error: 'Invalid evidence revision.', details: errors })
+
+    const result = await reviseFieldReportEvidence(getScope(request), reportId, update, viewer)
+    if (!result.report) return response.status(404).json({ error: 'Field report not found.' })
+    if (result.unchanged) return response.status(409).json({ error: 'The evidence revision does not change the integrity digest.' })
+    return response.json({ data: result.report })
+  } catch (error) {
+    console.error('Unable to revise field report evidence:', error)
+    return response.status(500).json({ error: 'Unable to revise field report evidence.' })
   }
 })
 

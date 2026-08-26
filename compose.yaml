@@ -1,10 +1,24 @@
 services:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    network_mode: host
+    env_file:
+      - path: ./backend/.env
+        required: false
+    command: ["node", "--import", "tsx", "backend/db/runMigrations.ts"]
+    restart: "no"
+
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     init: true
     restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     # The development database runs on the Linux host and listens on loopback.
     # Host networking lets DATABASE_URL=postgres://...@localhost:5432/... work
     # inside the API container without exposing PostgreSQL to the LAN.
@@ -24,6 +38,9 @@ services:
         source: ./votes-pulse-integrity.secret
         target: /run/secrets/votes-pulse-integrity.secret
         read_only: true
+      - type: bind
+        source: ./backend/uploads
+        target: /app/backend/uploads
     healthcheck:
       test:
         - CMD

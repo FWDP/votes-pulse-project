@@ -1,8 +1,11 @@
 import type {
     FieldReport,
     FieldReportDetailResponse,
+    FieldReportEvidenceRevisionInput,
     FieldReportListResponse,
     FieldReportIntegrity,
+    FieldReportIntegrityAuditEntry,
+    FieldReportIntegrityHealth,
     FieldReportRecipientListResponse,
     FieldReportStatus,
 } from '../../../shared/fieldReports'
@@ -79,6 +82,16 @@ export const updateFieldReport = (
     body: JSON.stringify(update),
 })
 
+export const reviseFieldReportEvidence = (
+    id: string,
+    update: FieldReportEvidenceRevisionInput,
+    token: string,
+) => requestJson<FieldReportDetailResponse>(`/api/reports/${encodeURIComponent(id)}/evidence`, {
+    method: 'PUT',
+    headers: withToken(token),
+    body: JSON.stringify(update),
+})
+
 export const getFieldReportIntegrity = (id: string, token: string) =>
     requestJson<{ data: FieldReportIntegrity }>(`/api/reports/${encodeURIComponent(id)}/integrity`, {
         headers: withToken(token),
@@ -95,3 +108,15 @@ export const extendFieldReportIntegrityTtl = (id: string, token: string) =>
         `/api/reports/${encodeURIComponent(id)}/integrity/extend-ttl`,
         { method: 'POST', headers: withToken(token) },
     )
+
+export const getFieldReportIntegrityHealth = (token: string, signal?: AbortSignal) =>
+    requestJson<{ data: FieldReportIntegrityHealth }>('/api/reports/integrity/health', {
+        headers: withToken(token),
+        signal,
+    })
+
+export const getFieldReportIntegrityAudit = (token: string, signal?: AbortSignal) =>
+    requestJson<{ data: FieldReportIntegrityAuditEntry[]; count: number }>('/api/reports/integrity/audit', {
+        headers: withToken(token),
+        signal,
+    })

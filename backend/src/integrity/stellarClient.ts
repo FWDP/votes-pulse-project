@@ -4,6 +4,7 @@ import {
   Contract,
   TransactionBuilder,
   nativeToScVal,
+  scValToNative,
   rpc,
 } from '@stellar/stellar-sdk'
 
@@ -25,6 +26,13 @@ export interface AnchorConfirmation {
   ledgerSequence: number
 }
 
+export interface OnChainAnchor {
+  contentHash: string
+  previousHash?: string
+  ledger: number
+  schemaVersion: number
+}
+
 const wait = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds))
 const bytes = (hex: string) => nativeToScVal(new Uint8Array(Buffer.from(hex, 'hex')))
 
@@ -34,19 +42,19 @@ async function submitContractOperation(
   const config = stellarIntegrityConfig
   const signer = await loadIntegritySigner()
   const server = new rpc.Server(config.rpcUrl)
-  const source = await server.getAccount(signer.publicKey())
+  const source = await server.getAccount(signer.publicKey)
   const contract = new Contract(config.contractId)
   const transaction = new TransactionBuilder(source, {
     fee: BASE_FEE,
     networkPassphrase: config.networkPassphrase,
   })
-    .addOperation(buildOperation(contract, signer.publicKey()))
+    .addOperation(buildOperation(contract, signer.publicKey))
     .setTimeout(30)
     .build()
 
   const prepared = await server.prepareTransaction(transaction)
-  prepared.sign(signer)
-  const submitted = await server.sendTransaction(prepared)
+  const signed = await signer.sign(prepared)
+  const submitted = await server.sendTransaction(signed)
   if (submitted.status === 'ERROR' || submitted.status === 'TRY_AGAIN_LATER') {
     throw new Error(`Stellar RPC rejected the transaction with status ${submitted.status}.`)
   }
@@ -97,4 +105,37 @@ export async function extendReportAnchorTtl(reportKey: string, revision: number)
     bytes(reportKey),
     nativeToScVal(revision, { type: 'u32' }),
   ))
+}
+
+export async function readReportAnchor(reportKey: string, revision: number): Promise<OnChainAnchor | undefined> {
+  const config = stellarIntegrityConfig
+  const signer = await loadIntegritySigner()
+  const server = new rpc.Server(config.rpcUrl)
+  const source = await server.getAccount(signer.publicKey)
+  const contract = new Contract(config.contractId)
+  const operation = revision === 1
+    ? contract.call('get_anchor', bytes(reportKey), nativeToScVal(revision, { type: 'u32' }))
+    : contract.call('get_revision', bytes(reportKey), nativeToScVal(revision, { type: 'u32' }))
+  const transaction = new TransactionBuilder(source, {
+    fee: BASE_FEE,
+    networkPassphrase: config.networkPassphrase,
+  }).addOperation(operation).setTimeout(30).build()
+  const simulation = await server.simulateTransaction(transaction)
+  if (!rpc.Api.isSimulationSuccess(simulation)) {
+    throw new Error(`Unable to read Soroban anchor: ${simulation.error}`)
+  }
+  if (!simulation.result) return undefined
+  const native = scValToNative(simulation.result.retval) as Record<string, unknown> | null
+  if (!native) return undefined
+  const toHex = (value: unknown) => value instanceof Uint8Array
+    ? Buffer.from(value).toString('hex')
+    : undefined
+  const contentHash = toHex(native.content_hash)
+  if (!contentHash) throw new Error('Soroban returned an invalid anchor content hash.')
+  return {
+    contentHash,
+    previousHash: toHex(native.previous_hash),
+    ledger: Number(native.ledger),
+    schemaVersion: Number(native.schema_version),
+  }
 }

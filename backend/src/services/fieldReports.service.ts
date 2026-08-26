@@ -1,12 +1,19 @@
 import { randomUUID } from 'node:crypto'
 
-import type { FieldReport, FieldReportRecipient, FieldReportStatus } from '../../../shared/fieldReports'
+import type {
+    FieldReport,
+    FieldReportEvidenceRevisionInput,
+    FieldReportRecipient,
+    FieldReportStatus,
+} from '../../../shared/fieldReports'
 import { dbEnabled, runTenantOperation } from '../db'
 import {
     attachIntegritiesToReports,
     enqueueReportIntegrity,
+    enqueueReportRevision,
     enqueueReviewAttestation,
 } from '../integrity/integrityRepository'
+import { hashReportForIntegrity } from '../integrity/canonicalizeReport'
 
 export interface FieldReportScope {
     tenantId: string
@@ -347,6 +354,74 @@ export async function updateFieldReport(
             )
         }
         return (await attachIntegritiesToReports(client, scope, [storedReport]))[0]
+    })
+}
+
+export async function reviseFieldReportEvidence(
+    scope: FieldReportScope,
+    id: string,
+    update: FieldReportEvidenceRevisionInput,
+    viewer: FieldReportViewer,
+): Promise<{ report?: FieldReport; unchanged?: boolean }> {
+    const current = await getFieldReport(scope, id, viewer)
+    if (!current) return {}
+    const { integrity: _currentIntegrity, ...currentWithoutIntegrity } = current
+    const report: FieldReport = {
+        ...currentWithoutIntegrity,
+        ...(update.title !== undefined ? { title: update.title } : {}),
+        ...(update.observation !== undefined ? { observation: update.observation } : {}),
+        ...(update.topic !== undefined ? { topic: update.topic } : {}),
+        ...(update.severity !== undefined ? { severity: update.severity } : {}),
+        ...(update.evidenceType !== undefined ? { evidenceType: update.evidenceType } : {}),
+        ...(update.location !== undefined ? { location: update.location } : {}),
+        ...(update.attachments !== undefined ? { attachments: update.attachments } : {}),
+        ...(update.occurredAt !== undefined ? { occurredAt: update.occurredAt } : {}),
+        updatedAt: new Date().toISOString(),
+    }
+    if (hashReportForIntegrity(current).contentHash === hashReportForIntegrity(report).contentHash) {
+        return { report: current, unchanged: true }
+    }
+
+    if (!useDatabase()) {
+        reportStore.set(scopeKey(scope, report), report)
+        return { report }
+    }
+
+    return runTenantOperation(scope.tenantId, async client => {
+        const { rows } = await client.query(`
+            UPDATE field_reports
+            SET title = $4, observation = $5, topic = $6,
+                region = $7, province = $8, district = $9, location = $10,
+                severity = $11, evidence_type = $12, occurred_at = $13,
+                payload = $14::jsonb, updated_at = $15
+            WHERE tenant_id = $1 AND workspace_id = $2 AND id = $3
+            RETURNING payload
+        `, [
+            scope.tenantId,
+            scope.workspaceId,
+            id,
+            report.title,
+            report.observation,
+            report.topic,
+            report.location.regionName ?? '',
+            report.location.provinceName ?? '',
+            report.location.barangayName ?? '',
+            report.location.label,
+            report.severity,
+            report.evidenceType,
+            report.occurredAt,
+            JSON.stringify(report),
+            report.updatedAt,
+        ])
+        const storedReport = rows[0]?.payload as FieldReport | undefined
+        if (!storedReport) return {}
+        const integrity = await enqueueReportRevision(
+            client,
+            scope,
+            storedReport,
+            viewer.id ?? 'system-editor',
+        )
+        return { report: { ...storedReport, integrity } }
     })
 }
 

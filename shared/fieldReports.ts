@@ -102,6 +102,38 @@ export interface FieldReportIntegrity {
     history?: FieldReportIntegrityRevision[]
 }
 
+export interface FieldReportIntegrityHealth {
+    configured: boolean
+    enabled: boolean
+    healthy: boolean
+    network: string
+    contractId?: string
+    signerMode: 'local' | 'remote' | 'unconfigured'
+    pending: number
+    stalePending: number
+    failed: number
+    ttlDue: number
+    artifactPending?: number
+    reconciliationFailures?: number
+    openIncidents?: number
+    eventLastIngestedAt?: string
+    oldestPendingAt?: string
+    alerts: string[]
+}
+
+export interface FieldReportIntegrityAuditEntry {
+    reportId: string
+    reportTitle: string
+    revision: number
+    anchorType: FieldReportIntegrityAnchorType
+    contentHash: string
+    previousHash?: string
+    transactionHash: string
+    ledgerSequence: number
+    confirmedAt: string
+    actorId?: string
+}
+
 export interface FieldReportReporter {
     id: string
     displayName: string
@@ -154,6 +186,17 @@ export interface CreateFieldReportInput {
     recipient?: FieldReportRecipient
     attachments: FieldReportAttachment[]
     occurredAt: string
+}
+
+export interface FieldReportEvidenceRevisionInput {
+    title?: string
+    observation?: string
+    topic?: string
+    severity?: FieldReportSeverity
+    evidenceType?: FieldReportEvidenceType
+    location?: FieldReportLocation
+    attachments?: FieldReportAttachment[]
+    occurredAt?: string
 }
 
 export interface FieldReportListResponse {

@@ -1,6 +1,6 @@
-# Soroban report-integrity implementation
+# Soroban integrity platform
 
-PULSE uses Soroban as an asynchronous, privacy-preserving integrity rail for Field Reports. PostgreSQL remains the operational source of truth. The chain receives only an opaque random report key, revision number, schema version, and SHA-256 content digest.
+VOTES/PULSE uses Soroban as an asynchronous, privacy-preserving integrity rail. PostgreSQL remains the operational source of truth. The chain receives only an opaque random key, revision number, schema version, and SHA-256 content digest.
 
 ## Implemented scope
 
@@ -32,35 +32,60 @@ Never commit the signer secret. For the project-specific local CLI identity, an 
 ## APIs
 
 - `GET /api/reports/:id/integrity` recomputes the current off-chain digest and reports whether it matches a confirmed anchor.
+- `PUT /api/reports/:id/evidence` creates a chained evidence revision; reporter or superadmin only.
 - `POST /api/reports/:id/integrity/retry` requeues a terminal failure; superadmin only.
 - `POST /api/reports/:id/integrity/extend-ttl` extends the latest anchor TTL; superadmin only.
 - `GET /api/reports/integrity/health` returns configuration state, pending depth, failure depth, and oldest pending time; superadmin only.
+- `GET /api/reports/integrity/audit` returns confirmed report, evidence, and review anchors; superadmin only.
 
 The normal report submission endpoint returns immediately after the report and outbox are committed. Stellar submission never blocks mobile synchronization.
 
 ## Operations
 
-- Alert when `oldestPendingAt` exceeds five minutes or `failed` is non-zero.
+- Configure `STELLAR_INTEGRITY_ALERT_WEBHOOK_URL` to deliver persisted submission and reconciliation incidents to the production alert receiver.
 - Keep the signer funded with Testnet XLM for the pilot and XLM on Mainnet only after a release review.
 - Treat `failed` jobs as requiring operator review before retry.
 - Rotate the writer on compromise; the admin identity should be held separately for production.
-- Persistent entries are extended when anchored and read. Add a scheduled TTL sweep before Mainnet if reports must remain immediately readable indefinitely.
+- Persistent entries are extended when anchored and read; the scheduled TTL worker renews both report and reusable artifact anchors.
 
 ## Phase 3–5 foundation status
 
-Implemented now:
+Implemented repository foundation:
 
 - Immutable revision chaining and contract-side previous-hash validation.
 - Automatic review attestations when report status changes.
 - Integrity history and chain validation in the web report detail view.
-- Admin/writer rotation, future Wasm upgrade hook, and manual TTL maintenance.
+- Admin/writer rotation, future Wasm upgrade hook, and manual plus scheduled TTL maintenance.
 - File-mounted signer support and a CI release gate.
 - A v2 Testnet deployment verified through the backend SDK.
+- Intentional evidence revisions with chained report hashes and reporter/superadmin authorization.
+- Scheduled TTL maintenance with configurable cadence, batch size, and health alerts.
+- A remote signing-service boundary for KMS/HSM-backed production keys.
+- Superadmin operational health and a Stellar-confirmed field report audit trail.
+- Docker-persistent uploads and a read-only signer mount.
+- Contract-state reconciliation that detects missing and mismatched anchors.
+- Durable incident records with an optional authenticated alert webhook.
+- Durable, cursor-based Soroban event ingestion with event-ID deduplication.
+- Mainnet approval and local-signer deployment guards.
+- Privacy-safe public verification receipts at `/verify/:receipt`.
+- A generalized artifact registry for survey schemas/batches, dataset snapshots, social batches, analytics, AI attestations, configuration approvals, exports, admin audits, and releases.
 
-Remaining for the next implementation session:
+## General integrity API
 
-- Evidence-editing UX that intentionally creates a new `report` revision.
-- Scheduled batching of TTL maintenance instead of the manual operator endpoint.
-- Production KMS/HSM adapter and separate production admin/writer identities.
-- External contract review, load/cost measurements, alerts, and Mainnet approval.
-- Final UI polish, operational dashboard, demo recording, and release sign-off.
+- `POST /api/integrity/artifacts` creates or revises a typed integrity artifact; superadmin only. Supply a JSON `payload` for server-side canonical hashing or a lowercase SHA-256 `contentHash` for a file or external dataset.
+- `GET /api/integrity/artifacts` lists the latest artifact revisions; superadmin only.
+- `GET /api/integrity/artifacts/:type/:externalId` returns an artifact revision chain; superadmin only.
+- `GET /api/integrity/incidents` returns unresolved reconciliation and submission incidents; superadmin only.
+- `POST /api/integrity/reconcile` starts a manual reconciliation batch; superadmin only.
+- `GET /api/verify/:receipt` returns privacy-safe proof metadata. Artifact receipts must explicitly use `visibility: "public"`; field-report receipts are unguessable capability links and expose no report content.
+
+Set `STELLAR_INTEGRITY_EVENT_START_LEDGER` to the contract deployment ledger before the first production start. Leaving it at `0` starts ingestion at the current ledger and does not reconstruct older events.
+
+Remaining external release gates:
+
+- External contract review, load/cost measurements, webhook receiver configuration, and Mainnet approval.
+- Provision the production KMS/HSM signing service and separate admin/writer identities.
+- Choose and operate the long-term event/archive retention system; PostgreSQL ingestion is implemented.
+- Demo recording and release sign-off.
+
+The remaining items are deliberately not represented as code-complete: an independent security review cannot be self-certified by the implementation; cloud KMS/HSM provisioning requires the selected provider and production account; Mainnet activation requires organizational approval; and demo/release sign-off requires the release owners. The application-side signing boundary, safety guards, alert delivery, event archive, and verification mechanisms needed to support those activities are implemented.

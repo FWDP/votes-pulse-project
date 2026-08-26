@@ -7,7 +7,11 @@ import { config } from 'dotenv'
 import { Pool } from 'pg'
 
 import type { FieldReport } from '../../shared/fieldReports'
-import { enqueueReportIntegrity, enqueueReviewAttestation } from '../src/integrity/integrityRepository'
+import {
+  enqueueReportIntegrity,
+  enqueueReportRevision,
+  enqueueReviewAttestation,
+} from '../src/integrity/integrityRepository'
 
 config({ path: path.resolve(process.cwd(), 'backend', '.env') })
 
@@ -54,8 +58,19 @@ test('creates report and integrity outbox records in the same transaction', {
     `, [reportId, tenantId, workspaceId, report.clientId, JSON.stringify(report)])
 
     const integrity = await enqueueReportIntegrity(client, { tenantId, workspaceId }, report)
-    const attestedReport = {
+    const revisedReport = {
       ...report,
+      observation: `${report.observation} Additional evidence.`,
+      updatedAt: new Date(Date.parse(now) + 500).toISOString(),
+    }
+    const evidenceRevision = await enqueueReportRevision(
+      client,
+      { tenantId, workspaceId },
+      revisedReport,
+      'reporter-test',
+    )
+    const attestedReport = {
+      ...revisedReport,
       status: 'verified' as const,
       updatedAt: new Date(Date.parse(now) + 1_000).toISOString(),
     }
@@ -72,10 +87,13 @@ test('creates report and integrity outbox records in the same transaction', {
     )
 
     assert.equal(integrity.status, 'pending')
-    assert.equal(attestation.revision, 2)
+    assert.equal(evidenceRevision.revision, 2)
+    assert.equal(evidenceRevision.anchorType, 'report')
+    assert.equal(evidenceRevision.previousHash, integrity.contentHash)
+    assert.equal(attestation.revision, 3)
     assert.equal(attestation.anchorType, 'review-attestation')
-    assert.equal(attestation.previousHash, integrity.contentHash)
-    assert.equal(result.rows[0].count, 2)
+    assert.equal(attestation.previousHash, evidenceRevision.contentHash)
+    assert.equal(result.rows[0].count, 3)
   } finally {
     await client.query('ROLLBACK').catch(() => undefined)
     client.release()

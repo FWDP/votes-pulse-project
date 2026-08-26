@@ -11,6 +11,8 @@ PULSE is a public-opinion intelligence dashboard designed to combine social list
 - Transparent demo-data and confidence indicators
 - Responsive desktop/mobile interface
 - NVIDIA-independent browser application
+- Authenticated web and Expo Field Reports workflow
+- Stellar/Soroban-backed integrity verification for reports and reusable VOTES artifacts
 
 All figures are illustrative. The next data milestone is integration with the PSA Philippine Standard Geographic Code (PSGC), followed by a separately versioned congressional-district mapping.
 
@@ -34,6 +36,32 @@ npm run mobile:start
 
 The mobile app runs with local prototype persistence by default. Configure `EXPO_PUBLIC_API_BASE_URL` to enable authenticated synchronization with the Field Reports review queue in the Web App. For PostgreSQL-backed environments, run `npm run db:migrate` before starting the API.
 
+## Stellar and Soroban integrity
+
+VOTES uses Stellar Soroban as a privacy-preserving verification layer. PostgreSQL remains the operational source of truth; only opaque random keys, revision numbers, schema versions, and SHA-256 commitments are written on-chain. Report text, identities, locations, filenames, and attachment contents remain off-chain.
+
+Current Stellar features:
+
+- Authorized Rust/Wasm integrity registry with separate administrator and writer roles
+- Immutable field-report submission anchors and server-generated attachment hashes
+- Ordered evidence revisions and review attestations with contract-enforced previous-hash validation
+- Transactional PostgreSQL outbox, non-blocking submissions, atomic worker claims, exponential retries, and manual retry controls
+- Confirmed transaction hashes, ledger sequences, Stellar Expert links, and integrity-chain validation in web and mobile views
+- Superadmin audit trail containing every successfully confirmed field-report revision and attestation
+- Scheduled persistent-storage TTL renewal plus manual Superadmin TTL maintenance
+- Direct contract-state reconciliation for missing or mismatched on-chain records
+- Durable operational incidents, queue health, reconciliation health, and optional authenticated webhook alerts
+- Cursor-based Soroban event ingestion with event-ID deduplication and PostgreSQL retention
+- Local file-mounted signer support and an HTTPS remote-signing boundary suitable for a KMS/HSM service
+- Explicit Mainnet approval and local-Mainnet-signer safety guards
+- Privacy-safe verification receipts at `/verify/:receipt`
+- A reusable artifact registry for survey schemas and batches, dataset snapshots, social-listening batches, analytics snapshots, AI attestations, configuration approvals, export manifests, administrative audits, and release approvals
+- Tenant isolation, Superadmin-only operational APIs, Docker-persistent uploads, automated migrations, contract tests, and CI release gates
+
+The reusable artifact endpoint accepts either a JSON payload for deterministic server-side hashing or an existing lowercase SHA-256 digest for files and external datasets. Public artifact verification must be explicitly enabled per artifact; private artifacts remain available only to authorized operators.
+
+See [`docs/soroban-integrity.md`](docs/soroban-integrity.md) for configuration, API routes, privacy boundaries, operational controls, and deployment gates. Contract deployment details are in [`contracts/README.md`](contracts/README.md).
+
 ## Run the API with Docker
 
 Create the backend environment file and add your PSA PSGC token:
@@ -52,6 +80,8 @@ Build and start the API in the background:
 ```bash
 docker compose up --build -d api
 ```
+
+Compose runs the idempotent database migration service before starting the API, including the integrity outbox, audit, artifact, incident, reconciliation, and event-ingestion tables.
 
 On Linux, the API service uses host networking so a `DATABASE_URL` containing
 `localhost:5432` connects to PostgreSQL running on the host. PostgreSQL remains

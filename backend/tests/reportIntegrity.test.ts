@@ -8,6 +8,7 @@ import {
   hashReportForIntegrity,
   hashReviewAttestation,
 } from '../src/integrity/canonicalizeReport'
+import { canonicalizeArtifact, hashArtifact } from '../src/integrity/canonicalizeArtifact'
 
 const makeReport = (): FieldReport => ({
   id: 'FR-2026-TEST',
@@ -49,6 +50,14 @@ test('canonical JSON is stable across object property order', () => {
     canonicalizeJson({ z: 3, a: { y: 2, x: 1 } }),
     canonicalizeJson({ a: { x: 1, y: 2 }, z: 3 }),
   )
+})
+
+test('generic integrity artifacts produce stable SHA-256 commitments', () => {
+  const left = { version: 2, rows: [{ id: 'a', score: 9 }], source: 'survey' }
+  const right = { source: 'survey', rows: [{ score: 9, id: 'a' }], version: 2 }
+  assert.equal(canonicalizeArtifact(left), canonicalizeArtifact(right))
+  assert.equal(hashArtifact(left), hashArtifact(right))
+  assert.equal(hashArtifact(left).length, 64)
 })
 
 test('report digest includes evidence but excludes operational state', () => {

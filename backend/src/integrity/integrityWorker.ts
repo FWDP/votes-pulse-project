@@ -1,11 +1,28 @@
 import { dbEnabled, query, runTenantOperation } from '../db'
 import type { FieldReportIntegrityAnchorType } from '../../../shared/fieldReports'
 import { stellarIntegrityConfig, stellarIntegrityReady } from './config'
-import { submitReportAnchor, type AnchorSubmission } from './stellarClient'
+import {
+  listIntegrityAnchorsDueForTtl,
+  markReportIntegrityTtlExtended,
+} from './integrityRepository'
+import {
+  extendReportAnchorTtl,
+  submitReportAnchor,
+  type AnchorSubmission,
+} from './stellarClient'
+import {
+  claimNextArtifactJob,
+  confirmArtifactJob,
+  failArtifactJob,
+  listArtifactAnchorsDueForTtl,
+  markArtifactTtlExtended,
+} from './artifactRepository'
+import { ingestIntegrityEvents, reconcileIntegrityBatch, recordIntegrityIncident, setWorkerIncident } from './operations'
 
 interface OutboxJob {
   id: string
   tenant_id: string
+  workspace_id: string
   report_key: string
   revision: number
   content_hash: string
@@ -94,6 +111,17 @@ const failJob = async (job: OutboxJob, error: unknown) => {
       WHERE outbox_id = $1
     `, [job.id, exhausted ? 'failed' : 'pending', message, job.attempts])
   })
+  if (exhausted) {
+    await recordIntegrityIncident({
+      tenantId: job.tenant_id,
+      workspaceId: job.workspace_id,
+      severity: 'critical',
+      code: 'field-report-anchor-failed',
+      subjectType: 'field-report',
+      subjectId: job.id,
+      message,
+    })
+  }
 }
 
 export async function processIntegrityOutboxBatch(
@@ -122,8 +150,80 @@ export async function processIntegrityOutboxBatch(
   return processed
 }
 
+export async function processIntegrityArtifactBatch(limit = 10, submit: SubmitAnchor = submitReportAnchor) {
+  let processed = 0
+  for (; processed < limit; processed += 1) {
+    const job = await claimNextArtifactJob()
+    if (!job) break
+    try {
+      const confirmation = await submit({
+        reportKey: job.report_key,
+        revision: job.revision,
+        contentHash: job.content_hash,
+        previousHash: job.previous_hash,
+        schemaVersion: job.schema_version,
+        anchorType: 'report',
+      })
+      await confirmArtifactJob(job, confirmation.transactionHash, confirmation.ledgerSequence)
+    } catch (error) {
+      console.error(`Unable to anchor integrity artifact ${job.id}:`, error)
+      await failArtifactJob(job, error, stellarIntegrityConfig.maxAttempts)
+      if (job.attempts >= stellarIntegrityConfig.maxAttempts) {
+        await recordIntegrityIncident({
+          tenantId: job.tenant_id,
+          workspaceId: job.workspace_id,
+          severity: 'critical',
+          code: 'artifact-anchor-failed',
+          subjectType: 'artifact',
+          subjectId: job.id,
+          message: error instanceof Error ? error.message : 'Artifact anchoring failed.',
+        })
+      }
+    }
+  }
+  return processed
+}
+
 let workerTimer: NodeJS.Timeout | undefined
+let ttlTimer: NodeJS.Timeout | undefined
+let reconciliationTimer: NodeJS.Timeout | undefined
+let eventTimer: NodeJS.Timeout | undefined
 let workerRunning = false
+let ttlWorkerRunning = false
+let reconciliationRunning = false
+let eventIngestionRunning = false
+
+export async function processIntegrityTtlBatch(
+  limit = stellarIntegrityConfig.ttlBatchSize,
+  extend = extendReportAnchorTtl,
+) {
+  const candidates = await listIntegrityAnchorsDueForTtl(limit)
+  let extended = 0
+  for (const candidate of candidates) {
+    try {
+      await extend(candidate.reportKey, candidate.revision)
+      await markReportIntegrityTtlExtended(
+        { tenantId: candidate.tenantId, workspaceId: candidate.workspaceId },
+        candidate.reportId,
+        candidate.revision,
+      )
+      extended += 1
+    } catch (error) {
+      console.error(`Unable to extend integrity TTL for ${candidate.reportId} revision ${candidate.revision}:`, error)
+    }
+  }
+  const artifactCandidates = await listArtifactAnchorsDueForTtl(limit)
+  for (const candidate of artifactCandidates) {
+    try {
+      await extend(candidate.report_key, candidate.revision)
+      await markArtifactTtlExtended(candidate.tenant_id, candidate.id)
+      extended += 1
+    } catch (error) {
+      console.error(`Unable to extend artifact integrity TTL for ${candidate.id}:`, error)
+    }
+  }
+  return { due: candidates.length + artifactCandidates.length, extended }
+}
 
 export const startIntegrityWorker = () => {
   if (!dbEnabled || !stellarIntegrityReady() || workerTimer) return false
@@ -132,6 +232,7 @@ export const startIntegrityWorker = () => {
     workerRunning = true
     try {
       await processIntegrityOutboxBatch()
+      await processIntegrityArtifactBatch()
     } catch (error) {
       console.error('Report integrity worker failed:', error)
     } finally {
@@ -140,11 +241,70 @@ export const startIntegrityWorker = () => {
   }
   workerTimer = setInterval(() => { void run() }, stellarIntegrityConfig.workerIntervalMs)
   workerTimer.unref()
+  if (stellarIntegrityConfig.ttlSweepEnabled) {
+    const runTtlSweep = async () => {
+      if (ttlWorkerRunning) return
+      ttlWorkerRunning = true
+      try {
+        const result = await processIntegrityTtlBatch()
+        if (result.due) console.log(`Soroban TTL sweep extended ${result.extended}/${result.due} anchor(s).`)
+      } catch (error) {
+        console.error('Report integrity TTL sweep failed:', error)
+      } finally {
+        ttlWorkerRunning = false
+      }
+    }
+    ttlTimer = setInterval(() => { void runTtlSweep() }, stellarIntegrityConfig.ttlSweepIntervalMs)
+    ttlTimer.unref()
+  }
+  if (stellarIntegrityConfig.reconciliationEnabled) {
+    const reconcile = async () => {
+      if (reconciliationRunning) return
+      reconciliationRunning = true
+      try {
+        const result = await reconcileIntegrityBatch()
+        if (result.checked) console.log(`Soroban reconciliation verified ${result.verified}/${result.checked} anchor(s).`)
+      } catch (error) {
+        console.error('Report integrity reconciliation failed:', error)
+      } finally {
+        reconciliationRunning = false
+      }
+    }
+    reconciliationTimer = setInterval(() => { void reconcile() }, stellarIntegrityConfig.reconciliationIntervalMs)
+    reconciliationTimer.unref()
+  }
+  if (stellarIntegrityConfig.eventIngestionEnabled) {
+    const ingestEvents = async () => {
+      if (eventIngestionRunning) return
+      eventIngestionRunning = true
+      try {
+        await ingestIntegrityEvents()
+        await setWorkerIncident('event-ingestion-failed')
+      } catch (error) {
+        console.error('Soroban event ingestion failed:', error)
+        await setWorkerIncident(
+          'event-ingestion-failed',
+          error instanceof Error ? error.message : 'Soroban event ingestion failed.',
+        ).catch(incidentError => console.error('Unable to persist event-ingestion incident:', incidentError))
+      } finally {
+        eventIngestionRunning = false
+      }
+    }
+    eventTimer = setInterval(() => { void ingestEvents() }, stellarIntegrityConfig.eventIngestionIntervalMs)
+    eventTimer.unref()
+    void ingestEvents()
+  }
   void run()
   return true
 }
 
 export const stopIntegrityWorker = () => {
   if (workerTimer) clearInterval(workerTimer)
+  if (ttlTimer) clearInterval(ttlTimer)
+  if (reconciliationTimer) clearInterval(reconciliationTimer)
+  if (eventTimer) clearInterval(eventTimer)
   workerTimer = undefined
+  ttlTimer = undefined
+  reconciliationTimer = undefined
+  eventTimer = undefined
 }
