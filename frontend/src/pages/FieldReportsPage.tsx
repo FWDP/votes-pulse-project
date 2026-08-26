@@ -15,11 +15,15 @@ import { getCoverageLabel, useAuth } from '../contexts/AuthContext'
 import {
   createFieldReportsSession,
   createFieldReport as createFieldReportRecord,
+  extendFieldReportIntegrityTtl,
+  getFieldReportIntegrity,
   listFieldReports as listFieldReportRecords,
+  retryFieldReportIntegrity,
   updateFieldReport as updateFieldReportRecord,
 } from '../services/fieldReportsApi'
 import type {
   FieldReport as SharedFieldReport,
+  FieldReportIntegrity,
   FieldReportStatus,
 } from '../../../shared/fieldReports'
 
@@ -33,6 +37,7 @@ interface AttachmentRecord {
   type: string
   size: number
   path?: string
+  sha256?: string
 }
 
 interface FieldReport {
@@ -56,6 +61,7 @@ interface FieldReport {
   evidenceCount: number
   assignedTo: string
   attachments: AttachmentRecord[]
+  integrity?: FieldReportIntegrity
 }
 
 const periodDays: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 }
@@ -104,7 +110,9 @@ const toDashboardReport = (report: SharedFieldReport): FieldReport => ({
     type: attachment.mimeType,
     size: attachment.size ?? 0,
     path: attachment.remoteUrl,
+    sha256: attachment.sha256,
   })),
+  integrity: report.integrity,
 })
 
 export default function FieldReportsPage() {
@@ -249,12 +257,13 @@ export default function FieldReportsPage() {
         throw new Error('Unable to upload attachments')
       }
 
-      const payload = await response.json() as { files?: Array<{ name: string; type: string; size: number; path?: string }> }
+      const payload = await response.json() as { files?: Array<{ name: string; type: string; size: number; path?: string; sha256?: string }> }
       const uploaded = (payload.files ?? []).map(file => ({
         name: file.name,
         type: file.type || 'application/octet-stream',
         size: file.size,
         path: file.path,
+        sha256: file.sha256,
       }))
 
       setUploadedAttachments(current => [...current, ...uploaded])
@@ -286,6 +295,7 @@ export default function FieldReportsPage() {
       type: file.type,
       size: file.size,
       path: file.path,
+      sha256: file.sha256,
     }))
 
     const now = new Date().toISOString()
@@ -337,6 +347,7 @@ export default function FieldReportsPage() {
         mimeType: attachment.type,
         size: attachment.size,
         remoteUrl: attachment.path,
+        sha256: attachment.sha256,
         uploadStatus: attachment.path ? 'uploaded' : 'local',
       })),
       occurredAt: now,
@@ -451,6 +462,40 @@ export default function FieldReportsPage() {
     () => coverageReports.find(report => report.id === selectedReportId) ?? null,
     [coverageReports, selectedReportId],
   )
+
+  useEffect(() => {
+    if (!selectedReportId || !apiToken) return
+    void getFieldReportIntegrity(selectedReportId, apiToken)
+      .then(response => {
+        setReports(current => current.map(report =>
+          report.id === selectedReportId ? { ...report, integrity: response.data } : report,
+        ))
+      })
+      .catch(error => console.warn('Unable to load integrity history:', error))
+  }, [apiToken, selectedReportId])
+
+  const retryIntegrity = async (id: string) => {
+    if (!apiToken) return
+    try {
+      await retryFieldReportIntegrity(id, apiToken)
+      setReports(current => current.map(report => report.id === id && report.integrity
+        ? { ...report, integrity: { ...report.integrity, status: 'pending', lastError: undefined } }
+        : report))
+      setNotice(`${id} was requeued for Stellar anchoring.`)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to retry Stellar anchoring.')
+    }
+  }
+
+  const extendIntegrityTtl = async (id: string) => {
+    if (!apiToken) return
+    try {
+      await extendFieldReportIntegrityTtl(id, apiToken)
+      setNotice(`${id} integrity TTL was extended on Stellar.`)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to extend Stellar TTL.')
+    }
+  }
 
   const aiReportContext = useMemo(() => {
     const topicCounts = new Map<string, number>()
@@ -627,6 +672,7 @@ export default function FieldReportsPage() {
               <span>{new Date(`${selectedReport.submittedAt}T12:00:00`).toLocaleDateString('en-PH', { dateStyle: 'medium' })}</span>
               <span aria-hidden="true">·</span>
               <span>{selectedReport.location}</span>
+              <IntegrityBadge integrity={selectedReport.integrity} />
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -661,6 +707,36 @@ export default function FieldReportsPage() {
                 <span className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">{selectedReport.attachments.length} attachment{selectedReport.attachments.length > 1 ? 's' : ''}</span>
               )}
             </div>
+
+            {selectedReport.integrity?.history?.length ? (
+              <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-violet-700">Stellar integrity chain</div>
+                  <span className={`text-xs font-bold ${selectedReport.integrity.chainValid === true ? 'text-green-700' : selectedReport.integrity.chainValid === false ? 'text-red-700' : 'text-amber-700'}`}>
+                    {selectedReport.integrity.chainValid === true ? 'Chain valid' : selectedReport.integrity.chainValid === false ? 'Chain mismatch' : 'Confirmation pending'}
+                  </span>
+                </div>
+                <ol className="mt-3 space-y-2">
+                  {selectedReport.integrity.history.map(revision => (
+                    <li key={revision.revision} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs">
+                      <span className="font-semibold text-slate-700">Revision {revision.revision} · {revision.anchorType === 'review-attestation' ? 'Review attestation' : 'Report evidence'}</span>
+                      <span className="font-mono text-slate-500">{revision.contentHash?.slice(0, 12)}…</span>
+                      <span className="capitalize text-slate-500">{revision.status}</span>
+                    </li>
+                  ))}
+                </ol>
+                {user?.isSuperadmin && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedReport.integrity.status === 'failed' && (
+                      <button type="button" onClick={() => void retryIntegrity(selectedReport.id)} className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-semibold text-white">Retry anchor</button>
+                    )}
+                    {selectedReport.integrity.status === 'confirmed' && (
+                      <button type="button" onClick={() => void extendIntegrityTtl(selectedReport.id)} className="rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-semibold text-violet-800">Extend TTL</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : null}
 
             {selectedReport.attachments.length > 0 && (
               <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -756,6 +832,7 @@ export default function FieldReportsPage() {
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">{report.evidenceCount} evidence</span>
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">Assigned: {report.assignedTo}</span>
                       <span className="text-slate-400">Submitted by {report.submittedBy}</span>
+                      <IntegrityBadge integrity={report.integrity} />
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -784,6 +861,32 @@ function ReportMetric({ label, value, tone = 'text-slate-800' }: { label: string
 function StatusBadge({ status }: { status: ReportStatus }) {
   const classes = status === 'Reviewed' ? 'bg-green-100 text-green-700' : status === 'Follow-up' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700'
   return <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${classes}`}>{status}</span>
+}
+
+function IntegrityBadge({ integrity }: { integrity?: FieldReportIntegrity }) {
+  if (!integrity) return null
+  const confirmed = integrity.status === 'confirmed'
+  const failed = integrity.status === 'failed'
+  const label = confirmed ? 'Verified on Stellar' : failed ? 'Stellar anchor failed' : 'Stellar anchor pending'
+  const classes = confirmed
+    ? 'bg-violet-100 text-violet-800'
+    : failed
+      ? 'bg-red-100 text-red-700'
+      : 'bg-blue-100 text-blue-700'
+  const badge = <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${classes}`}>{label}</span>
+  if (!confirmed || !integrity.transactionHash) return badge
+  const network = integrity.network === 'public' ? 'public' : 'testnet'
+  return (
+    <a
+      href={`https://stellar.expert/explorer/${network}/tx/${integrity.transactionHash}`}
+      target="_blank"
+      rel="noreferrer"
+      onClick={event => event.stopPropagation()}
+      title={`Ledger ${integrity.ledgerSequence ?? 'confirmed'}`}
+    >
+      {badge}
+    </a>
+  )
 }
 
 function SeverityBadge({ severity }: { severity: ReportSeverity }) {

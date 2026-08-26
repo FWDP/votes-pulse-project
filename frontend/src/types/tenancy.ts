@@ -1,0 +1,10 @@
+export type WorkspaceFeature =
+  | 'overview'
+  | 'sentiment'
+  | 'issues'
+  | 'location'
+  | 'timeline'
+  | 'historical'
+  | 'insights'
+  | 'datascope'
+  | 'fieldreports'

@@ -2,6 +2,7 @@ import type {
     FieldReport,
     FieldReportDetailResponse,
     FieldReportListResponse,
+    FieldReportIntegrity,
     FieldReportRecipientListResponse,
     FieldReportStatus,
 } from '../../../shared/fieldReports'
@@ -70,3 +71,20 @@ export const updateFieldReport = (
     headers: withToken(token),
     body: JSON.stringify(update),
 })
+
+export const getFieldReportIntegrity = (id: string, token: string) =>
+    requestJson<{ data: FieldReportIntegrity }>(`/api/reports/${encodeURIComponent(id)}/integrity`, {
+        headers: withToken(token),
+    })
+
+export const retryFieldReportIntegrity = (id: string, token: string) =>
+    requestJson<{ accepted: boolean }>(`/api/reports/${encodeURIComponent(id)}/integrity/retry`, {
+        method: 'POST',
+        headers: withToken(token),
+    })
+
+export const extendFieldReportIntegrityTtl = (id: string, token: string) =>
+    requestJson<{ data: { transactionHash: string; ledgerSequence: number; extendedAt?: string } }>(
+        `/api/reports/${encodeURIComponent(id)}/integrity/extend-ttl`,
+        { method: 'POST', headers: withToken(token) },
+    )

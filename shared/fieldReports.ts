@@ -58,7 +58,48 @@ export interface FieldReportAttachment {
     size?: number
     localUri?: string
     remoteUrl?: string
+    /** SHA-256 of the uploaded bytes, calculated by the API. */
+    sha256?: string
     uploadStatus: 'local' | 'queued' | 'uploading' | 'uploaded' | 'failed'
+}
+
+export type FieldReportIntegrityStatus =
+    | 'not-configured'
+    | 'pending'
+    | 'submitting'
+    | 'confirmed'
+    | 'failed'
+
+export type FieldReportIntegrityAnchorType = 'report' | 'review-attestation'
+
+export interface FieldReportIntegrityRevision {
+    status: FieldReportIntegrityStatus
+    revision: number
+    anchorType: FieldReportIntegrityAnchorType
+    contentHash?: string
+    previousHash?: string
+    transactionHash?: string
+    ledgerSequence?: number
+    confirmedAt?: string
+}
+
+export interface FieldReportIntegrity {
+    status: FieldReportIntegrityStatus
+    revision: number
+    anchorType?: FieldReportIntegrityAnchorType
+    network?: string
+    contractId?: string
+    reportKey?: string
+    contentHash?: string
+    previousHash?: string
+    transactionHash?: string
+    ledgerSequence?: number
+    attempts?: number
+    lastError?: string
+    confirmedAt?: string
+    matchesCurrentReport?: boolean
+    chainValid?: boolean
+    history?: FieldReportIntegrityRevision[]
 }
 
 export interface FieldReportReporter {
@@ -100,6 +141,7 @@ export interface FieldReport {
     updatedAt: string
     submittedAt?: string
     sync: FieldReportSyncState
+    integrity?: FieldReportIntegrity
 }
 
 export interface CreateFieldReportInput {

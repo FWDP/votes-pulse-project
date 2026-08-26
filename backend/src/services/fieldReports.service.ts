@@ -2,6 +2,11 @@ import { randomUUID } from 'node:crypto'
 
 import type { FieldReport, FieldReportRecipient, FieldReportStatus } from '../../../shared/fieldReports'
 import { dbEnabled, runTenantOperation } from '../db'
+import {
+    attachIntegritiesToReports,
+    enqueueReportIntegrity,
+    enqueueReviewAttestation,
+} from '../integrity/integrityRepository'
 
 export interface FieldReportScope {
     tenantId: string
@@ -201,7 +206,8 @@ export async function listFieldReports(
             viewer?.email?.trim().toLowerCase() ?? '',
             viewer?.displayName ?? '',
         ])
-        return rows.map((row: { payload: FieldReport }) => row.payload)
+        const reports = rows.map((row: { payload: FieldReport }) => row.payload)
+        return attachIntegritiesToReports(client, scope, reports)
     })
 }
 
@@ -237,7 +243,9 @@ export async function getFieldReport(
             viewer?.email?.trim().toLowerCase() ?? '',
             viewer?.displayName ?? '',
         ])
-        return rows[0]?.payload as FieldReport | undefined
+        const report = rows[0]?.payload as FieldReport | undefined
+        if (!report) return undefined
+        return (await attachIntegritiesToReports(client, scope, [report]))[0]
     })
 }
 
@@ -291,7 +299,9 @@ export async function createFieldReport(scope: FieldReportScope, input: FieldRep
             JSON.stringify(report),
             report.updatedAt,
         ])
-        return rows[0].payload as FieldReport
+        const storedReport = rows[0].payload as FieldReport
+        const integrity = await enqueueReportIntegrity(client, scope, storedReport)
+        return { ...storedReport, integrity }
     })
 }
 
@@ -303,9 +313,11 @@ export async function updateFieldReport(
 ): Promise<FieldReport | undefined> {
     const current = await getFieldReport(scope, id, viewer)
     if (!current) return undefined
+    const { integrity: _currentIntegrity, ...currentWithoutIntegrity } = current
+    const statusChanged = Boolean(update.status && update.status !== current.status)
 
     const report: FieldReport = {
-        ...current,
+        ...currentWithoutIntegrity,
         ...(update.status ? { status: update.status } : {}),
         ...(update.assignedTo !== undefined ? { assignedTo: update.assignedTo } : {}),
         updatedAt: new Date().toISOString(),
@@ -323,7 +335,18 @@ export async function updateFieldReport(
             WHERE tenant_id = $1 AND workspace_id = $2 AND id = $3
             RETURNING payload
         `, [scope.tenantId, scope.workspaceId, id, report.status, report.assignedTo ?? '', JSON.stringify(report), report.updatedAt])
-        return rows[0]?.payload as FieldReport | undefined
+        const storedReport = rows[0]?.payload as FieldReport | undefined
+        if (!storedReport) return undefined
+        if (statusChanged && update.status) {
+            await enqueueReviewAttestation(
+                client,
+                scope,
+                storedReport,
+                update.status,
+                viewer?.id ?? 'system-reviewer',
+            )
+        }
+        return (await attachIntegritiesToReports(client, scope, [storedReport]))[0]
     })
 }
 
