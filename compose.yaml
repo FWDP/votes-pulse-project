@@ -17,7 +17,13 @@ services:
       PORT: 8787
       # Local prototype only. Production deployments must omit this override.
       MOBILE_AUTH_PROTOTYPE_ONLY: 'true'
+      STELLAR_INTEGRITY_SIGNER_SECRET_FILE: /run/secrets/votes-pulse-integrity.secret
       CORS_ORIGIN: 'http://votes-pulse.local,http://localhost:5173,http://127.0.0.1:5173'
+    volumes:
+      - type: bind
+        source: ./votes-pulse-integrity.secret
+        target: /run/secrets/votes-pulse-integrity.secret
+        read_only: true
     healthcheck:
       test:
         - CMD

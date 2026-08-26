@@ -145,6 +145,9 @@ router.put('/recipients', async (request: AuthRequest, response) => {
 })
 
 router.post('/', async (request: AuthRequest, response) => {
+  if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) {
+    return response.status(400).json({ error: 'A JSON Field Report payload is required.' })
+  }
   const user = request.auth?.user
   const submittedReport = request.body as FieldReport
   const submittedLocation = submittedReport.location ?? { label: '' }

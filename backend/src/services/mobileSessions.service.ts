@@ -91,7 +91,11 @@ const createPrototypeMobileSession = (
     return session
 }
 
-export const createMobileSession = async (email: string, password: string): Promise<MobileSession> => {
+export const createMobileSession = async (
+    email: string,
+    password: string,
+    prototypeProfile?: Pick<MobileSessionUser, 'id' | 'displayName'>,
+): Promise<MobileSession> => {
     const normalizedEmail = email.trim().toLowerCase()
     let row: Record<string, any> | undefined
 
@@ -162,7 +166,7 @@ export const createMobileSession = async (email: string, password: string): Prom
             : ['owner', 'administrator'].includes(databaseRole) ? 'field-coordinator' : 'field-reporter',
         tenantId: row.tenant_id ?? prototypeTenantId,
         workspaceId: workspaceIds[0] ?? prototypeWorkspaceId,
-    } : undefined)
+    } : prototypeProfile)
 }
 
 export const getPrototypeMobileSession = (token: string): MobileSession | null => {

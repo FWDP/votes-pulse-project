@@ -13,7 +13,6 @@ import {
 } from '../types/geography'
 import { getCoverageLabel, useAuth } from '../contexts/AuthContext'
 import {
-  createFieldReportsSession,
   createFieldReport as createFieldReportRecord,
   extendFieldReportIntegrityTtl,
   getFieldReportIntegrity,
@@ -116,7 +115,12 @@ const toDashboardReport = (report: SharedFieldReport): FieldReport => ({
 })
 
 export default function FieldReportsPage() {
-  const { user } = useAuth()
+  const {
+    user,
+    fieldReportsSession,
+    fieldReportsConnecting,
+    fieldReportsConnectionError,
+  } = useAuth()
   const searchParams = new URLSearchParams(window.location.search)
   const workspace = (searchParams.get('workspace') as 'national' | 'candidate') || 'national'
   const candidate = workspace === 'candidate'
@@ -136,25 +140,27 @@ export default function FieldReportsPage() {
   const [uploadedAttachments, setUploadedAttachments] = useState<AttachmentRecord[]>([])
   const [uploadingAttachments, setUploadingAttachments] = useState(false)
   const [summaryText, setSummaryText] = useState('')
-  const [apiToken, setApiToken] = useState('')
+  const sessionMatchesUser = fieldReportsSession?.user?.email?.toLowerCase() === user?.email?.toLowerCase()
+  const apiToken = sessionMatchesUser ? fieldReportsSession.token : ''
 
   useEffect(() => {
     const controller = new AbortController()
-    if (!user?.email) return () => controller.abort()
+    if (!user?.email || !apiToken) {
+      setReports([])
+      if (fieldReportsConnectionError) {
+        setNotice(`Unable to connect to the live Field Reports register: ${fieldReportsConnectionError}`)
+      } else if (fieldReportsConnecting) {
+        setNotice('Connecting this account to the live Field Reports register…')
+      }
+      return () => controller.abort()
+    }
 
-    let token = ''
     const loadReports = async () => {
-      if (!token) return
-      const response = await listFieldReportRecords(token, controller.signal)
+      const response = await listFieldReportRecords(apiToken, controller.signal)
       if (!controller.signal.aborted) {
         setReports(response.data.map(toDashboardReport))
+        setNotice(current => current.startsWith('Connecting this account') ? '' : current)
       }
-    }
-    const connect = async () => {
-      const session = await createFieldReportsSession(user.email, controller.signal)
-      token = session.token
-      setApiToken(token)
-      await loadReports()
     }
     const refreshOnFocus = () => {
       void loadReports().catch(error => console.warn('Unable to refresh Field Reports:', error))
@@ -162,17 +168,18 @@ export default function FieldReportsPage() {
     const interval = window.setInterval(refreshOnFocus, 15_000)
     window.addEventListener('focus', refreshOnFocus)
 
-    void connect().catch(error => {
+    void loadReports().catch(error => {
         if (error instanceof Error && error.name === 'AbortError') return
         console.warn('Unable to load live Field Reports:', error)
-        setNotice('Unable to connect to the live Field Reports register. No fallback records are being shown.')
+        const reason = error instanceof Error ? error.message : 'Unknown API error.'
+        setNotice(`Unable to connect to the live Field Reports register: ${reason}`)
       })
     return () => {
       controller.abort()
       window.clearInterval(interval)
       window.removeEventListener('focus', refreshOnFocus)
     }
-  }, [user?.email])
+  }, [apiToken, fieldReportsConnecting, fieldReportsConnectionError, user?.email])
 
   const topics = useMemo(() => Array.from(new Set(reports.map(report => report.topic))).sort(), [reports])
   const evidenceTypes = useMemo(() => Array.from(new Set(reports.map(report => report.evidenceType))).sort(), [reports])
@@ -336,8 +343,8 @@ export default function FieldReportsPage() {
         displayName: user?.displayName ?? 'Dashboard user',
         email: user?.email,
       },
-      recipient: !user?.isSuperadmin && user?.id && user?.displayName
-        ? { id: user.id, displayName: user.displayName, email: user.email }
+      recipient: !user?.isSuperadmin && fieldReportsSession?.user?.id && user?.displayName
+        ? { id: fieldReportsSession.user.id, displayName: user.displayName, email: user.email }
         : undefined,
       assignedTo: assignee,
       attachments: attachments.map((attachment, index) => ({
@@ -368,7 +375,8 @@ export default function FieldReportsPage() {
       form.reset()
     } catch (error) {
       console.warn('Unable to persist Field Report:', error)
-      setNotice('The report was not saved because the live Field Reports API is unavailable. Your form remains open so you can retry.')
+      const reason = error instanceof Error ? error.message : 'The live Field Reports API is unavailable.'
+      setNotice(`The report was not saved: ${reason} Your form remains open so you can retry.`)
     }
   }
 

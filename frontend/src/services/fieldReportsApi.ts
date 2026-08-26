@@ -10,14 +10,15 @@ import type { MobileSession } from '../../../shared/mobileSessions'
 import { getApiUrl } from '../utils/getApiUrl'
 
 const requestJson = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
+    const headers = new Headers(options.headers)
+    if (!headers.has('Accept')) headers.set('Accept', 'application/json')
+    if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json')
+    }
     const response = await fetch(getApiUrl(path), {
         credentials: 'include',
-        headers: {
-            Accept: 'application/json',
-            ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-            ...options.headers,
-        },
         ...options,
+        headers,
     })
     if (!response.ok) {
         const body = await response.json().catch(() => null) as { error?: string } | null
@@ -28,13 +29,19 @@ const requestJson = async <T>(path: string, options: RequestInit = {}): Promise<
 
 const withToken = (token: string) => ({ Authorization: `Bearer ${token}` })
 
-export const createFieldReportsSession = (email: string, signal?: AbortSignal) =>
+export const createFieldReportsSession = (
+    email: string,
+    signal?: AbortSignal,
+    prototypeProfile?: { id: string; displayName: string },
+) =>
     requestJson<MobileSession>('/api/mobile/session', {
         method: 'POST',
         signal,
         body: JSON.stringify({
             email,
             password: import.meta.env.VITE_MOBILE_PROTOTYPE_PASSWORD ?? 'prototype',
+            userId: prototypeProfile?.id,
+            displayName: prototypeProfile?.displayName,
         }),
     })
 
