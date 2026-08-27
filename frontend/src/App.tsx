@@ -34,6 +34,7 @@ const SessionsPage = lazy(() => import('./pages/admin/SessionsPage'))
 const ExportsPage = lazy(() => import('./pages/admin/ExportsPage'))
 const RolesPage = lazy(() => import('./pages/admin/RolesPage'))
 const SuperadminsPage = lazy(() => import('./pages/admin/SuperadminsPage'))
+const VerifyIntegrityPage = lazy(() => import('./pages/VerifyIntegrityPage'))
 
 function RouteLoader() {
   return (
@@ -69,10 +70,11 @@ export default function App() {
           path="login/votes"
           element={<LoginPage product="votes" />}
         />
-        <Route
+      <Route
           path="login/pulse"
           element={<LoginPage product="pulse" />}
         />
+        <Route path="verify/:receipt" element={<LazyRoute><VerifyIntegrityPage /></LazyRoute>} />
         <Route path="pulse" element={<DashboardLayout />}>
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<LazyRoute><OverviewPage /></LazyRoute>} />

@@ -17,6 +17,10 @@
     "test:auth": "node --import tsx --test frontend/tests/auth.license.test.ts",
     "test:maps": "node --import tsx --test backend/tests/geography.boundaries.test.ts frontend/tests/geojson.test.ts frontend/tests/ncrDistricts.test.ts",
     "test:reports": "env FIELD_REPORTS_MEMORY_ONLY=true node --import tsx --test backend/tests/fieldReports.service.test.ts",
+    "test:integrity": "node --import tsx --test backend/tests/reportIntegrity.test.ts backend/tests/reportIntegrity.db.test.ts backend/tests/auth.middleware.test.ts",
+    "contract:build": "stellar contract build --manifest-path contracts/Cargo.toml",
+    "contract:test": "cargo test --manifest-path contracts/Cargo.toml",
+    "test:release": "npm run test:reports && npm run test:integrity && npm run type-check && npm run mobile:type-check && npm run contract:test && npm run build",
     "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "vite",
     "dev:server": "tsx watch backend/src/server.ts",
@@ -28,9 +32,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "start:server": "node dist-server/index.js",
-    "type-check": "tsc -b --pretty false"
+    "type-check": "tsc --noEmit -p tsconfig.app.json --pretty false && tsc --noEmit -p tsconfig.server.json --pretty false"
   },
   "dependencies": {
+    "@stellar/stellar-sdk": "^17.0.1",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.2.0",
     "@vitejs/plugin-react": "^6.0.4",
@@ -52,6 +57,7 @@
     "vite": "^8.1.5"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/node": "^26.2.0",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.2.0",

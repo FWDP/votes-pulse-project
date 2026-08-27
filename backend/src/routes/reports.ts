@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { createHash } from 'node:crypto'
 import { Router } from 'express'
 import multer from 'multer'
 
@@ -9,12 +10,22 @@ import {
   getFieldReport,
   listFieldReportRecipients,
   listFieldReports,
+  reviseFieldReportEvidence,
   synchronizeFieldReportRecipients,
   updateFieldReport,
 } from '../services/fieldReports.service'
 import {
+  getIntegrityQueueHealth,
+  getReportIntegrity,
+  listConfirmedIntegrityAudit,
+  markReportIntegrityTtlExtended,
+  retryReportIntegrity,
+} from '../integrity/integrityRepository'
+import { extendReportAnchorTtl } from '../integrity/stellarClient'
+import {
   validateFieldReportPayload,
   type FieldReport,
+  type FieldReportEvidenceRevisionInput,
   type FieldReportStatus,
 } from '../../../shared/fieldReports'
 
@@ -58,6 +69,14 @@ const upload = multer({
   fileFilter: (_request, file, callback) => {
     callback(null, allowedMimeTypes.has(file.mimetype))
   },
+})
+
+const hashFile = (filePath: string) => new Promise<string>((resolve, reject) => {
+  const hash = createHash('sha256')
+  const stream = fs.createReadStream(filePath)
+  stream.on('error', reject)
+  stream.on('data', chunk => hash.update(chunk))
+  stream.on('end', () => resolve(hash.digest('hex')))
 })
 
 router.use(requireSession)
@@ -129,6 +148,9 @@ router.put('/recipients', async (request: AuthRequest, response) => {
 })
 
 router.post('/', async (request: AuthRequest, response) => {
+  if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) {
+    return response.status(400).json({ error: 'A JSON Field Report payload is required.' })
+  }
   const user = request.auth?.user
   const submittedReport = request.body as FieldReport
   const submittedLocation = submittedReport.location ?? { label: '' }
@@ -161,6 +183,17 @@ router.post('/', async (request: AuthRequest, response) => {
   if (errors.length) return response.status(400).json({ error: 'Invalid field report.', details: errors })
 
   try {
+    const tenantPrefix = getScope(request).tenantId.replace(/[^a-zA-Z0-9_-]/g, '_')
+    report.attachments = await Promise.all(report.attachments.map(async attachment => {
+      if (!attachment.remoteUrl) return { ...attachment, sha256: undefined }
+      const filename = path.basename(attachment.remoteUrl)
+      if (!filename.startsWith(`${tenantPrefix}-`)) {
+        throw new Error('An attachment is outside the report tenant.')
+      }
+      const filePath = path.join(uploadDir, filename)
+      if (!fs.existsSync(filePath)) throw new Error(`Attachment ${attachment.name} is unavailable.`)
+      return { ...attachment, sha256: await hashFile(filePath) }
+    }))
     if (submittedReport.recipient?.id) {
       const recipients = await listFieldReportRecipients(getScope(request))
       const authorizedRecipient = recipients.find(recipient => recipient.id === submittedReport.recipient?.id)
@@ -178,8 +211,8 @@ router.post('/', async (request: AuthRequest, response) => {
   }
 })
 
-router.post('/upload', upload.array('attachments', 10), (req, res) => {
-  const uploaded = (req.files as Express.Multer.File[] | undefined ?? []).map(file => ({
+router.post('/upload', upload.array('attachments', 10), async (req, res) => {
+  const uploaded = await Promise.all((req.files as Express.Multer.File[] | undefined ?? []).map(async file => ({
     id: `attachment-${file.filename}`,
     kind: file.mimetype.startsWith('image/') ? 'image' : 'document',
     name: file.originalname,
@@ -190,7 +223,8 @@ router.post('/upload', upload.array('attachments', 10), (req, res) => {
     uploadStatus: 'uploaded',
     remoteUrl: `/api/reports/files/${file.filename}`,
     path: `/api/reports/files/${file.filename}`,
-  }))
+    sha256: await hashFile(file.path),
+  })))
 
   res.json({ files: uploaded })
 })
@@ -212,6 +246,83 @@ router.get('/files/:filename', (req: AuthRequest, res) => {
   return res.download(filePath)
 })
 
+router.get('/integrity/health', async (request: AuthRequest, response) => {
+  if (!getViewer(request).isSuperadmin) {
+    return response.status(403).json({ error: 'Only a superadmin can view integrity worker health.' })
+  }
+  try {
+    return response.json({ data: await getIntegrityQueueHealth(getScope(request)) })
+  } catch (error) {
+    console.error('Unable to load report integrity health:', error)
+    return response.status(500).json({ error: 'Unable to load report integrity health.' })
+  }
+})
+
+router.get('/integrity/audit', async (request: AuthRequest, response) => {
+  if (!getViewer(request).isSuperadmin) {
+    return response.status(403).json({ error: 'Only a superadmin can view the Stellar audit trail.' })
+  }
+  const requestedLimit = Number(request.query.limit)
+  const limit = Number.isFinite(requestedLimit) ? requestedLimit : 200
+  try {
+    const data = await listConfirmedIntegrityAudit(getScope(request), limit)
+    return response.json({ data, count: data.length })
+  } catch (error) {
+    console.error('Unable to load the Stellar integrity audit trail:', error)
+    return response.status(500).json({ error: 'Unable to load the Stellar integrity audit trail.' })
+  }
+})
+
+router.get('/:id/integrity', async (request: AuthRequest, response) => {
+  const reportId = Array.isArray(request.params.id) ? request.params.id[0] ?? '' : request.params.id
+  try {
+    const report = await getFieldReport(getScope(request), reportId, getViewer(request))
+    if (!report) return response.status(404).json({ error: 'Field report not found.' })
+    const data = await getReportIntegrity(getScope(request), report)
+    if (!data) return response.status(404).json({ error: 'No integrity anchor exists for this report.' })
+    return response.json({ data })
+  } catch (error) {
+    console.error('Unable to verify field report integrity:', error)
+    return response.status(500).json({ error: 'Unable to verify field report integrity.' })
+  }
+})
+
+router.post('/:id/integrity/retry', async (request: AuthRequest, response) => {
+  if (!getViewer(request).isSuperadmin) {
+    return response.status(403).json({ error: 'Only a superadmin can retry integrity anchoring.' })
+  }
+  const reportId = Array.isArray(request.params.id) ? request.params.id[0] ?? '' : request.params.id
+  try {
+    const retried = await retryReportIntegrity(getScope(request), reportId)
+    if (!retried) return response.status(409).json({ error: 'The integrity anchor is not in a failed state.' })
+    return response.status(202).json({ accepted: true })
+  } catch (error) {
+    console.error('Unable to retry field report integrity:', error)
+    return response.status(500).json({ error: 'Unable to retry field report integrity.' })
+  }
+})
+
+router.post('/:id/integrity/extend-ttl', async (request: AuthRequest, response) => {
+  if (!getViewer(request).isSuperadmin) {
+    return response.status(403).json({ error: 'Only a superadmin can extend integrity TTL.' })
+  }
+  const reportId = Array.isArray(request.params.id) ? request.params.id[0] ?? '' : request.params.id
+  try {
+    const report = await getFieldReport(getScope(request), reportId, getViewer(request))
+    if (!report) return response.status(404).json({ error: 'Field report not found.' })
+    const integrity = await getReportIntegrity(getScope(request), report)
+    if (!integrity?.reportKey || integrity.status !== 'confirmed') {
+      return response.status(409).json({ error: 'A confirmed integrity anchor is required.' })
+    }
+    const confirmation = await extendReportAnchorTtl(integrity.reportKey, integrity.revision)
+    const extendedAt = await markReportIntegrityTtlExtended(getScope(request), reportId, integrity.revision)
+    return response.json({ data: { ...confirmation, extendedAt } })
+  } catch (error) {
+    console.error('Unable to extend field report integrity TTL:', error)
+    return response.status(500).json({ error: 'Unable to extend field report integrity TTL.' })
+  }
+})
+
 router.get('/:id', async (request: AuthRequest, response) => {
   const reportId = Array.isArray(request.params.id) ? request.params.id[0] ?? '' : request.params.id
   try {
@@ -221,6 +332,63 @@ router.get('/:id', async (request: AuthRequest, response) => {
   } catch (error) {
     console.error('Unable to load field report:', error)
     return response.status(500).json({ error: 'Unable to load field report.' })
+  }
+})
+
+router.put('/:id/evidence', async (request: AuthRequest, response) => {
+  const reportId = Array.isArray(request.params.id) ? request.params.id[0] ?? '' : request.params.id
+  const viewer = getViewer(request)
+  try {
+    const current = await getFieldReport(getScope(request), reportId, viewer)
+    if (!current) return response.status(404).json({ error: 'Field report not found.' })
+    const viewerEmail = viewer.email?.trim().toLowerCase()
+    const isReporter = Boolean(
+      (viewer.id && viewer.id === current.reporter.id) ||
+      (viewerEmail && viewerEmail === current.reporter.email?.trim().toLowerCase()),
+    )
+    if (!viewer.isSuperadmin && !isReporter) {
+      return response.status(403).json({ error: 'Only the original reporter or a superadmin can revise evidence.' })
+    }
+    if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) {
+      return response.status(400).json({ error: 'A JSON evidence revision is required.' })
+    }
+    const body = request.body as FieldReportEvidenceRevisionInput
+    const update: FieldReportEvidenceRevisionInput = {
+      ...(typeof body.title === 'string' ? { title: body.title.trim() } : {}),
+      ...(typeof body.observation === 'string' ? { observation: body.observation.trim() } : {}),
+      ...(typeof body.topic === 'string' ? { topic: body.topic.trim() } : {}),
+      ...(typeof body.severity === 'string' ? { severity: body.severity } : {}),
+      ...(typeof body.evidenceType === 'string' ? { evidenceType: body.evidenceType } : {}),
+      ...(body.location && typeof body.location === 'object' ? { location: body.location } : {}),
+      ...(Array.isArray(body.attachments) ? { attachments: body.attachments } : {}),
+      ...(typeof body.occurredAt === 'string' ? { occurredAt: body.occurredAt } : {}),
+    }
+    if (!Object.keys(update).length) {
+      return response.status(400).json({ error: 'No supported evidence changes were supplied.' })
+    }
+
+    if (update.attachments) {
+      const tenantPrefix = getScope(request).tenantId.replace(/[^a-zA-Z0-9_-]/g, '_')
+      update.attachments = await Promise.all(update.attachments.map(async attachment => {
+        if (!attachment.remoteUrl) return { ...attachment, sha256: undefined }
+        const filename = path.basename(attachment.remoteUrl)
+        if (!filename.startsWith(`${tenantPrefix}-`)) throw new Error('An attachment is outside the report tenant.')
+        const filePath = path.join(uploadDir, filename)
+        if (!fs.existsSync(filePath)) throw new Error(`Attachment ${attachment.name} is unavailable.`)
+        return { ...attachment, sha256: await hashFile(filePath) }
+      }))
+    }
+    const candidate: FieldReport = { ...current, ...update, integrity: undefined }
+    const errors = validateFieldReportPayload(candidate)
+    if (errors.length) return response.status(400).json({ error: 'Invalid evidence revision.', details: errors })
+
+    const result = await reviseFieldReportEvidence(getScope(request), reportId, update, viewer)
+    if (!result.report) return response.status(404).json({ error: 'Field report not found.' })
+    if (result.unchanged) return response.status(409).json({ error: 'The evidence revision does not change the integrity digest.' })
+    return response.json({ data: result.report })
+  } catch (error) {
+    console.error('Unable to revise field report evidence:', error)
+    return response.status(500).json({ error: 'Unable to revise field report evidence.' })
   }
 })
 
