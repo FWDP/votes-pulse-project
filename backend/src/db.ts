@@ -39,6 +39,22 @@ export const runTenantOperation = async <T>(tenantId: string, fn: (client: any) 
   }
 }
 
+export const runDatabaseTransaction = async <T>(fn: (client: any) => Promise<T>) => {
+  if (!pool) throw new Error('Database not configured. Set DATABASE_URL to enable DB-backed mode.')
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const result = await fn(client)
+    await client.query('COMMIT')
+    return result
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
 export const close = async () => {
   if (pool) await pool.end()
 }

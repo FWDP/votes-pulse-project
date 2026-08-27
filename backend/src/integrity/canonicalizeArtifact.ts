@@ -18,3 +18,18 @@ export const canonicalizeArtifact = (value: unknown) => JSON.stringify(normalize
 export const hashArtifact = (value: unknown) => createHash('sha256')
   .update(canonicalizeArtifact(value))
   .digest('hex')
+
+export const hashArtifactCommitment = (input: {
+  artifactType: string
+  externalId: string
+  schemaVersion: number
+  subjectHash: string
+  provenanceHash?: string
+}) => hashArtifact({
+  domain: input.provenanceHash ? 'votes-integrity-artifact/v2' : 'votes-integrity-artifact/v1',
+  artifactType: input.artifactType,
+  externalId: input.externalId,
+  schemaVersion: input.schemaVersion,
+  subjectHash: input.subjectHash,
+  ...(input.provenanceHash ? { provenanceHash: input.provenanceHash } : {}),
+})

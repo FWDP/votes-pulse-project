@@ -725,6 +725,7 @@ export default function FieldReportsPage() {
                 <span className="rounded-full bg-white px-2.5 py-1">TTL due {integrityHealth.ttlDue}</span>
                 <span className="rounded-full bg-white px-2.5 py-1">Incidents {integrityHealth.openIncidents ?? 0}</span>
                 <span className="rounded-full bg-white px-2.5 py-1">Reconcile failures {integrityHealth.reconciliationFailures ?? 0}</span>
+                <span className="rounded-full bg-white px-2.5 py-1">Alert failures {integrityHealth.alertDeliveryFailures ?? 0}</span>
                 <span className="rounded-full bg-white px-2.5 py-1 capitalize">Signer {integrityHealth.signerMode}</span>
               </div>
             </div>

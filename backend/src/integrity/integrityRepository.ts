@@ -14,6 +14,7 @@ import {
   stellarIntegrityConfig,
   stellarIntegrityReady,
   stellarIntegritySignerMode,
+  stellarIntegrityConfigurationErrors,
 } from './config'
 
 export interface IntegrityScope {
@@ -404,6 +405,10 @@ export async function getIntegrityQueueHealth(scope: IntegrityScope) {
       SELECT updated_at FROM integrity_event_cursors
       WHERE network = $1 AND contract_id = $2
     `, [stellarIntegrityConfig.network, stellarIntegrityConfig.contractId])
+    const alertDelivery = await client.query(`
+      SELECT count(*)::integer AS failures FROM integrity_alert_outbox
+      WHERE tenant_id = $1 AND workspace_id = $2 AND status = 'failed'
+    `, [scope.tenantId, scope.workspaceId])
     const pending = rows[0]?.pending ?? 0
     const stalePending = rows[0]?.stale_pending ?? 0
     const failed = rows[0]?.failed ?? 0
@@ -417,6 +422,7 @@ export async function getIntegrityQueueHealth(scope: IntegrityScope) {
       : undefined
     const eventIngestionStale = stellarIntegrityConfig.eventIngestionEnabled && (!eventLastIngestedAt ||
       Date.now() - Date.parse(eventLastIngestedAt) > stellarIntegrityConfig.eventIngestionIntervalMs * 3)
+    const alertDeliveryFailures = alertDelivery.rows[0]?.failures ?? 0
     const alerts = [
       ...(stalePending ? [`${stalePending} integrity job(s) have exceeded the pending threshold.`] : []),
       ...(failed ? [`${failed} integrity job(s) require operator retry.`] : []),
@@ -424,11 +430,12 @@ export async function getIntegrityQueueHealth(scope: IntegrityScope) {
       ...(reconciliationFailures ? [`${reconciliationFailures} artifact anchor(s) failed reconciliation.`] : []),
       ...(openIncidents ? [`${openIncidents} integrity incident(s) require attention.`] : []),
       ...(eventIngestionStale ? ['Soroban event ingestion has not advanced within the expected interval.'] : []),
+      ...(alertDeliveryFailures ? [`${alertDeliveryFailures} integrity alert(s) exhausted delivery retries.`] : []),
     ]
     return {
       configured: stellarIntegrityReady(),
       enabled: stellarIntegrityConfig.enabled,
-      healthy: stellarIntegrityReady() && stalePending === 0 && failed === 0 && reconciliationFailures === 0 && openIncidents === 0 && !eventIngestionStale,
+      healthy: stellarIntegrityReady() && stalePending === 0 && failed === 0 && reconciliationFailures === 0 && openIncidents === 0 && !eventIngestionStale && alertDeliveryFailures === 0,
       network: stellarIntegrityConfig.network,
       contractId: stellarIntegrityConfig.contractId || undefined,
       signerMode: stellarIntegritySignerMode(),
@@ -440,7 +447,9 @@ export async function getIntegrityQueueHealth(scope: IntegrityScope) {
       reconciliationFailures,
       openIncidents,
       eventLastIngestedAt,
+      alertDeliveryFailures,
       alerts,
+      configurationErrors: stellarIntegrityConfigurationErrors(),
       oldestPendingAt: rows[0]?.oldest_pending_at
         ? new Date(rows[0].oldest_pending_at).toISOString()
         : undefined,

@@ -29,3 +29,24 @@ Copy the returned contract ID into `STELLAR_INTEGRITY_CONTRACT_ID`. The backend 
 - Backend TTL extension: `7324790dcc1a4628ce14c9bea2c3c276003325307afdc60ce9d82cc6b8f72898`
 
 The earlier v1 Testnet contract remains at `CDKAQYQKVN3RVMWRO5MH6EMRRBOHBBOW37ZEFEPSY4WTBMDAKVYUNCTQ` for verification of its existing anchors.
+
+## Mainnet release candidate
+
+The current source adds constructor TTL protection, an upgrade event, and additional authorization-negative tests. Its optimized, undeployed candidate hash is:
+
+`4ffd8b15ce098262f91dafd54c7eb59398624b43b1b65929d15d41e16be6f12d`
+
+Do not deploy it until that exact hash has completed independent review. Mainnet deployment must use distinct administrator and writer accounts; the writer belongs behind the approved remote signing service, while the administrator should remain offline or under an independently controlled multisignature policy.
+
+After approval, deploy using the selected Mainnet RPC provider and the public-network passphrase:
+
+```bash
+stellar contract deploy \
+  --wasm contracts/target/wasm32v1-none/release/report_integrity.wasm \
+  --source-account <deployment-account> \
+  --rpc-url <approved-mainnet-rpc> \
+  --network-passphrase 'Public Global Stellar Network ; September 2015' \
+  -- --admin <admin-public-key> --writer <writer-public-key>
+```
+
+Record the returned contract ID, deployment transaction, deployment ledger, administrator, writer, RPC provider, and Wasm hash in the controlled release record. Then configure `backend/.env.mainnet` and run `NODE_ENV=production npm run integrity:mainnet-check` before starting [`compose.mainnet.yaml`](../compose.mainnet.yaml).

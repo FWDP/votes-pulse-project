@@ -54,13 +54,46 @@ Current Stellar features:
 - Cursor-based Soroban event ingestion with event-ID deduplication and PostgreSQL retention
 - Local file-mounted signer support and an HTTPS remote-signing boundary suitable for a KMS/HSM service
 - Explicit Mainnet approval and local-Mainnet-signer safety guards
+- Fail-closed Mainnet validation for network/passphrase, HTTPS RPC, contract address, deployment ledger, separate admin/writer identities, remote signer tokens, alerts, TTL, and reconciliation
+- Startup verification that the RPC network, deployed contract administrator, and contract writer match the approved configuration
+- Durable submitted-transaction recovery that polls the original hash after uncertain RPC responses instead of creating duplicate anchors
+- Retryable alert-delivery outbox and bounded multi-page event backlog draining with retention-gap detection
 - Privacy-safe verification receipts at `/verify/:receipt`
 - A reusable artifact registry for survey schemas and batches, dataset snapshots, social-listening batches, analytics snapshots, AI attestations, configuration approvals, export manifests, administrative audits, and release approvals
 - Tenant isolation, Superadmin-only operational APIs, Docker-persistent uploads, automated migrations, contract tests, and CI release gates
+- Runtime enforcement of threshold-controlled Mainnet administrator accounts
+- Scoped Soroban authorization-entry signing with a separate, low-balance transaction fee payer
+- Hash-chained off-site delivery of every ingested contract event with retry and archive health monitoring
+- Explicit archived-state inspection and restoration tooling for TTL disaster recovery
+- Provenance-bound dataset commitments covering source, publisher, retrieval time, version, license, and source digest
+- Merkle-batched survey, social, analytics, and dataset commitments with record-level inclusion proofs
+- Cryptographically verified publisher/observer attestations that are themselves anchored through Soroban
+- Fail-closed multi-party release gates requiring confirmed subjects, policies, and approval attestations
 
 The reusable artifact endpoint accepts either a JSON payload for deterministic server-side hashing or an existing lowercase SHA-256 digest for files and external datasets. Public artifact verification must be explicitly enabled per artifact; private artifacts remain available only to authorized operators.
 
-See [`docs/soroban-integrity.md`](docs/soroban-integrity.md) for configuration, API routes, privacy boundaries, operational controls, and deployment gates. Contract deployment details are in [`contracts/README.md`](contracts/README.md).
+See [`docs/soroban-integrity.md`](docs/soroban-integrity.md) for configuration, API routes, privacy boundaries, operational controls, and deployment gates. The ordered remaining-blocker plan and release checklist are in [`docs/stellar-mainnet-implementation-plan.md`](docs/stellar-mainnet-implementation-plan.md). Contract deployment details are in [`contracts/README.md`](contracts/README.md).
+
+### Mainnet release checks
+
+Mainnet uses the standalone [`compose.mainnet.yaml`](compose.mainnet.yaml); it disables prototype authentication and local signer material, mounts remote-signer and alert tokens as secrets, runs migrations first, and checks `/api/readiness` rather than basic process health.
+
+Start by copying `backend/.env.mainnet.example` to the ignored `backend/.env.mainnet`, then replace every placeholder and keep the signer token, fee-payer secret, alert token, and archive token files outside the repository.
+
+```bash
+npm run contract:build
+npm run integrity:estimate-cost
+NODE_ENV=production npm run integrity:mainnet-check
+docker compose -f compose.mainnet.yaml up --build -d
+```
+
+`integrity:mainnet-check` fails closed until the reviewed Wasm hash, deployment transaction, security review, cost report, production tokens, database migration, Mainnet RPC, scoped writer/fee-payer separation, threshold-controlled administrator, off-site archive, and confirmed multi-party release gate all validate. It does not deploy or approve Mainnet automatically.
+
+For non-Mainnet dataset or application promotions, enforce an approved gate in CI or the release job:
+
+```bash
+npm run integrity:release-gate -- <gate-id>
+```
 
 ## Run the API with Docker
 

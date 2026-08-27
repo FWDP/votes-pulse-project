@@ -11,6 +11,9 @@ import electionsRouter from './routes/elections'
 import mobileRouter from './routes/mobile'
 import integrityRouter from './routes/integrity'
 import verificationRouter from './routes/verification'
+import { dbEnabled } from './db'
+import { stellarIntegrityConfig, stellarIntegrityConfigurationErrors } from './integrity/config'
+import { integrityWorkerStatus } from './integrity/integrityWorker'
 
 const app = express()
 const distPath = path.resolve(process.cwd(), 'dist')
@@ -39,6 +42,27 @@ app.get('/api/health', (_request, response) => {
         ok: true,
         service: 'votes-pulse-backend',
         now: new Date().toISOString(),
+    })
+})
+
+app.get('/api/readiness', (_request, response) => {
+    const configurationErrors = stellarIntegrityConfig.enabled
+        ? stellarIntegrityConfigurationErrors()
+        : []
+    const ready = dbEnabled && configurationErrors.length === 0 &&
+        (!stellarIntegrityConfig.enabled || integrityWorkerStatus.started)
+    return response.status(ready ? 200 : 503).json({
+        ready,
+        database: dbEnabled ? 'configured' : 'unconfigured',
+        stellar: {
+            enabled: stellarIntegrityConfig.enabled,
+            network: stellarIntegrityConfig.network,
+            configured: configurationErrors.length === 0,
+            workerStarted: integrityWorkerStatus.started,
+            validatedAt: integrityWorkerStatus.validatedAt,
+            error: integrityWorkerStatus.error,
+            configurationErrors,
+        },
     })
 })
 

@@ -4,6 +4,7 @@ import type { PublicIntegrityVerification } from '../../../shared/integrityArtif
 import { query } from '../db'
 import { stellarIntegrityConfig } from '../integrity/config'
 import { getPublicArtifactByReceipt } from '../integrity/artifactRepository'
+import { readReportAnchor } from '../integrity/stellarClient'
 
 const router = Router()
 const validReceipt = (value: string) => /^[a-f0-9]{64}$/.test(value)
@@ -27,8 +28,17 @@ router.get('/:receipt', async (request, response) => {
             row.previous_hash === rows[index - 1].content_hash),
       )
       const latest = rows.at(-1)
+      const onChain = await Promise.all(rows.map((row: Record<string, unknown>) =>
+        readReportAnchor(receipt, Number(row.revision))))
+      const onChainVerified = rows.every((row: Record<string, unknown>, index: number) => {
+        const anchor = onChain[index]
+        return Boolean(anchor &&
+          anchor.contentHash === row.content_hash &&
+          anchor.schemaVersion === Number(row.schema_version) &&
+          (Number(row.revision) === 1 || anchor.previousHash === row.previous_hash))
+      })
       const data: PublicIntegrityVerification = {
-        verified: chainValid,
+        verified: chainValid && onChainVerified,
         source: 'field-report',
         network: stellarIntegrityConfig.network,
         contractId: stellarIntegrityConfig.contractId || undefined,
@@ -41,7 +51,10 @@ router.get('/:receipt', async (request, response) => {
         confirmedAt: latest.confirmed_at ? new Date(latest.confirmed_at).toISOString() : undefined,
         chainValid,
         schemaVersion: Number(latest.schema_version),
+        onChainVerified,
+        verifiedAt: new Date().toISOString(),
       }
+      response.set('Cache-Control', 'public, max-age=30')
       return response.json({ data })
     }
 
@@ -53,8 +66,13 @@ router.get('/:receipt', async (request, response) => {
         : anchor.revision === artifacts[index - 1]!.revision + 1 &&
           anchor.previousHash === artifacts[index - 1]!.contentHash))
     const latest = artifacts.at(-1)!
+    const onChain = await Promise.all(artifacts.map(anchor => readReportAnchor(receipt, anchor.revision)))
+    const onChainVerified = artifacts.every((anchor, index) => Boolean(onChain[index] &&
+      onChain[index]!.contentHash === anchor.contentHash &&
+      onChain[index]!.schemaVersion === anchor.schemaVersion &&
+      (anchor.revision === 1 || onChain[index]!.previousHash === anchor.previousHash)))
     const data: PublicIntegrityVerification = {
-      verified: chainValid,
+      verified: chainValid && onChainVerified,
       source: 'artifact',
       artifactType: latest.artifactType,
       network: stellarIntegrityConfig.network,
@@ -62,17 +80,21 @@ router.get('/:receipt', async (request, response) => {
       receipt,
       revision: latest.revision,
       contentHash: latest.contentHash,
+      subjectHash: latest.subjectHash,
       previousHash: latest.previousHash,
       transactionHash: latest.transactionHash,
       ledgerSequence: latest.ledgerSequence,
       confirmedAt: latest.confirmedAt,
       chainValid,
       schemaVersion: latest.schemaVersion,
+      onChainVerified,
+      verifiedAt: new Date().toISOString(),
     }
+    response.set('Cache-Control', 'public, max-age=30')
     return response.json({ data })
   } catch (error) {
     console.error('Unable to verify Stellar receipt:', error)
-    return response.status(500).json({ error: 'Unable to verify Stellar receipt.' })
+    return response.status(503).json({ error: 'Unable to independently verify this receipt against Stellar.' })
   }
 })
 
