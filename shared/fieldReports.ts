@@ -117,8 +117,10 @@ export interface FieldReportIntegrityHealth {
     reconciliationFailures?: number
     openIncidents?: number
     eventLastIngestedAt?: string
+    alertDeliveryFailures?: number
     oldestPendingAt?: string
     alerts: string[]
+    configurationErrors?: string[]
 }
 
 export interface FieldReportIntegrityAuditEntry {

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { rpc } from '@stellar/stellar-sdk'
 
 import { query, runTenantOperation } from '../db'
@@ -17,48 +18,82 @@ export async function recordIntegrityIncident(input: {
   message: string
   details?: Record<string, unknown>
 }) {
-  await runTenantOperation(input.tenantId, client => client.query(`
-    INSERT INTO integrity_incidents (
-      id, tenant_id, workspace_id, severity, code, subject_type, subject_id, message, details
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
-    ON CONFLICT (tenant_id, workspace_id, code, subject_type, subject_id)
-      WHERE resolved_at IS NULL
-    DO UPDATE SET severity = EXCLUDED.severity, message = EXCLUDED.message,
-      details = EXCLUDED.details, updated_at = now()
-  `, [
-    `integrity-incident-${randomUUID()}`,
-    input.tenantId,
-    input.workspaceId,
-    input.severity,
-    input.code,
-    input.subjectType,
-    input.subjectId,
-    input.message,
-    JSON.stringify(input.details ?? {}),
-  ]))
+  await runTenantOperation(input.tenantId, async client => {
+    const incidentId = `integrity-incident-${randomUUID()}`
+    const { rows } = await client.query(`
+      INSERT INTO integrity_incidents (
+        id, tenant_id, workspace_id, severity, code, subject_type, subject_id, message, details
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+      ON CONFLICT (tenant_id, workspace_id, code, subject_type, subject_id)
+        WHERE resolved_at IS NULL
+      DO UPDATE SET severity = EXCLUDED.severity, message = EXCLUDED.message,
+        details = EXCLUDED.details, updated_at = now()
+      RETURNING id
+    `, [
+      incidentId, input.tenantId, input.workspaceId, input.severity, input.code,
+      input.subjectType, input.subjectId, input.message, JSON.stringify(input.details ?? {}),
+    ])
+    if (stellarIntegrityConfig.alertWebhookUrl) {
+      await client.query(`
+        INSERT INTO integrity_alert_outbox (id, incident_id, tenant_id, workspace_id, payload)
+        VALUES ($1, $2, $3, $4, $5::jsonb)
+        ON CONFLICT (incident_id) DO NOTHING
+      `, [
+        `integrity-alert-${randomUUID()}`,
+        rows[0].id,
+        input.tenantId,
+        input.workspaceId,
+        JSON.stringify({ source: 'votes-pulse-stellar-integrity', occurredAt: new Date().toISOString(), ...input }),
+      ])
+    }
+  })
+}
 
-  if (stellarIntegrityConfig.alertWebhookUrl) {
+export async function deliverIntegrityAlerts(limit = 10) {
+  if (!stellarIntegrityConfig.alertWebhookUrl) return { processed: 0, delivered: 0 }
+  const fileToken = stellarIntegrityConfig.alertWebhookTokenFile
+    ? (await readFile(stellarIntegrityConfig.alertWebhookTokenFile, 'utf8')).trim()
+    : ''
+  const token = fileToken || stellarIntegrityConfig.alertWebhookToken
+  let processed = 0
+  let delivered = 0
+  for (; processed < limit; processed += 1) {
+    const { rows } = await query(`
+      UPDATE integrity_alert_outbox SET status = 'delivering', attempts = attempts + 1,
+        locked_at = now(), updated_at = now()
+      WHERE id = (
+        SELECT id FROM integrity_alert_outbox
+        WHERE available_at <= now() AND (
+          status = 'pending' OR (status = 'delivering' AND locked_at < now() - interval '2 minutes')
+        ) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1
+      ) RETURNING *
+    `)
+    const alert = rows[0]
+    if (!alert) break
     try {
       const response = await fetch(stellarIntegrityConfig.alertWebhookUrl, {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          ...(stellarIntegrityConfig.alertWebhookToken
-            ? { authorization: `Bearer ${stellarIntegrityConfig.alertWebhookToken}` }
-            : {}),
-        },
-        body: JSON.stringify({
-          source: 'votes-pulse-stellar-integrity',
-          occurredAt: new Date().toISOString(),
-          ...input,
-        }),
+        headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(alert.payload),
         signal: AbortSignal.timeout(10_000),
       })
-      if (!response.ok) console.error(`Integrity alert webhook returned ${response.status}.`)
+      if (!response.ok) throw new Error(`Integrity alert webhook returned HTTP ${response.status}.`)
+      await runTenantOperation(alert.tenant_id, client => client.query(`
+        UPDATE integrity_alert_outbox SET status = 'delivered', delivered_at = now(),
+          locked_at = NULL, last_error = NULL, updated_at = now() WHERE id = $1
+      `, [alert.id]))
+      delivered += 1
     } catch (error) {
-      console.error('Unable to deliver integrity alert webhook:', error)
+      const message = error instanceof Error ? error.message : 'Alert delivery failed.'
+      const exhausted = Number(alert.attempts) >= stellarIntegrityConfig.maxAttempts
+      await runTenantOperation(alert.tenant_id, client => client.query(`
+        UPDATE integrity_alert_outbox SET status = $2, locked_at = NULL,
+          available_at = now() + (LEAST(300, power(2, LEAST(attempts, 8))) * interval '1 second'),
+          last_error = $3, updated_at = now() WHERE id = $1
+      `, [alert.id, exhausted ? 'failed' : 'pending', message.slice(0, 2_000)]))
     }
   }
+  return { processed, delivered }
 }
 
 export async function resolveIntegrityIncident(
@@ -186,9 +221,18 @@ export async function listIntegrityIncidents(tenantId: string, workspaceId: stri
 export async function ingestIntegrityEvents() {
   const server = new rpc.Server(stellarIntegrityConfig.rpcUrl)
   const cursorResult = await query(`
-    SELECT cursor FROM integrity_event_cursors WHERE network = $1 AND contract_id = $2
+    SELECT cursor, latest_ledger FROM integrity_event_cursors WHERE network = $1 AND contract_id = $2
   `, [stellarIntegrityConfig.network, stellarIntegrityConfig.contractId])
   const savedCursor = cursorResult.rows[0]?.cursor as string | undefined
+  const savedLedger = Number(cursorResult.rows[0]?.latest_ledger || 0)
+  const health = await server.getHealth()
+  if (savedCursor && savedLedger < health.oldestLedger) {
+    throw new Error(`Soroban event cursor gap: processed ledger ${savedLedger}, RPC oldest ledger ${health.oldestLedger}. Restore events from an archive before advancing the cursor.`)
+  }
+  if (!savedCursor && stellarIntegrityConfig.eventStartLedger > 0 &&
+      stellarIntegrityConfig.eventStartLedger < health.oldestLedger) {
+    throw new Error(`Configured event start ledger ${stellarIntegrityConfig.eventStartLedger} is outside RPC retention; oldest available ledger is ${health.oldestLedger}.`)
+  }
   let request: rpc.Api.GetEventsRequest
   if (savedCursor) {
     request = {
@@ -204,33 +248,51 @@ export async function ingestIntegrityEvents() {
       limit: 100,
     }
   }
-  const page = await server.getEvents(request)
-  for (const event of page.events) {
+  let ingested = 0
+  let processedLedger = savedLedger
+  let latestLedger = health.latestLedger
+  let backlogRemaining = false
+  for (let pageNumber = 0; pageNumber < stellarIntegrityConfig.eventIngestionMaxPages; pageNumber += 1) {
+    const page = await server.getEvents(request)
+    latestLedger = page.latestLedger
+    for (const event of page.events) {
+      await query(`
+        INSERT INTO integrity_contract_events (
+          id, network, contract_id, ledger_sequence, ledger_closed_at,
+          transaction_hash, event_type, topics_xdr, value_xdr
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        event.id,
+        stellarIntegrityConfig.network,
+        stellarIntegrityConfig.contractId,
+        event.ledger,
+        event.ledgerClosedAt,
+        event.txHash,
+        event.type,
+        JSON.stringify(event.topic.map(topic => topic.toXDR('base64'))),
+        event.value.toXDR('base64'),
+      ])
+    }
+    ingested += page.events.length
+    processedLedger = page.events.length === 100
+      ? page.events.at(-1)!.ledger
+      : page.latestLedger
     await query(`
-      INSERT INTO integrity_contract_events (
-        id, network, contract_id, ledger_sequence, ledger_closed_at,
-        transaction_hash, event_type, topics_xdr, value_xdr
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
-      ON CONFLICT (id) DO NOTHING
-    `, [
-      event.id,
-      stellarIntegrityConfig.network,
-      stellarIntegrityConfig.contractId,
-      event.ledger,
-      event.ledgerClosedAt,
-      event.txHash,
-      event.type,
-      JSON.stringify(event.topic.map(topic => topic.toXDR('base64'))),
-      event.value.toXDR('base64'),
-    ])
+      INSERT INTO integrity_event_cursors (network, contract_id, cursor, latest_ledger)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (network, contract_id) DO UPDATE
+        SET cursor = EXCLUDED.cursor, latest_ledger = EXCLUDED.latest_ledger, updated_at = now()
+    `, [stellarIntegrityConfig.network, stellarIntegrityConfig.contractId, page.cursor, processedLedger])
+    backlogRemaining = page.events.length === 100
+    if (!backlogRemaining) break
+    request = {
+      filters: [{ type: 'contract', contractIds: [stellarIntegrityConfig.contractId] }],
+      cursor: page.cursor,
+      limit: 100,
+    }
   }
-  await query(`
-    INSERT INTO integrity_event_cursors (network, contract_id, cursor, latest_ledger)
-    VALUES ($1, $2, $3, $4)
-    ON CONFLICT (network, contract_id) DO UPDATE
-      SET cursor = EXCLUDED.cursor, latest_ledger = EXCLUDED.latest_ledger, updated_at = now()
-  `, [stellarIntegrityConfig.network, stellarIntegrityConfig.contractId, page.cursor, page.latestLedger])
-  return { ingested: page.events.length, latestLedger: page.latestLedger }
+  return { ingested, processedLedger, latestLedger, backlogRemaining }
 }
 
 export async function setWorkerIncident(

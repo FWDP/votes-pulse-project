@@ -32,6 +32,7 @@ export interface IntegrityArtifactAnchor {
   revision: number
   receipt: string
   contentHash: string
+  subjectHash?: string
   previousHash?: string
   schemaVersion: number
   visibility: IntegrityArtifactVisibility
@@ -51,6 +52,7 @@ export interface PublicIntegrityVerification {
   receipt: string
   revision: number
   contentHash: string
+  subjectHash?: string
   previousHash?: string
   transactionHash?: string
   ledgerSequence?: number
@@ -58,4 +60,6 @@ export interface PublicIntegrityVerification {
   chainValid: boolean
   artifactType?: IntegrityArtifactType
   schemaVersion: number
+  onChainVerified?: boolean
+  verifiedAt?: string
 }

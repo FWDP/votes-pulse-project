@@ -6,7 +6,7 @@ import type {
   IntegrityArtifactType,
 } from '../../../shared/integrityArtifacts'
 import { query, runTenantOperation } from '../db'
-import { hashArtifact } from './canonicalizeArtifact'
+import { hashArtifact, hashArtifactCommitment } from './canonicalizeArtifact'
 import { stellarIntegrityConfig } from './config'
 import type { IntegrityScope } from './integrityRepository'
 
@@ -17,11 +17,13 @@ interface ArtifactRow extends Record<string, unknown> {
   revision: number
   report_key: string
   content_hash: string
+  subject_hash?: string
   previous_hash?: string
   schema_version: number
   visibility: 'private' | 'public'
   status: IntegrityArtifactAnchor['status']
   transaction_hash?: string
+  submitted_at?: Date | string
   ledger_sequence?: number
   confirmed_at?: Date | string
   reconciliation_status?: IntegrityArtifactAnchor['reconciliationStatus']
@@ -35,6 +37,7 @@ const toArtifact = (row: ArtifactRow): IntegrityArtifactAnchor => ({
   revision: Number(row.revision),
   receipt: row.report_key,
   contentHash: row.content_hash,
+  subjectHash: row.subject_hash,
   previousHash: row.previous_hash,
   schemaVersion: Number(row.schema_version),
   visibility: row.visibility,
@@ -56,9 +59,15 @@ export async function enqueueIntegrityArtifact(
   const externalId = input.externalId.trim()
   if (!externalId || externalId.length > 200) throw new Error('externalId must contain 1 to 200 characters.')
   if (input.payload === undefined && !input.contentHash) throw new Error('payload or contentHash is required.')
-  const contentHash = input.contentHash?.toLowerCase() ?? hashArtifact(input.payload)
-  if (!validateHash(contentHash)) throw new Error('contentHash must be a lowercase SHA-256 digest.')
   const schemaVersion = Math.max(1, Math.min(1_000_000, Number(input.schemaVersion) || 1))
+  const subjectHash = input.contentHash?.toLowerCase() ?? hashArtifact(input.payload)
+  if (!validateHash(subjectHash)) throw new Error('contentHash must be a SHA-256 digest.')
+  const contentHash = hashArtifactCommitment({
+    artifactType: input.artifactType,
+    externalId,
+    schemaVersion,
+    subjectHash,
+  })
   const visibility = input.visibility === 'public' ? 'public' : 'private'
 
   return runTenantOperation(scope.tenantId, async client => {
@@ -80,8 +89,8 @@ export async function enqueueIntegrityArtifact(
     const { rows } = await client.query(`
       INSERT INTO integrity_artifact_anchors (
         id, tenant_id, workspace_id, artifact_type, external_id, revision,
-        report_key, content_hash, previous_hash, schema_version, visibility, metadata
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+        report_key, content_hash, subject_hash, previous_hash, schema_version, visibility, metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
       RETURNING *
     `, [
       `integrity-artifact-${randomUUID()}`,
@@ -92,6 +101,7 @@ export async function enqueueIntegrityArtifact(
       revision,
       reportKey,
       contentHash,
+      subjectHash,
       previous?.content_hash ?? null,
       schemaVersion,
       visibility,
@@ -145,6 +155,8 @@ export interface ArtifactJob {
   previous_hash?: string
   schema_version: number
   attempts: number
+  transaction_hash?: string
+  submitted_at?: Date | string
 }
 
 export async function claimNextArtifactJob(): Promise<ArtifactJob | undefined> {
@@ -179,6 +191,30 @@ export async function confirmArtifactJob(job: ArtifactJob, transactionHash: stri
         confirmed_at = now(), locked_at = NULL, last_error = NULL, updated_at = now()
     WHERE id = $1
   `, [job.id, transactionHash, ledgerSequence]))
+}
+
+export async function persistArtifactSubmittedHash(job: ArtifactJob, transactionHash: string) {
+  await runTenantOperation(job.tenant_id, client => client.query(`
+    UPDATE integrity_artifact_anchors
+    SET transaction_hash = $2, submitted_at = now(), status = 'submitting', updated_at = now()
+    WHERE id = $1
+  `, [job.id, transactionHash]))
+}
+
+export async function deferArtifactConfirmation(job: ArtifactJob) {
+  await runTenantOperation(job.tenant_id, client => client.query(`
+    UPDATE integrity_artifact_anchors
+    SET status = 'pending', available_at = now() + interval '10 seconds',
+        locked_at = NULL, attempts = GREATEST(attempts - 1, 0), updated_at = now()
+    WHERE id = $1
+  `, [job.id]))
+}
+
+export async function clearArtifactSubmittedHash(job: ArtifactJob) {
+  await runTenantOperation(job.tenant_id, client => client.query(`
+    UPDATE integrity_artifact_anchors SET transaction_hash = NULL, submitted_at = NULL, updated_at = now()
+    WHERE id = $1
+  `, [job.id]))
 }
 
 export async function failArtifactJob(job: ArtifactJob, error: unknown, maxAttempts: number) {

@@ -54,6 +54,10 @@ Current Stellar features:
 - Cursor-based Soroban event ingestion with event-ID deduplication and PostgreSQL retention
 - Local file-mounted signer support and an HTTPS remote-signing boundary suitable for a KMS/HSM service
 - Explicit Mainnet approval and local-Mainnet-signer safety guards
+- Fail-closed Mainnet validation for network/passphrase, HTTPS RPC, contract address, deployment ledger, separate admin/writer identities, remote signer tokens, alerts, TTL, and reconciliation
+- Startup verification that the RPC network, deployed contract administrator, and contract writer match the approved configuration
+- Durable submitted-transaction recovery that polls the original hash after uncertain RPC responses instead of creating duplicate anchors
+- Retryable alert-delivery outbox and bounded multi-page event backlog draining with retention-gap detection
 - Privacy-safe verification receipts at `/verify/:receipt`
 - A reusable artifact registry for survey schemas and batches, dataset snapshots, social-listening batches, analytics snapshots, AI attestations, configuration approvals, export manifests, administrative audits, and release approvals
 - Tenant isolation, Superadmin-only operational APIs, Docker-persistent uploads, automated migrations, contract tests, and CI release gates
@@ -61,6 +65,21 @@ Current Stellar features:
 The reusable artifact endpoint accepts either a JSON payload for deterministic server-side hashing or an existing lowercase SHA-256 digest for files and external datasets. Public artifact verification must be explicitly enabled per artifact; private artifacts remain available only to authorized operators.
 
 See [`docs/soroban-integrity.md`](docs/soroban-integrity.md) for configuration, API routes, privacy boundaries, operational controls, and deployment gates. Contract deployment details are in [`contracts/README.md`](contracts/README.md).
+
+### Mainnet release checks
+
+Mainnet uses the standalone [`compose.mainnet.yaml`](compose.mainnet.yaml); it disables prototype authentication and local signer material, mounts remote-signer and alert tokens as secrets, runs migrations first, and checks `/api/readiness` rather than basic process health.
+
+Start by copying `backend/.env.mainnet.example` to the ignored `backend/.env.mainnet`, then replace every placeholder and keep the two mounted token files outside the repository.
+
+```bash
+npm run contract:build
+npm run integrity:estimate-cost
+NODE_ENV=production npm run integrity:mainnet-check
+docker compose -f compose.mainnet.yaml up --build -d
+```
+
+`integrity:mainnet-check` fails closed until the reviewed Wasm hash, deployment transaction, security review, cost report, production tokens, database migration, Mainnet RPC, contract writer, and separate administrator all validate. It does not deploy or approve Mainnet automatically.
 
 ## Run the API with Docker
 

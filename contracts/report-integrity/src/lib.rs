@@ -1,4 +1,7 @@
 #![no_std]
+// Soroban ABI methods expose each contract argument directly; grouping them
+// would be a breaking interface change and obscure the generated client spec.
+#![allow(clippy::too_many_arguments)]
 
 use soroban_sdk::{
     contract, contracterror, contractevent, contractimpl, contracttype, Address, BytesN, Env,
@@ -70,6 +73,12 @@ pub struct AdminRotated {
     pub new_admin: Address,
 }
 
+#[contractevent(topics = ["pulse", "upgrade"])]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractUpgraded {
+    pub new_wasm_hash: BytesN<32>,
+}
+
 #[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
@@ -114,6 +123,7 @@ impl ReportIntegrityRegistry {
     pub fn __constructor(env: Env, admin: Address, writer: Address) {
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Writer, &writer);
+        extend_instance_ttl(&env);
     }
 
     pub fn anchor(
@@ -308,7 +318,9 @@ impl ReportIntegrityRegistry {
         new_wasm_hash: BytesN<32>,
     ) -> Result<(), IntegrityError> {
         require_admin(&env, &admin)?;
-        env.deployer().update_current_contract_wasm(new_wasm_hash);
+        env.deployer()
+            .update_current_contract_wasm(new_wasm_hash.clone());
+        ContractUpgraded { new_wasm_hash }.publish(&env);
         Ok(())
     }
 

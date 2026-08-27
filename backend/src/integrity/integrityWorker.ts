@@ -9,6 +9,10 @@ import {
   extendReportAnchorTtl,
   submitReportAnchor,
   type AnchorSubmission,
+  inspectSubmittedTransaction,
+  SubmittedTransactionPendingError,
+  SubmittedTransactionRejectedError,
+  validateStellarRuntime,
 } from './stellarClient'
 import {
   claimNextArtifactJob,
@@ -16,8 +20,11 @@ import {
   failArtifactJob,
   listArtifactAnchorsDueForTtl,
   markArtifactTtlExtended,
+  persistArtifactSubmittedHash,
+  deferArtifactConfirmation,
+  clearArtifactSubmittedHash,
 } from './artifactRepository'
-import { ingestIntegrityEvents, reconcileIntegrityBatch, recordIntegrityIncident, setWorkerIncident } from './operations'
+import { deliverIntegrityAlerts, ingestIntegrityEvents, reconcileIntegrityBatch, recordIntegrityIncident, setWorkerIncident } from './operations'
 
 interface OutboxJob {
   id: string
@@ -30,9 +37,11 @@ interface OutboxJob {
   anchor_type?: FieldReportIntegrityAnchorType
   schema_version: number
   attempts: number
+  submitted_transaction_hash?: string
+  submitted_at?: Date | string
 }
 
-type SubmitAnchor = (input: AnchorSubmission) => Promise<{
+type SubmitAnchor = (input: AnchorSubmission, onSubmitted?: (transactionHash: string) => Promise<void>) => Promise<{
   transactionHash: string
   ledgerSequence: number
 }>
@@ -76,6 +85,43 @@ const claimNextJob = async (): Promise<OutboxJob | undefined> => {
       `, [job.id, job.attempts]))
   }
   return job
+}
+
+const persistReportSubmittedHash = async (job: OutboxJob, transactionHash: string) => {
+  await runTenantOperation(job.tenant_id, async client => {
+    await client.query(`
+      UPDATE report_integrity_outbox
+      SET submitted_transaction_hash = $2, submitted_at = now(), status = 'submitting', updated_at = now()
+      WHERE id = $1
+    `, [job.id, transactionHash])
+    await client.query(`
+      UPDATE report_integrity_anchors
+      SET transaction_hash = $2, status = 'submitting', updated_at = now()
+      WHERE outbox_id = $1
+    `, [job.id, transactionHash])
+  })
+}
+
+const deferReportConfirmation = async (job: OutboxJob) => {
+  await runTenantOperation(job.tenant_id, client => client.query(`
+    UPDATE report_integrity_outbox
+    SET status = 'pending', available_at = now() + interval '10 seconds',
+        locked_at = NULL, attempts = GREATEST(attempts - 1, 0), updated_at = now()
+    WHERE id = $1
+  `, [job.id]))
+}
+
+const clearReportSubmittedHash = async (job: OutboxJob) => {
+  await runTenantOperation(job.tenant_id, async client => {
+    await client.query(`
+      UPDATE report_integrity_outbox SET submitted_transaction_hash = NULL, submitted_at = NULL, updated_at = now()
+      WHERE id = $1
+    `, [job.id])
+    await client.query(`
+      UPDATE report_integrity_anchors SET transaction_hash = NULL, updated_at = now()
+      WHERE outbox_id = $1
+    `, [job.id])
+  })
 }
 
 const confirmJob = async (job: OutboxJob, transactionHash: string, ledgerSequence: number) => {
@@ -133,6 +179,24 @@ export async function processIntegrityOutboxBatch(
     const job = await claimNextJob()
     if (!job) break
     try {
+      if (job.submitted_transaction_hash) {
+        const recovered = await inspectSubmittedTransaction(job.submitted_transaction_hash)
+        if (recovered.status === 'confirmed') {
+          await confirmJob(job, recovered.transactionHash, recovered.ledgerSequence)
+          continue
+        }
+        if (recovered.status === 'not-found') {
+          const submittedAt = job.submitted_at ? new Date(job.submitted_at).getTime() : Date.now()
+          if (Date.now() - submittedAt < 90_000) {
+            await deferReportConfirmation(job)
+            continue
+          }
+          await clearReportSubmittedHash(job)
+          throw new Error('Previously submitted Stellar transaction expired without appearing in RPC history.')
+        }
+        await clearReportSubmittedHash(job)
+        throw new Error(`Previously submitted Stellar transaction failed in ledger ${recovered.ledgerSequence}.`)
+      }
       const confirmation = await submit({
         reportKey: job.report_key,
         revision: job.revision,
@@ -140,9 +204,14 @@ export async function processIntegrityOutboxBatch(
         previousHash: job.previous_hash,
         schemaVersion: job.schema_version,
         anchorType: job.anchor_type,
-      })
+      }, transactionHash => persistReportSubmittedHash(job, transactionHash))
       await confirmJob(job, confirmation.transactionHash, confirmation.ledgerSequence)
     } catch (error) {
+      if (error instanceof SubmittedTransactionPendingError) {
+        await deferReportConfirmation(job)
+        continue
+      }
+      if (error instanceof SubmittedTransactionRejectedError) await clearReportSubmittedHash(job)
       console.error(`Unable to anchor integrity outbox job ${job.id}:`, error)
       await failJob(job, error)
     }
@@ -156,6 +225,24 @@ export async function processIntegrityArtifactBatch(limit = 10, submit: SubmitAn
     const job = await claimNextArtifactJob()
     if (!job) break
     try {
+      if (job.transaction_hash) {
+        const recovered = await inspectSubmittedTransaction(job.transaction_hash)
+        if (recovered.status === 'confirmed') {
+          await confirmArtifactJob(job, recovered.transactionHash, recovered.ledgerSequence)
+          continue
+        }
+        if (recovered.status === 'not-found') {
+          const submittedAt = job.submitted_at ? new Date(job.submitted_at).getTime() : Date.now()
+          if (Date.now() - submittedAt < 90_000) {
+            await deferArtifactConfirmation(job)
+            continue
+          }
+          await clearArtifactSubmittedHash(job)
+          throw new Error('Previously submitted Stellar transaction expired without appearing in RPC history.')
+        }
+        await clearArtifactSubmittedHash(job)
+        throw new Error(`Previously submitted Stellar transaction failed in ledger ${recovered.ledgerSequence}.`)
+      }
       const confirmation = await submit({
         reportKey: job.report_key,
         revision: job.revision,
@@ -163,9 +250,14 @@ export async function processIntegrityArtifactBatch(limit = 10, submit: SubmitAn
         previousHash: job.previous_hash,
         schemaVersion: job.schema_version,
         anchorType: 'report',
-      })
+      }, transactionHash => persistArtifactSubmittedHash(job, transactionHash))
       await confirmArtifactJob(job, confirmation.transactionHash, confirmation.ledgerSequence)
     } catch (error) {
+      if (error instanceof SubmittedTransactionPendingError) {
+        await deferArtifactConfirmation(job)
+        continue
+      }
+      if (error instanceof SubmittedTransactionRejectedError) await clearArtifactSubmittedHash(job)
       console.error(`Unable to anchor integrity artifact ${job.id}:`, error)
       await failArtifactJob(job, error, stellarIntegrityConfig.maxAttempts)
       if (job.attempts >= stellarIntegrityConfig.maxAttempts) {
@@ -192,6 +284,12 @@ let workerRunning = false
 let ttlWorkerRunning = false
 let reconciliationRunning = false
 let eventIngestionRunning = false
+
+export const integrityWorkerStatus: {
+  started: boolean
+  validatedAt?: string
+  error?: string
+} = { started: false }
 
 export async function processIntegrityTtlBatch(
   limit = stellarIntegrityConfig.ttlBatchSize,
@@ -225,14 +323,24 @@ export async function processIntegrityTtlBatch(
   return { due: candidates.length + artifactCandidates.length, extended }
 }
 
-export const startIntegrityWorker = () => {
+export const startIntegrityWorker = async () => {
   if (!dbEnabled || !stellarIntegrityReady() || workerTimer) return false
+  try {
+    await validateStellarRuntime()
+    integrityWorkerStatus.validatedAt = new Date().toISOString()
+    integrityWorkerStatus.error = undefined
+  } catch (error) {
+    integrityWorkerStatus.started = false
+    integrityWorkerStatus.error = error instanceof Error ? error.message : 'Stellar runtime validation failed.'
+    throw error
+  }
   const run = async () => {
     if (workerRunning) return
     workerRunning = true
     try {
       await processIntegrityOutboxBatch()
       await processIntegrityArtifactBatch()
+      await deliverIntegrityAlerts()
     } catch (error) {
       console.error('Report integrity worker failed:', error)
     } finally {
@@ -295,6 +403,7 @@ export const startIntegrityWorker = () => {
     void ingestEvents()
   }
   void run()
+  integrityWorkerStatus.started = true
   return true
 }
 
@@ -307,4 +416,5 @@ export const stopIntegrityWorker = () => {
   ttlTimer = undefined
   reconciliationTimer = undefined
   eventTimer = undefined
+  integrityWorkerStatus.started = false
 }

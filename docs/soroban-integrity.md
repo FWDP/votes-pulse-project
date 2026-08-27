@@ -69,6 +69,12 @@ Implemented repository foundation:
 - Mainnet approval and local-signer deployment guards.
 - Privacy-safe public verification receipts at `/verify/:receipt`.
 - A generalized artifact registry for survey schemas/batches, dataset snapshots, social batches, analytics, AI attestations, configuration approvals, exports, admin audits, and releases.
+- Fail-closed Mainnet configuration validation and live startup checks for RPC passphrase, administrator, and writer.
+- Pre-broadcast transaction-hash persistence with timeout/uncertain-result recovery.
+- Public receipt verification that reads and compares every revision directly from Soroban.
+- Versioned artifact commitment envelopes binding artifact type, external ID, schema version, and subject SHA-256.
+- Retryable alert delivery, paginated event backlog draining, and RPC-retention gap detection.
+- A production Compose template and executable Mainnet readiness/cost-estimation commands.
 
 ## General integrity API
 
@@ -81,9 +87,25 @@ Implemented repository foundation:
 
 Set `STELLAR_INTEGRITY_EVENT_START_LEDGER` to the contract deployment ledger before the first production start. Leaving it at `0` starts ingestion at the current ledger and does not reconstruct older events.
 
+## Mainnet gate
+
+Build the exact release candidate and record its output:
+
+```bash
+npm run contract:build
+npm run integrity:estimate-cost
+NODE_ENV=production npm run integrity:mainnet-check
+```
+
+The readiness command checks the public network/passphrase, HTTPS endpoints, contract address, remote signer, distinct administrator, mounted authentication tokens, event deployment ledger, required workers, alerting, reviewed Wasm hash, deployment transaction, security-review reference, cost-report reference, database migration, RPC-reported network, and deployed contract roles. Any missing or mismatched item returns a nonzero exit code.
+
+Current undeployed Mainnet candidate Wasm SHA-256: `4ffd8b15ce098262f91dafd54c7eb59398624b43b1b65929d15d41e16be6f12d`.
+
+On 2026-08-27, five read-only Testnet simulations against the deployed v2 anchor interface each reported a minimum resource fee of `51,836` stroops. This is a development measurement, not a substitute for the recorded production load/cost report required by the Mainnet gate.
+
 Remaining external release gates:
 
-- External contract review, load/cost measurements, webhook receiver configuration, and Mainnet approval.
+- External contract review, recorded production load/cost measurements, webhook receiver configuration, and Mainnet approval.
 - Provision the production KMS/HSM signing service and separate admin/writer identities.
 - Choose and operate the long-term event/archive retention system; PostgreSQL ingestion is implemented.
 - Demo recording and release sign-off.
