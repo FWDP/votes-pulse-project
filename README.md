@@ -64,7 +64,7 @@ Current Stellar features:
 
 The reusable artifact endpoint accepts either a JSON payload for deterministic server-side hashing or an existing lowercase SHA-256 digest for files and external datasets. Public artifact verification must be explicitly enabled per artifact; private artifacts remain available only to authorized operators.
 
-See [`docs/soroban-integrity.md`](docs/soroban-integrity.md) for configuration, API routes, privacy boundaries, operational controls, and deployment gates. Contract deployment details are in [`contracts/README.md`](contracts/README.md).
+See [`docs/soroban-integrity.md`](docs/soroban-integrity.md) for configuration, API routes, privacy boundaries, operational controls, and deployment gates. The ordered remaining-blocker plan and release checklist are in [`docs/stellar-mainnet-implementation-plan.md`](docs/stellar-mainnet-implementation-plan.md). Contract deployment details are in [`contracts/README.md`](contracts/README.md).
 
 ### Mainnet release checks
 

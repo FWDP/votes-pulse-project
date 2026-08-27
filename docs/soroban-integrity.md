@@ -89,6 +89,8 @@ Set `STELLAR_INTEGRITY_EVENT_START_LEDGER` to the contract deployment ledger bef
 
 ## Mainnet gate
 
+The ordered owner, evidence, deployment, validation, stop/recovery, and sign-off steps for the remaining external blockers are maintained in [`stellar-mainnet-implementation-plan.md`](stellar-mainnet-implementation-plan.md).
+
 Build the exact release candidate and record its output:
 
 ```bash
