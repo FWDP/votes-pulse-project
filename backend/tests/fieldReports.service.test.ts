@@ -7,6 +7,7 @@ import {
     getFieldReport,
     listFieldReportRecipients,
     listFieldReports,
+    reviseFieldReportEvidence,
     synchronizeFieldReportRecipients,
     updateFieldReport,
 } from '../src/services/fieldReports.service'
@@ -63,6 +64,23 @@ test('creates an idempotent report and updates review state', async () => {
     })
     assert.equal(updated?.status, 'under-review')
     assert.equal(updated?.assignedTo, 'Operations desk')
+})
+
+test('creates an intentional evidence revision without changing report identity', async () => {
+    const created = await createFieldReport(scope, makeReport())
+    const revised = await reviseFieldReportEvidence(scope, created.id, {
+        observation: `${created.observation} Additional verified detail.`,
+        severity: 'critical',
+    }, {
+        id: created.reporter.id,
+        email: created.reporter.email,
+        displayName: created.reporter.displayName,
+    })
+
+    assert.equal(revised.unchanged, undefined)
+    assert.equal(revised.report?.id, created.id)
+    assert.equal(revised.report?.severity, 'critical')
+    assert.match(revised.report?.observation ?? '', /Additional verified detail/)
 })
 
 test('isolates report lists by tenant and workspace', async () => {

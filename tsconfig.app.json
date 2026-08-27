@@ -19,6 +19,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src/main.tsx", "src/App.tsx", "src/vite-env.d.ts"],
-  "exclude": ["src/server", "src/PulseApp.jsx"]
+  "include": ["frontend/src/**/*.ts", "frontend/src/**/*.tsx", "shared/**/*.ts"],
+  "exclude": ["frontend/src/PulseApp.jsx"]
 }

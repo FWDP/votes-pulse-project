@@ -1,0 +1,40 @@
+name: Soroban integrity gate
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'contracts/**'
+      - 'frontend/**'
+      - 'mobile/**'
+      - 'shared/**'
+      - 'package*.json'
+      - '.github/workflows/soroban-integrity.yml'
+  push:
+    branches: [main, stage, feature/soroban]
+
+permissions:
+  contents: read
+
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
+      - run: npm ci
+      - run: npm ci --prefix mobile
+      - run: npm run test:reports
+      - run: npm run test:integrity
+      - run: npm run type-check
+      - run: npm run mobile:type-check
+      - run: npm run contract:test
+      - run: cargo build --manifest-path contracts/Cargo.toml --target wasm32v1-none --release
+      - run: npm run build

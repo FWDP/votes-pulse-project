@@ -77,6 +77,20 @@ const resolveBearerUser = async (token: string): Promise<AuthUser | null> => {
   }
 }
 
+export const parseBearerToken = (authorization: string): string | undefined => {
+  // A session token is capped well below Node's header limit. Requiring exactly
+  // one separator avoids regex backtracking and ambiguous whitespace handling.
+  if (authorization.length < 8 || authorization.length > 4_103) return undefined
+  if (authorization.slice(0, 7).toLowerCase() !== 'bearer ') return undefined
+  const token = authorization.slice(7)
+  if (!token) return undefined
+  for (let index = 0; index < token.length; index += 1) {
+    const code = token.charCodeAt(index)
+    if (code <= 32 || code === 127) return undefined
+  }
+  return token
+}
+
 export const requireSession = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const existingUser = normalizeUser(req.auth?.user) ?? normalizeUser(req.user) ?? normalizeUser(req.session?.user)
 
@@ -86,7 +100,7 @@ export const requireSession = async (req: AuthRequest, res: Response, next: Next
   }
 
   const authorization = req.get('authorization') ?? ''
-  const bearerToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1]
+  const bearerToken = parseBearerToken(authorization)
   if (bearerToken) {
     try {
       const bearerUser = await resolveBearerUser(bearerToken)

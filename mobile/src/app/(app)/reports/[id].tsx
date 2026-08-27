@@ -86,6 +86,15 @@ export default function ReportDetailScreen() {
                 )}
                 {report.sync.state === 'failed' && <Button label="Retry synchronization" onPress={() => void retryReport(report.id)} />}
             </View>
+
+            {report.integrity && (
+                <View style={styles.card}>
+                    <Text style={styles.heading}>Stellar integrity</Text>
+                    <Text style={styles.value}>{report.integrity.status === 'confirmed' ? 'Verified on Stellar' : `Anchor ${report.integrity.status}`}</Text>
+                    {report.integrity.network && <Text style={styles.muted}>Network: {report.integrity.network}</Text>}
+                    {report.integrity.transactionHash && <Text style={styles.hash} numberOfLines={1}>TX {report.integrity.transactionHash}</Text>}
+                </View>
+            )}
         </Screen>
     )
 }
@@ -102,6 +111,7 @@ const styles = StyleSheet.create({
     value: { color: colors.text, fontSize: 13, fontWeight: '600', textTransform: 'capitalize' },
     muted: { color: colors.muted, fontSize: 12, lineHeight: 18 },
     error: { color: colors.danger, fontSize: 11, lineHeight: 16 },
+    hash: { color: colors.blue, fontSize: 10, fontFamily: 'monospace' },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     detail: { width: '47%', flexGrow: 1, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 14, padding: 13, gap: 5 },
     detailLabel: { color: colors.muted, fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },

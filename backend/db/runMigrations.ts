@@ -14,6 +14,10 @@ const MIGRATION_FILES = [
   '002_add_password.sql',
   '003_add_brands.sql',
   '004_field_report_mobile.sql',
+  '005_report_integrity.sql',
+  '006_integrity_revisions.sql',
+  '007_integrity_platform.sql',
+  '008_integrity_events.sql',
 ]
 
 const connectionString = process.env.DATABASE_URL

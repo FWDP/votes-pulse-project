@@ -5,6 +5,7 @@ import {
   type LicenseTier,
 } from '../config/licenseTiers'
 import type { GeographySelection } from '../types/geography'
+import type { MobileSession } from '../../../shared/mobileSessions'
 import {
   createFieldReportsSession,
   synchronizeFieldReportRecipients,
@@ -297,23 +298,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return testUsers.find(candidate => candidate.id === selectedUserId) ?? testUsers[0] ?? TEST_USERS[0]
   }, [selectedUserId, testUsers])
 
+  const [fieldReportsSession, setFieldReportsSession] = useState<MobileSession | null>(null)
+  const [fieldReportsConnecting, setFieldReportsConnecting] = useState(false)
+  const [fieldReportsConnectionError, setFieldReportsConnectionError] = useState<string | null>(null)
+
   React.useEffect(() => {
+    setFieldReportsSession(null)
+    setFieldReportsConnectionError(null)
     if (!user?.email) return
     const controller = new AbortController()
-    void createFieldReportsSession(user.email, controller.signal)
-      .then(session => synchronizeFieldReportRecipients(
-        session.token,
-        testUsers.map(candidate => ({
-          id: candidate.id,
-          displayName: candidate.displayName,
-          email: candidate.email,
-          isSuperadmin: candidate.isSuperadmin,
-        })),
-        controller.signal,
-      ))
+    setFieldReportsConnecting(true)
+    void createFieldReportsSession(user.email, controller.signal, {
+      id: user.id,
+      displayName: user.displayName,
+    })
+      .then(async session => {
+        if (controller.signal.aborted) return
+        try {
+          await synchronizeFieldReportRecipients(
+            session.token,
+            testUsers.map(candidate => ({
+              id: candidate.id,
+              displayName: candidate.displayName,
+              email: candidate.email,
+              isSuperadmin: candidate.isSuperadmin,
+            })),
+            controller.signal,
+          )
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') return
+          // Account synchronization is a prototype convenience. A valid
+          // session must remain usable when that optional endpoint is disabled.
+          console.warn('Unable to synchronize Web App accounts:', error)
+        }
+        if (!controller.signal.aborted) setFieldReportsSession(session)
+      })
       .catch(error => {
         if (error instanceof Error && error.name === 'AbortError') return
-        console.warn('Unable to synchronize Web App accounts:', error)
+        const message = error instanceof Error ? error.message : 'Unable to connect to Field Reports.'
+        setFieldReportsConnectionError(message)
+        console.warn('Unable to create the Field Reports session:', error)
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setFieldReportsConnecting(false)
       })
     return () => controller.abort()
   }, [testUsers, user?.email])
@@ -398,7 +425,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return nextUser
   }
 
-  const value = { user, testUsers, accessibleWorkspaces, membershipForTenant, signOut, switchUser, createTestUser }
+  const value = {
+    user,
+    testUsers,
+    accessibleWorkspaces,
+    membershipForTenant,
+    signOut,
+    switchUser,
+    createTestUser,
+    fieldReportsSession,
+    fieldReportsConnecting,
+    fieldReportsConnectionError,
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
