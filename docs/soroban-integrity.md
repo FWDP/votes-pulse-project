@@ -75,6 +75,12 @@ Implemented repository foundation:
 - Versioned artifact commitment envelopes binding artifact type, external ID, schema version, and subject SHA-256.
 - Retryable alert delivery, paginated event backlog draining, and RPC-retention gap detection.
 - A production Compose template and executable Mainnet readiness/cost-estimation commands.
+- Threshold-governed administrator validation without changing the contract ABI.
+- Scoped auth-entry signing so the remote writer approves only the Soroban invocation while a separate fee payer submits it.
+- Hash-chained off-site contract-event archival and archive delivery health.
+- Explicit archived-state restoration for TTL disaster recovery.
+- Provenance-bound artifact commitments and Merkle batches with record-level inclusion proofs.
+- Stellar-key publisher attestations and confirmed multi-party release gates.
 
 ## General integrity API
 
@@ -83,9 +89,34 @@ Implemented repository foundation:
 - `GET /api/integrity/artifacts/:type/:externalId` returns an artifact revision chain; superadmin only.
 - `GET /api/integrity/incidents` returns unresolved reconciliation and submission incidents; superadmin only.
 - `POST /api/integrity/reconcile` starts a manual reconciliation batch; superadmin only.
+- `POST /api/integrity/artifacts/merkle` creates an anchored Merkle batch; superadmin only.
+- `GET /api/integrity/artifacts/:artifactId/merkle-proof/:leafIndex` returns a record-level proof; superadmin only.
+- `POST /api/integrity/attestations/challenge` returns the exact SHA-256 statement an approved publisher signs.
+- `POST /api/integrity/attestations` verifies the Ed25519 signature and queues the attestation itself for Soroban anchoring.
+- `POST /api/integrity/release-gates` creates an immutable multi-party promotion policy.
+- `POST /api/integrity/release-gates/:gateId/approvals` records a signed approval; the gate stays closed until the approval anchor is confirmed.
+- `GET /api/integrity/release-gates/:gateId` reevaluates the fail-closed gate.
+- `GET /api/integrity/archive/health` reports off-site archive delivery state.
+- `POST /api/integrity/restore` restores an archived report/artifact footprint when needed; superadmin only.
 - `GET /api/verify/:receipt` returns privacy-safe proof metadata. Artifact receipts must explicitly use `visibility: "public"`; field-report receipts are unguessable capability links and expose no report content.
 
 Set `STELLAR_INTEGRITY_EVENT_START_LEDGER` to the contract deployment ledger before the first production start. Leaving it at `0` starts ingestion at the current ledger and does not reconstruct older events.
+
+Government and partner data pipelines can hash a downloaded file and enqueue a provenance-bound snapshot without putting its contents on-chain:
+
+```bash
+npm run integrity:anchor-source -- \
+  --file data/psgc.csv \
+  --type dataset-snapshot \
+  --external-id psgc-q2-2026 \
+  --source-name "PSA PSGC" \
+  --source-uri https://psa.gov.ph/classification/psgc \
+  --source-version Q2-2026 \
+  --tenant <tenant-id> \
+  --workspace <workspace-id>
+```
+
+The command stores only the SHA-256 digest, provenance commitment, safe operational metadata, and opaque receipt in the integrity pipeline.
 
 ## Mainnet gate
 
@@ -99,7 +130,7 @@ npm run integrity:estimate-cost
 NODE_ENV=production npm run integrity:mainnet-check
 ```
 
-The readiness command checks the public network/passphrase, HTTPS endpoints, contract address, remote signer, distinct administrator, mounted authentication tokens, event deployment ledger, required workers, alerting, reviewed Wasm hash, deployment transaction, security-review reference, cost-report reference, database migration, RPC-reported network, and deployed contract roles. Any missing or mismatched item returns a nonzero exit code.
+The readiness command checks the public network/passphrase, HTTPS endpoints, contract address, remote auth-entry signer, separate fee payer, threshold-controlled administrator, mounted authentication tokens, event deployment ledger, off-site archive, required workers, alerting, reviewed Wasm hash, deployment transaction, security-review reference, cost-report reference, migration 011, an approved multi-party gate bound to the exact release-approval artifact commitment, RPC-reported network, and deployed contract roles. Any missing or mismatched item returns a nonzero exit code.
 
 Current undeployed Mainnet candidate Wasm SHA-256: `4ffd8b15ce098262f91dafd54c7eb59398624b43b1b65929d15d41e16be6f12d`.
 
@@ -108,8 +139,9 @@ On 2026-08-27, five read-only Testnet simulations against the deployed v2 anchor
 Remaining external release gates:
 
 - External contract review, recorded production load/cost measurements, webhook receiver configuration, and Mainnet approval.
-- Provision the production KMS/HSM signing service and separate admin/writer identities.
-- Choose and operate the long-term event/archive retention system; PostgreSQL ingestion is implemented.
+- Provision the production KMS/HSM auth-entry signing service, separate fee payer, and threshold-controlled administrator.
+- Choose and operate the long-term event/archive receiver; hash-chained delivery and PostgreSQL ingestion are implemented.
+- Create, anchor, and complete the production multi-party release gate.
 - Demo recording and release sign-off.
 
 The remaining items are deliberately not represented as code-complete: an independent security review cannot be self-certified by the implementation; cloud KMS/HSM provisioning requires the selected provider and production account; Mainnet activation requires organizational approval; and demo/release sign-off requires the release owners. The application-side signing boundary, safety guards, alert delivery, event archive, and verification mechanisms needed to support those activities are implemented.

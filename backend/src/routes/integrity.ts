@@ -8,10 +8,20 @@ import {
 import { requireSession, type AuthRequest } from '../middleware/auth'
 import {
   enqueueIntegrityArtifact,
+  enqueueMerkleIntegrityArtifact,
+  getMerkleIntegrityProof,
   getIntegrityArtifactHistory,
   listIntegrityArtifacts,
 } from '../integrity/artifactRepository'
-import { listIntegrityIncidents, reconcileIntegrityBatch } from '../integrity/operations'
+import { getIntegrityArchiveHealth, listIntegrityIncidents, reconcileIntegrityBatch } from '../integrity/operations'
+import {
+  approveReleaseGate,
+  createPublisherAttestation,
+  createPublisherAttestationChallenge,
+  createReleaseGate,
+  evaluateReleaseGate,
+} from '../integrity/governanceRepository'
+import { restoreArchivedReportAnchor } from '../integrity/stellarClient'
 
 const router = Router()
 const allowedTypes = new Set<string>(integrityArtifactTypes)
@@ -67,6 +77,100 @@ router.post('/artifacts', async (request: AuthRequest, response) => {
   }
 })
 
+router.post('/artifacts/merkle', async (request: AuthRequest, response) => {
+  const input = request.body as { artifactType?: string; items?: unknown[] }
+  if (!input || !allowedTypes.has(String(input.artifactType)) || !Array.isArray(input.items)) {
+    return response.status(400).json({ error: 'A supported artifactType and items array are required.' })
+  }
+  try {
+    const data = await enqueueMerkleIntegrityArtifact(
+      scope(request),
+      request.body,
+      request.auth?.user?.id ?? request.auth?.user?.userId ?? 'unknown',
+    )
+    return response.status(202).json({ data })
+  } catch (error) {
+    return response.status(400).json({ error: error instanceof Error ? error.message : 'Unable to enqueue Merkle artifact.' })
+  }
+})
+
+router.get('/artifacts/:artifactId/merkle-proof/:leafIndex', async (request: AuthRequest, response) => {
+  try {
+    const data = await getMerkleIntegrityProof(scope(request), String(request.params.artifactId), Number(request.params.leafIndex))
+    if (!data) return response.status(404).json({ error: 'Merkle manifest was not found.' })
+    return response.json({ data })
+  } catch (error) {
+    return response.status(400).json({ error: error instanceof Error ? error.message : 'Unable to create Merkle proof.' })
+  }
+})
+
+router.post('/attestations', async (request: AuthRequest, response) => {
+  try {
+    const data = await createPublisherAttestation(
+      scope(request),
+      request.body,
+      request.auth?.user?.id ?? request.auth?.user?.userId ?? 'unknown',
+    )
+    return response.status(202).json({ data })
+  } catch (error) {
+    return response.status(400).json({ error: error instanceof Error ? error.message : 'Unable to create attestation.' })
+  }
+})
+
+router.post('/attestations/challenge', async (request: AuthRequest, response) => {
+  try {
+    return response.json({ data: await createPublisherAttestationChallenge(scope(request), request.body) })
+  } catch (error) {
+    return response.status(400).json({ error: error instanceof Error ? error.message : 'Unable to create attestation challenge.' })
+  }
+})
+
+router.post('/release-gates', async (request: AuthRequest, response) => {
+  try {
+    const data = await createReleaseGate(
+      scope(request),
+      request.body,
+      request.auth?.user?.id ?? request.auth?.user?.userId ?? 'unknown',
+    )
+    return response.status(202).json({ data })
+  } catch (error) {
+    return response.status(400).json({ error: error instanceof Error ? error.message : 'Unable to create release gate.' })
+  }
+})
+
+router.post('/release-gates/:gateId/approvals', async (request: AuthRequest, response) => {
+  try {
+    const data = await approveReleaseGate(
+      scope(request),
+      String(request.params.gateId),
+      request.body,
+      request.auth?.user?.id ?? request.auth?.user?.userId ?? 'unknown',
+    )
+    return response.status(202).json({ data })
+  } catch (error) {
+    return response.status(400).json({ error: error instanceof Error ? error.message : 'Unable to approve release gate.' })
+  }
+})
+
+router.get('/release-gates/:gateId', async (request: AuthRequest, response) => {
+  try {
+    const data = await evaluateReleaseGate(scope(request), String(request.params.gateId))
+    if (!data) return response.status(404).json({ error: 'Release gate was not found.' })
+    return response.json({ data })
+  } catch (error) {
+    return response.status(500).json({ error: error instanceof Error ? error.message : 'Unable to evaluate release gate.' })
+  }
+})
+
+router.post('/restore', async (request: AuthRequest, response) => {
+  try {
+    const data = await restoreArchivedReportAnchor(String(request.body?.reportKey ?? ''), Number(request.body?.revision))
+    return response.json({ data })
+  } catch (error) {
+    return response.status(400).json({ error: error instanceof Error ? error.message : 'Unable to restore archived state.' })
+  }
+})
+
 router.get('/artifacts/:type/:externalId', async (request: AuthRequest, response) => {
   const artifactType = String(request.params.type)
   if (!allowedTypes.has(artifactType)) return response.status(400).json({ error: 'Unsupported artifact type.' })
@@ -91,6 +195,14 @@ router.get('/incidents', async (request: AuthRequest, response) => {
   } catch (error) {
     console.error('Unable to list integrity incidents:', error)
     return response.status(500).json({ error: 'Unable to list integrity incidents.' })
+  }
+})
+
+router.get('/archive/health', async (_request, response) => {
+  try {
+    return response.json({ data: await getIntegrityArchiveHealth() })
+  } catch (error) {
+    return response.status(500).json({ error: error instanceof Error ? error.message : 'Unable to inspect archive health.' })
   }
 })
 

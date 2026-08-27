@@ -29,11 +29,17 @@ services:
       STELLAR_INTEGRITY_SIGNER_SECRET: ""
       STELLAR_INTEGRITY_SIGNER_SECRET_FILE: ""
       STELLAR_INTEGRITY_SIGNER_TOKEN_FILE: /run/secrets/stellar-signer-token
+      STELLAR_INTEGRITY_FEE_PAYER_SECRET: ""
+      STELLAR_INTEGRITY_FEE_PAYER_SECRET_FILE: /run/secrets/stellar-fee-payer-secret
       STELLAR_INTEGRITY_ALERT_WEBHOOK_TOKEN: ""
       STELLAR_INTEGRITY_ALERT_WEBHOOK_TOKEN_FILE: /run/secrets/stellar-alert-token
+      STELLAR_INTEGRITY_ARCHIVE_WEBHOOK_TOKEN: ""
+      STELLAR_INTEGRITY_ARCHIVE_WEBHOOK_TOKEN_FILE: /run/secrets/stellar-archive-token
     secrets:
       - stellar-signer-token
       - stellar-alert-token
+      - stellar-fee-payer-secret
+      - stellar-archive-token
     volumes:
       - uploads:/app/backend/uploads
     healthcheck:
@@ -48,6 +54,10 @@ secrets:
     file: ${STELLAR_SIGNER_TOKEN_HOST_FILE}
   stellar-alert-token:
     file: ${STELLAR_ALERT_TOKEN_HOST_FILE}
+  stellar-fee-payer-secret:
+    file: ${STELLAR_FEE_PAYER_SECRET_HOST_FILE}
+  stellar-archive-token:
+    file: ${STELLAR_ARCHIVE_TOKEN_HOST_FILE}
 
 volumes:
   uploads:

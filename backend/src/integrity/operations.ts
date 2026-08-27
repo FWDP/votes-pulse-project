@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { rpc } from '@stellar/stellar-sdk'
 
-import { query, runTenantOperation } from '../db'
+import { query, runDatabaseTransaction, runTenantOperation } from '../db'
 import { stellarIntegrityConfig } from './config'
 import { readReportAnchor } from './stellarClient'
+import { hashArtifact } from './canonicalizeArtifact'
 
 export type IntegritySubjectType = 'field-report' | 'artifact' | 'worker'
 
@@ -94,6 +95,87 @@ export async function deliverIntegrityAlerts(limit = 10) {
     }
   }
   return { processed, delivered }
+}
+
+export async function deliverIntegrityArchive(limit = 25) {
+  if (!stellarIntegrityConfig.archiveWebhookUrl) return { processed: 0, delivered: 0, failed: 0 }
+  const fileToken = stellarIntegrityConfig.archiveWebhookTokenFile
+    ? (await readFile(stellarIntegrityConfig.archiveWebhookTokenFile, 'utf8')).trim()
+    : ''
+  const token = fileToken || stellarIntegrityConfig.archiveWebhookToken
+  let processed = 0
+  let delivered = 0
+  for (; processed < limit; processed += 1) {
+    const { rows } = await query(`
+      UPDATE integrity_event_archive_outbox SET status = 'delivering', attempts = attempts + 1,
+        locked_at = now(), updated_at = now()
+      WHERE id = (
+        SELECT id FROM integrity_event_archive_outbox
+        WHERE available_at <= now() AND (
+          status = 'pending' OR (status = 'delivering' AND locked_at < now() - interval '2 minutes')
+        ) ORDER BY ledger_sequence, created_at FOR UPDATE SKIP LOCKED LIMIT 1
+      ) RETURNING *
+    `)
+    const archive = rows[0]
+    if (!archive) break
+    try {
+      const response = await fetch(stellarIntegrityConfig.archiveWebhookUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          source: 'votes-pulse-stellar-archive/v1',
+          chainHash: archive.chain_hash,
+          previousChainHash: archive.previous_chain_hash,
+          payload: archive.payload,
+        }),
+        signal: AbortSignal.timeout(15_000),
+      })
+      if (!response.ok) throw new Error(`Integrity archive webhook returned HTTP ${response.status}.`)
+      await query(`
+        UPDATE integrity_event_archive_outbox SET status = 'delivered', delivered_at = now(),
+          locked_at = NULL, last_error = NULL, updated_at = now() WHERE id = $1
+      `, [archive.id])
+      delivered += 1
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Archive delivery failed.'
+      const exhausted = Number(archive.attempts) >= stellarIntegrityConfig.maxAttempts
+      await query(`
+        UPDATE integrity_event_archive_outbox SET status = $2, locked_at = NULL,
+          available_at = now() + (LEAST(300, power(2, LEAST(attempts, 8))) * interval '1 second'),
+          last_error = $3, updated_at = now() WHERE id = $1
+      `, [archive.id, exhausted ? 'failed' : 'pending', message.slice(0, 2_000)])
+    }
+  }
+  const status = await query(`
+    SELECT count(*) FILTER (WHERE status = 'failed')::integer AS failed
+    FROM integrity_event_archive_outbox
+  `)
+  return { processed, delivered, failed: Number(status.rows[0]?.failed ?? 0) }
+}
+
+export async function getIntegrityArchiveHealth() {
+  const { rows } = await query(`
+    SELECT
+      count(*)::integer AS total,
+      count(*) FILTER (WHERE status IN ('pending', 'delivering'))::integer AS pending,
+      count(*) FILTER (WHERE status = 'failed')::integer AS failed,
+      max(delivered_at) AS last_delivered_at,
+      min(created_at) FILTER (WHERE status IN ('pending', 'delivering')) AS oldest_pending_at,
+      max(ledger_sequence) FILTER (WHERE status = 'delivered')::integer AS latest_archived_ledger,
+      (array_agg(chain_hash ORDER BY ledger_sequence DESC, created_at DESC))[1] AS latest_chain_hash
+    FROM integrity_event_archive_outbox
+  `)
+  const row = rows[0] ?? {}
+  return {
+    configured: Boolean(stellarIntegrityConfig.archiveWebhookUrl),
+    total: Number(row.total ?? 0),
+    pending: Number(row.pending ?? 0),
+    failed: Number(row.failed ?? 0),
+    lastDeliveredAt: row.last_delivered_at ? new Date(row.last_delivered_at).toISOString() : undefined,
+    oldestPendingAt: row.oldest_pending_at ? new Date(row.oldest_pending_at).toISOString() : undefined,
+    latestArchivedLedger: row.latest_archived_ledger ? Number(row.latest_archived_ledger) : undefined,
+    latestChainHash: row.latest_chain_hash as string | undefined,
+  }
 }
 
 export async function resolveIntegrityIncident(
@@ -256,23 +338,65 @@ export async function ingestIntegrityEvents() {
     const page = await server.getEvents(request)
     latestLedger = page.latestLedger
     for (const event of page.events) {
-      await query(`
-        INSERT INTO integrity_contract_events (
-          id, network, contract_id, ledger_sequence, ledger_closed_at,
-          transaction_hash, event_type, topics_xdr, value_xdr
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
-        ON CONFLICT (id) DO NOTHING
-      `, [
-        event.id,
-        stellarIntegrityConfig.network,
-        stellarIntegrityConfig.contractId,
-        event.ledger,
-        event.ledgerClosedAt,
-        event.txHash,
-        event.type,
-        JSON.stringify(event.topic.map(topic => topic.toXDR('base64'))),
-        event.value.toXDR('base64'),
-      ])
+      const payload = {
+        eventId: event.id,
+        network: stellarIntegrityConfig.network,
+        contractId: stellarIntegrityConfig.contractId,
+        ledgerSequence: event.ledger,
+        ledgerClosedAt: event.ledgerClosedAt,
+        transactionHash: event.txHash,
+        eventType: event.type,
+        topicsXdr: event.topic.map(topic => topic.toXDR('base64')),
+        valueXdr: event.value.toXDR('base64'),
+      }
+      await runDatabaseTransaction(async client => {
+        const chainScope = `${stellarIntegrityConfig.network}:${stellarIntegrityConfig.contractId}`
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [chainScope])
+        await client.query(`
+          INSERT INTO integrity_contract_events (
+            id, network, contract_id, ledger_sequence, ledger_closed_at,
+            transaction_hash, event_type, topics_xdr, value_xdr
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
+          ON CONFLICT (id) DO NOTHING
+        `, [
+          event.id,
+          stellarIntegrityConfig.network,
+          stellarIntegrityConfig.contractId,
+          event.ledger,
+          event.ledgerClosedAt,
+          event.txHash,
+          event.type,
+          JSON.stringify(payload.topicsXdr),
+          payload.valueXdr,
+        ])
+        const alreadyArchived = await client.query(`
+          SELECT id FROM integrity_event_archive_outbox WHERE event_id = $1
+        `, [event.id])
+        if (alreadyArchived.rows[0]) return
+        const previous = await client.query(`
+          SELECT chain_hash FROM integrity_event_archive_outbox
+          WHERE network = $1 AND contract_id = $2
+          ORDER BY ledger_sequence DESC, created_at DESC LIMIT 1
+        `, [stellarIntegrityConfig.network, stellarIntegrityConfig.contractId])
+        const previousChainHash = previous.rows[0]?.chain_hash as string | undefined
+        const chainHash = hashArtifact({
+          domain: 'votes-pulse-stellar-event-archive/v1',
+          previousChainHash: previousChainHash ?? null,
+          payload,
+        })
+        const archived = await client.query(`
+          INSERT INTO integrity_event_archive_outbox (
+            id, event_id, network, contract_id, ledger_sequence, payload,
+            previous_chain_hash, chain_hash
+          ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)
+          ON CONFLICT DO NOTHING RETURNING id
+        `, [
+          `integrity-archive-${randomUUID()}`, event.id, stellarIntegrityConfig.network,
+          stellarIntegrityConfig.contractId, event.ledger, JSON.stringify(payload),
+          previousChainHash ?? null, chainHash,
+        ])
+        if (!archived.rows[0]) throw new Error('Unable to append Stellar event without forking the archive hash chain.')
+      })
     }
     ingested += page.events.length
     processedLedger = page.events.length === 100

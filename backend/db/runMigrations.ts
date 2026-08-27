@@ -19,6 +19,8 @@ const MIGRATION_FILES = [
   '007_integrity_platform.sql',
   '008_integrity_events.sql',
   '009_integrity_mainnet_readiness.sql',
+  '010_integrity_critical_extensions.sql',
+  '011_integrity_archive_chain.sql',
 ]
 
 const connectionString = process.env.DATABASE_URL

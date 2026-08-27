@@ -9,6 +9,10 @@ This plan covers the work that remains after the application-side Mainnet safegu
 
 - Fail-closed Mainnet configuration and runtime validation.
 - A remote-signing boundary; the API does not need custody of the writer secret.
+- Scoped auth-entry signing with a separate file-mounted fee payer; the writer no longer needs to sign complete transaction envelopes.
+- Runtime validation that the administrator's Stellar account thresholds require the configured number of independent approvals.
+- Hash-chained off-site event archive delivery, health reporting, and explicit state-restoration tooling.
+- Provenance, Merkle batching, publisher attestations, and confirmed multi-party release-gate foundations.
 - Separate contract administrator and writer checks.
 - Transactional anchoring, uncertain-transaction recovery, reconciliation, TTL renewal, event ingestion, incident persistence, and alert delivery.
 - Production Docker Compose configuration with file-mounted signer and alert tokens.
@@ -28,14 +32,14 @@ Any contract source or toolchain change invalidates this candidate. Rebuild, rec
 | Priority | Blocker | Completion evidence | Suggested owner |
 | --- | --- | --- | --- |
 | P0 | Independent contract/security review | Final report ID or immutable report URL approving the exact Wasm hash | Security reviewer |
-| P0 | Production remote signer | KMS/HSM-backed signing endpoint, writer public key, token mount, access policy, audit logs, and recovery test | Security/Platform |
-| P0 | Separate administrator custody | Admin public key different from writer; offline or independently controlled multisig policy; recovery procedure tested | Security/Release owner |
+| P0 | Production remote signer | KMS/HSM-backed auth-entry signing endpoint, writer public key, token mount, access policy, audit logs, and recovery test | Security/Platform |
+| P0 | Threshold administrator custody | Admin public key different from writer/fee payer; at least the configured independent approvals; recovery procedure tested | Security/Release owner |
 | P0 | Approved Mainnet RPC | HTTPS endpoint, availability/SLA decision, retention limits, and successful public-network validation | Platform |
 | P0 | Production alert receiver | HTTPS authenticated webhook, mounted token, routing/escalation policy, and delivered test incident | Platform/Operations |
 | P0 | Production load and cost report | Signed-off report covering anchor, revision, review, TTL, reconciliation, and backlog behavior | QA/Platform |
 | P0 | Mainnet deployment approval | Recorded go/no-go approval tied to the reviewed Wasm hash and release commit | Release owner |
 | P0 | Contract deployment and release record | Contract ID, transaction hash, deployment ledger, Wasm hash, RPC, admin, and writer recorded | Release owner |
-| P1 | Long-term event/archive retention | Retention period, export/archive destination, restore procedure, and monitoring | Data/Platform |
+| P1 | Long-term event/archive retention | Archive receiver connected to the implemented hash-chained delivery; retention period, restore procedure, and monitoring | Data/Platform |
 | P1 | Production validation and rollback drill | Readiness, smoke tests, alert test, worker health, and stop/recovery procedure recorded | QA/Operations |
 | P2 | Demo and final release sign-off | Demo recording, operator handoff, and named final approvers | Product/Release owner |
 
@@ -124,6 +128,8 @@ Confirm all of the following before authorizing deployment:
 - Load/cost report is approved.
 - Deployment operator, observer, maintenance window, and stop conditions are named.
 
+Create a `release-approval` artifact whose payload binds the release commit, reviewed Wasm hash, security review, load/cost report, intended RPC, administrator, writer, and fee payer. Create its multi-party gate, wait for the artifact, gate policy, and required approval attestations to confirm, then set `STELLAR_INTEGRITY_RELEASE_GATE_ID` and `STELLAR_INTEGRITY_RELEASE_SUBJECT_SHA256` from that exact record.
+
 Only after approval, set `STELLAR_INTEGRITY_PUBLIC_DEPLOYMENT_APPROVED=true` in the protected production configuration. This flag records approval; it does not deploy anything.
 
 Acceptance: named approvers record a GO decision tied to the exact release commit and Wasm hash.
@@ -170,7 +176,7 @@ docker compose -f compose.mainnet.yaml ps
 
 Verify `/api/readiness` returns HTTP 200. Do not use `/api/health` as the release gate.
 
-Acceptance: the automated gate passes, migration 009 is present, runtime contract roles match configuration, and the API is ready without local signer material.
+Acceptance: the automated gate passes, migration 011 is present, runtime contract roles and administrator thresholds match configuration, the multi-party release gate is approved, and the API is ready without local writer material.
 
 ### 9. Run production smoke tests and observation — P0/P1
 

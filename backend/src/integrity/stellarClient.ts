@@ -2,16 +2,19 @@ import {
   Address,
   BASE_FEE,
   Contract,
+  Keypair,
+  Operation,
   TransactionBuilder,
   nativeToScVal,
   scValToNative,
   rpc,
+  xdr,
 } from '@stellar/stellar-sdk'
 import { readFile } from 'node:fs/promises'
 
 import type { FieldReportIntegrityAnchorType } from '../../../shared/fieldReports'
 import { stellarIntegrityConfig } from './config'
-import { loadIntegritySigner } from './signer'
+import { loadFeePayerSigner, loadIntegritySigner } from './signer'
 
 export interface AnchorSubmission {
   reportKey: string
@@ -62,8 +65,9 @@ async function submitContractOperation(
 ): Promise<AnchorConfirmation> {
   const config = stellarIntegrityConfig
   const signer = await loadIntegritySigner()
+  const feePayer = config.authEntrySigning ? await loadFeePayerSigner() : undefined
   const server = new rpc.Server(config.rpcUrl)
-  const source = await server.getAccount(signer.publicKey)
+  const source = await server.getAccount(feePayer?.publicKey ?? signer.publicKey)
   const contract = new Contract(config.contractId)
   const transaction = new TransactionBuilder(source, {
     fee: BASE_FEE,
@@ -73,8 +77,37 @@ async function submitContractOperation(
     .setTimeout(30)
     .build()
 
-  const prepared = await server.prepareTransaction(transaction)
-  const signed = await signer.sign(prepared)
+  let signed
+  if (feePayer) {
+    if (feePayer.publicKey === signer.publicKey) {
+      throw new Error('The Stellar fee payer and contract writer must be separate accounts.')
+    }
+    const simulation = await server.simulateTransaction(transaction)
+    if (!rpc.Api.isSimulationSuccess(simulation) || !simulation.result) {
+      const detail = rpc.Api.isSimulationError(simulation) ? simulation.error : 'missing authorization entries'
+      throw new Error(`Unable to prepare scoped Soroban authorization: ${detail}`)
+    }
+    const invoke = transaction.operations[0]
+    if (invoke?.type !== 'invokeHostFunction') {
+      throw new Error('Scoped signing requires exactly one invokeHostFunction operation.')
+    }
+    const validUntilLedgerSeq = simulation.latestLedger + config.authEntryValidLedgers
+    const auth = await Promise.all(
+      simulation.result.auth.map(entry => signer.signAuthorizationEntry(entry, validUntilLedgerSeq)),
+    )
+    const assembled = rpc.assembleTransaction(transaction, simulation)
+      .clearOperations()
+      .addOperation(Operation.invokeHostFunction({
+        source: invoke.source,
+        func: invoke.func,
+        auth,
+      }))
+      .build()
+    signed = await feePayer.signTransaction(assembled)
+  } else {
+    const prepared = await server.prepareTransaction(transaction)
+    signed = await signer.signTransaction(prepared)
+  }
   const transactionHash = Buffer.from(signed.hash()).toString('hex')
   await onSubmitted?.(transactionHash)
   let submitted
@@ -138,8 +171,9 @@ export async function submitReportAnchor(
 export async function estimateReportAnchorCost(input: AnchorSubmission) {
   const config = stellarIntegrityConfig
   const signer = await loadIntegritySigner()
+  const feePayer = config.authEntrySigning ? await loadFeePayerSigner() : undefined
   const server = new rpc.Server(config.rpcUrl)
-  const source = await server.getAccount(signer.publicKey)
+  const source = await server.getAccount(feePayer?.publicKey ?? signer.publicKey)
   const contract = new Contract(config.contractId)
   const operation = contract.call(
     'anchor',
@@ -205,6 +239,55 @@ export async function readReportAnchor(reportKey: string, revision: number): Pro
   }
 }
 
+export async function restoreArchivedReportAnchor(reportKey: string, revision: number) {
+  if (!/^[a-f0-9]{64}$/.test(reportKey) || !Number.isInteger(revision) || revision < 1) {
+    throw new Error('A valid report key and positive revision are required for restoration.')
+  }
+  const config = stellarIntegrityConfig
+  const signer = await loadIntegritySigner()
+  const feePayer = config.authEntrySigning ? await loadFeePayerSigner() : undefined
+  const envelopeSigner = feePayer ?? signer
+  const server = new rpc.Server(config.rpcUrl)
+  const source = await server.getAccount(envelopeSigner.publicKey)
+  const contract = new Contract(config.contractId)
+  const readOperation = revision === 1
+    ? contract.call('get_anchor', bytes(reportKey), nativeToScVal(revision, { type: 'u32' }))
+    : contract.call('get_revision', bytes(reportKey), nativeToScVal(revision, { type: 'u32' }))
+  const readTransaction = new TransactionBuilder(source, {
+    fee: BASE_FEE,
+    networkPassphrase: config.networkPassphrase,
+  }).addOperation(readOperation).setTimeout(30).build()
+  const simulation = await server.simulateTransaction(readTransaction)
+  if (!rpc.Api.isSimulationRestore(simulation)) {
+    if (rpc.Api.isSimulationError(simulation)) throw new Error(`Unable to inspect archived anchor: ${simulation.error}`)
+    return { restored: false as const, reason: 'anchor-is-live' as const }
+  }
+  const restoreTransaction = new TransactionBuilder(source, {
+    fee: simulation.restorePreamble.minResourceFee,
+    networkPassphrase: config.networkPassphrase,
+  })
+    .setSorobanData(simulation.restorePreamble.transactionData.build())
+    .addOperation(Operation.restoreFootprint({}))
+    .setTimeout(30)
+    .build()
+  const prepared = await server.prepareTransaction(restoreTransaction)
+  const signed = await envelopeSigner.signTransaction(prepared)
+  const submitted = await server.sendTransaction(signed)
+  if (submitted.status === 'ERROR') throw new Error('Stellar RPC rejected the state-restoration transaction.')
+  if (submitted.status === 'TRY_AGAIN_LATER') throw new SubmittedTransactionPendingError(Buffer.from(signed.hash()).toString('hex'))
+  for (let poll = 0; poll < 30; poll += 1) {
+    await wait(config.pollIntervalMs)
+    const result = await server.getTransaction(submitted.hash)
+    if (result.status === rpc.Api.GetTransactionStatus.SUCCESS) {
+      return { restored: true as const, transactionHash: submitted.hash, ledgerSequence: result.ledger }
+    }
+    if (result.status === rpc.Api.GetTransactionStatus.FAILED) {
+      throw new Error(`Soroban state restoration failed in ledger ${result.ledger}.`)
+    }
+  }
+  throw new SubmittedTransactionPendingError(submitted.hash)
+}
+
 export async function inspectSubmittedTransaction(transactionHash: string): Promise<SubmittedTransactionState> {
   const server = new rpc.Server(stellarIntegrityConfig.rpcUrl)
   const result = await server.getTransaction(transactionHash)
@@ -220,8 +303,9 @@ export async function inspectSubmittedTransaction(transactionHash: string): Prom
 async function readContractAddress(method: 'writer' | 'admin') {
   const config = stellarIntegrityConfig
   const signer = await loadIntegritySigner()
+  const feePayer = config.authEntrySigning ? await loadFeePayerSigner() : undefined
   const server = new rpc.Server(config.rpcUrl)
-  const source = await server.getAccount(signer.publicKey)
+  const source = await server.getAccount(feePayer?.publicKey ?? signer.publicKey)
   const transaction = new TransactionBuilder(source, {
     fee: BASE_FEE,
     networkPassphrase: config.networkPassphrase,
@@ -236,18 +320,20 @@ async function readContractAddress(method: 'writer' | 'admin') {
 export async function validateStellarRuntime() {
   const config = stellarIntegrityConfig
   const signer = await loadIntegritySigner()
+  const feePayer = config.authEntrySigning ? await loadFeePayerSigner() : undefined
   const server = new rpc.Server(config.rpcUrl)
   const network = await server.getNetwork()
   if (network.passphrase !== config.networkPassphrase) {
     throw new Error('The Stellar RPC network passphrase does not match the configured network.')
   }
   if (config.network === 'public') {
-    const [signerToken, alertToken] = await Promise.all([
+    const [signerToken, alertToken, archiveToken] = await Promise.all([
       readFile(config.signerTokenFile, 'utf8'),
       readFile(config.alertWebhookTokenFile, 'utf8'),
+      readFile(config.archiveWebhookTokenFile, 'utf8'),
     ])
-    if (!signerToken.trim() || !alertToken.trim()) {
-      throw new Error('Mainnet signer and alert authentication token files must not be empty.')
+    if (!signerToken.trim() || !alertToken.trim() || !archiveToken.trim()) {
+      throw new Error('Mainnet signer, alert, and archive authentication token files must not be empty.')
     }
   }
   const [writer, admin] = await Promise.all([readContractAddress('writer'), readContractAddress('admin')])
@@ -258,5 +344,35 @@ export async function validateStellarRuntime() {
   if (config.network === 'public' && admin === writer) {
     throw new Error('Mainnet contract administrator and writer must be separate identities.')
   }
-  return { networkPassphrase: network.passphrase, protocolVersion: network.protocolVersion, writer, admin }
+  if (feePayer?.publicKey === writer || feePayer?.publicKey === admin) {
+    throw new Error('The Mainnet fee payer must be separate from the contract writer and administrator.')
+  }
+  let adminGovernance: { signerCount: number; mediumThreshold: number; minimumApprovals: number } | undefined
+  if (config.network === 'public') {
+    const key = xdr.LedgerKey.account(new xdr.LedgerKeyAccount({
+      accountId: Keypair.fromPublicKey(admin).xdrAccountId(),
+    }))
+    const entry = await server.getLedgerEntry(key)
+    if (entry.val.type !== 'account') throw new Error('Mainnet administrator is not a Stellar account entry.')
+    const account = entry.val.account
+    const [masterWeight, , mediumThreshold] = account.thresholds.toBytes()
+    const weights = [masterWeight, ...account.signers.map(item => item.weight)].filter(weight => weight > 0)
+    const minimumApprovals = [...weights]
+      .sort((left, right) => right - left)
+      .reduce((state, weight) => state.total >= mediumThreshold
+        ? state
+        : { total: state.total + weight, count: state.count + 1 }, { total: 0, count: 0 }).count
+    if (!mediumThreshold || weights.length < config.adminMinApprovals || minimumApprovals < config.adminMinApprovals) {
+      throw new Error(`Mainnet administrator must require at least ${config.adminMinApprovals} independent approvals.`)
+    }
+    adminGovernance = { signerCount: weights.length, mediumThreshold, minimumApprovals }
+  }
+  return {
+    networkPassphrase: network.passphrase,
+    protocolVersion: network.protocolVersion,
+    writer,
+    admin,
+    feePayer: feePayer?.publicKey,
+    adminGovernance,
+  }
 }

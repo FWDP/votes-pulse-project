@@ -3,7 +3,20 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { config as loadEnv } from 'dotenv'
 
-loadEnv({ path: path.resolve(process.cwd(), 'backend', '.env') })
+loadEnv({
+  path: path.resolve(
+    process.cwd(),
+    process.env.STELLAR_MAINNET_ENV_FILE?.trim() || path.join('backend', '.env.mainnet'),
+  ),
+})
+
+// The host-side release gate uses the same secret files that Compose later
+// mounts under /run/secrets. The API container overrides these with its mount
+// paths, while this command validates the original protected files directly.
+process.env.STELLAR_INTEGRITY_SIGNER_TOKEN_FILE ||= process.env.STELLAR_SIGNER_TOKEN_HOST_FILE
+process.env.STELLAR_INTEGRITY_FEE_PAYER_SECRET_FILE ||= process.env.STELLAR_FEE_PAYER_SECRET_HOST_FILE
+process.env.STELLAR_INTEGRITY_ALERT_WEBHOOK_TOKEN_FILE ||= process.env.STELLAR_ALERT_TOKEN_HOST_FILE
+process.env.STELLAR_INTEGRITY_ARCHIVE_WEBHOOK_TOKEN_FILE ||= process.env.STELLAR_ARCHIVE_TOKEN_HOST_FILE
 
 const { stellarIntegrityConfig, stellarIntegrityConfigurationErrors, stellarIntegritySignerMode } = await import('../src/integrity/config')
 
@@ -26,7 +39,9 @@ check('load and cost report recorded', Boolean(process.env.STELLAR_INTEGRITY_LOA
 
 for (const [name, filePath] of [
   ['remote signer token readable', stellarIntegrityConfig.signerTokenFile],
+  ['fee payer secret readable', stellarIntegrityConfig.feePayerSecretFile],
   ['alert webhook token readable', stellarIntegrityConfig.alertWebhookTokenFile],
+  ['archive webhook token readable', stellarIntegrityConfig.archiveWebhookTokenFile],
 ] as const) {
   let readable = false
   if (filePath) readable = await access(filePath).then(() => true).catch(() => false)
@@ -56,8 +71,16 @@ if (!failures.length) {
 if (!failures.length) {
   try {
     const { query, close } = await import('../src/db')
-    const migration = await query('SELECT 1 FROM migrations WHERE id = $1', ['009_integrity_mainnet_readiness.sql'])
-    check('Mainnet readiness migration applied', migration.rowCount === 1, 'Migration 009 is not applied.')
+    const migration = await query('SELECT 1 FROM migrations WHERE id = $1', ['011_integrity_archive_chain.sql'])
+    check('critical integrity migrations applied', migration.rowCount === 1, 'Migration 011 is not applied.')
+    const { evaluateReleaseGateUnscoped } = await import('../src/integrity/governanceRepository')
+    const gate = await evaluateReleaseGateUnscoped(stellarIntegrityConfig.releaseGateId)
+    check('multi-party release gate approved', gate?.approved === true, 'The configured release gate is missing, incomplete, or not fully confirmed on Stellar.')
+    check(
+      'release gate bound to approved artifact',
+      gate?.subjectArtifactType === 'release-approval' && gate.subjectContentHash === stellarIntegrityConfig.releaseSubjectHash,
+      'The release gate subject must be a release-approval artifact matching STELLAR_INTEGRITY_RELEASE_SUBJECT_SHA256.',
+    )
     await close()
   } catch (error) {
     check('Mainnet readiness migration applied', false, error instanceof Error ? error.message : 'Database validation failed.')

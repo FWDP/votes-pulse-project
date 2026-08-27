@@ -24,7 +24,7 @@ import {
   deferArtifactConfirmation,
   clearArtifactSubmittedHash,
 } from './artifactRepository'
-import { deliverIntegrityAlerts, ingestIntegrityEvents, reconcileIntegrityBatch, recordIntegrityIncident, setWorkerIncident } from './operations'
+import { deliverIntegrityAlerts, deliverIntegrityArchive, ingestIntegrityEvents, reconcileIntegrityBatch, recordIntegrityIncident, setWorkerIncident } from './operations'
 
 interface OutboxJob {
   id: string
@@ -341,6 +341,11 @@ export const startIntegrityWorker = async () => {
       await processIntegrityOutboxBatch()
       await processIntegrityArtifactBatch()
       await deliverIntegrityAlerts()
+      const archive = await deliverIntegrityArchive()
+      await setWorkerIncident(
+        'event-archive-failed',
+        archive.failed ? `${archive.failed} Stellar event archive delivery item(s) exhausted retries.` : undefined,
+      )
     } catch (error) {
       console.error('Report integrity worker failed:', error)
     } finally {

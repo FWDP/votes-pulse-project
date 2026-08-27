@@ -13,7 +13,12 @@ export interface StellarIntegrityConfig {
   signerUrl: string
   signerPublicKey: string
   signerTokenFile: string
+  authEntrySigning: boolean
+  authEntryValidLedgers: number
+  feePayerSecret: string
+  feePayerSecretFile: string
   adminPublicKey: string
+  adminMinApprovals: number
   pollIntervalMs: number
   workerIntervalMs: number
   maxAttempts: number
@@ -34,6 +39,11 @@ export interface StellarIntegrityConfig {
   eventIngestionIntervalMs: number
   eventIngestionMaxPages: number
   eventStartLedger: number
+  archiveWebhookUrl: string
+  archiveWebhookToken: string
+  archiveWebhookTokenFile: string
+  releaseGateId: string
+  releaseSubjectHash: string
 }
 
 const urlIsHttps = (value: string) => {
@@ -55,7 +65,12 @@ export const stellarIntegrityConfig: StellarIntegrityConfig = {
   signerUrl: process.env.STELLAR_INTEGRITY_SIGNER_URL?.trim() || '',
   signerPublicKey: process.env.STELLAR_INTEGRITY_SIGNER_PUBLIC_KEY?.trim() || '',
   signerTokenFile: process.env.STELLAR_INTEGRITY_SIGNER_TOKEN_FILE?.trim() || '',
+  authEntrySigning: process.env.STELLAR_INTEGRITY_AUTH_ENTRY_SIGNING === 'true',
+  authEntryValidLedgers: Math.max(10, Math.min(10_000, Number(process.env.STELLAR_INTEGRITY_AUTH_ENTRY_VALID_LEDGERS) || 120)),
+  feePayerSecret: process.env.STELLAR_INTEGRITY_FEE_PAYER_SECRET?.trim() || '',
+  feePayerSecretFile: process.env.STELLAR_INTEGRITY_FEE_PAYER_SECRET_FILE?.trim() || '',
   adminPublicKey: process.env.STELLAR_INTEGRITY_ADMIN_PUBLIC_KEY?.trim() || '',
+  adminMinApprovals: Math.max(1, Math.min(20, Number(process.env.STELLAR_INTEGRITY_ADMIN_MIN_APPROVALS) || 1)),
   pollIntervalMs: Math.max(500, Number(process.env.STELLAR_TRANSACTION_POLL_MS) || 2_000),
   workerIntervalMs: Math.max(1_000, Number(process.env.STELLAR_INTEGRITY_WORKER_INTERVAL_MS) || 5_000),
   maxAttempts: Math.max(1, Number(process.env.STELLAR_INTEGRITY_MAX_ATTEMPTS) || 8),
@@ -76,6 +91,11 @@ export const stellarIntegrityConfig: StellarIntegrityConfig = {
   eventIngestionIntervalMs: Math.max(10_000, Number(process.env.STELLAR_INTEGRITY_EVENT_INGESTION_INTERVAL_MS) || 60_000),
   eventIngestionMaxPages: Math.max(1, Math.min(100, Number(process.env.STELLAR_INTEGRITY_EVENT_INGESTION_MAX_PAGES) || 10)),
   eventStartLedger: Math.max(0, Number(process.env.STELLAR_INTEGRITY_EVENT_START_LEDGER) || 0),
+  archiveWebhookUrl: process.env.STELLAR_INTEGRITY_ARCHIVE_WEBHOOK_URL?.trim() || '',
+  archiveWebhookToken: process.env.STELLAR_INTEGRITY_ARCHIVE_WEBHOOK_TOKEN?.trim() || '',
+  archiveWebhookTokenFile: process.env.STELLAR_INTEGRITY_ARCHIVE_WEBHOOK_TOKEN_FILE?.trim() || '',
+  releaseGateId: process.env.STELLAR_INTEGRITY_RELEASE_GATE_ID?.trim() || '',
+  releaseSubjectHash: process.env.STELLAR_INTEGRITY_RELEASE_SUBJECT_SHA256?.trim().toLowerCase() || '',
 }
 
 export const stellarIntegritySignerMode = (
@@ -108,18 +128,28 @@ export const stellarIntegrityConfigurationErrors = (
   if (signerMode === 'remote' && !urlIsHttps(config.signerUrl)) {
     errors.push('STELLAR_INTEGRITY_SIGNER_URL must use HTTPS.')
   }
+  if (config.authEntrySigning && !config.feePayerSecret && !config.feePayerSecretFile) {
+    errors.push('Auth-entry signing requires a separate fee-payer secret or secret file.')
+  }
   if (config.network === 'public') {
     if (!config.publicDeploymentApproved) errors.push('Mainnet deployment approval is not enabled.')
     if (signerMode === 'local' && !config.allowLocalPublicSigner) errors.push('Mainnet requires a remote signer.')
     if (signerMode === 'remote' && (config.signerSecret || config.signerSecretFile)) errors.push('Mainnet remote signing must not also expose local signer material to the API.')
     if (signerMode === 'remote' && !config.signerTokenFile) errors.push('Mainnet remote signing requires a file-mounted authentication token.')
+    if (!config.authEntrySigning) errors.push('Mainnet requires scoped Soroban auth-entry signing with a separate fee payer.')
+    if (!config.feePayerSecretFile || config.feePayerSecret) errors.push('Mainnet fee payer must use file-mounted secret material and must not use an environment secret.')
     if (!StrKey.isValidEd25519PublicKey(config.adminPublicKey)) errors.push('Mainnet requires a valid, explicit administrator public key.')
     if (config.adminPublicKey && config.adminPublicKey === config.signerPublicKey) errors.push('Mainnet administrator and writer identities must be separate.')
+    if (config.adminMinApprovals < 2) errors.push('Mainnet administrator governance must require at least two approvals.')
     if (!config.ttlSweepEnabled) errors.push('Mainnet requires TTL maintenance.')
     if (!config.reconciliationEnabled) errors.push('Mainnet requires contract-state reconciliation.')
     if (!config.eventIngestionEnabled || config.eventStartLedger <= 0) errors.push('Mainnet requires event ingestion from the deployment ledger.')
     if (!urlIsHttps(config.alertWebhookUrl)) errors.push('Mainnet requires an HTTPS integrity alert webhook.')
     if (!config.alertWebhookTokenFile) errors.push('Mainnet alert delivery requires a file-mounted authentication token.')
+    if (!urlIsHttps(config.archiveWebhookUrl)) errors.push('Mainnet requires an HTTPS integrity archive webhook.')
+    if (!config.archiveWebhookTokenFile) errors.push('Mainnet archive delivery requires a file-mounted authentication token.')
+    if (!config.releaseGateId) errors.push('Mainnet requires a confirmed multi-party release gate identifier.')
+    if (!/^[a-f0-9]{64}$/.test(config.releaseSubjectHash)) errors.push('Mainnet requires the exact release artifact commitment SHA-256.')
   }
   return errors
 }

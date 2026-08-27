@@ -20,7 +20,12 @@ const publicConfig = (): StellarIntegrityConfig => ({
   signerUrl: 'https://signer.example.test/sign',
   signerPublicKey: Keypair.random().publicKey(),
   signerTokenFile: '/run/secrets/signer-token',
+  authEntrySigning: true,
+  authEntryValidLedgers: 120,
+  feePayerSecret: '',
+  feePayerSecretFile: '/run/secrets/fee-payer',
   adminPublicKey: Keypair.random().publicKey(),
+  adminMinApprovals: 2,
   pollIntervalMs: 2_000,
   workerIntervalMs: 5_000,
   maxAttempts: 8,
@@ -41,6 +46,11 @@ const publicConfig = (): StellarIntegrityConfig => ({
   eventIngestionIntervalMs: 60_000,
   eventIngestionMaxPages: 10,
   eventStartLedger: 12_345,
+  archiveWebhookUrl: 'https://archive.example.test/stellar',
+  archiveWebhookToken: '',
+  archiveWebhookTokenFile: '/run/secrets/archive-token',
+  releaseGateId: 'integrity-release-gate-test',
+  releaseSubjectHash: 'ab'.repeat(32),
 })
 
 test('accepts a fail-closed Mainnet integrity configuration', () => {
@@ -66,6 +76,22 @@ test('requires separate Mainnet admin and writer identities plus operational con
   assert.ok(errors.some(error => error.includes('separate')))
   assert.ok(errors.some(error => error.includes('deployment ledger')))
   assert.ok(errors.some(error => error.includes('alert webhook')))
+})
+
+test('requires scoped signing, multisig governance, archival, and release approval on Mainnet', () => {
+  const config = publicConfig()
+  config.authEntrySigning = false
+  config.feePayerSecretFile = ''
+  config.adminMinApprovals = 1
+  config.archiveWebhookUrl = ''
+  config.archiveWebhookTokenFile = ''
+  config.releaseGateId = ''
+  config.releaseSubjectHash = ''
+  const errors = stellarIntegrityConfigurationErrors(config)
+  assert.ok(errors.some(error => error.includes('auth-entry')))
+  assert.ok(errors.some(error => error.includes('two approvals')))
+  assert.ok(errors.some(error => error.includes('archive webhook')))
+  assert.ok(errors.some(error => error.includes('release gate')))
 })
 
 test('artifact commitments bind identity, schema, and subject digest', () => {
