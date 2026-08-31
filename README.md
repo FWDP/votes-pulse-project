@@ -1,15 +1,15 @@
 <div align="center">
   <img src="public/favicon.svg" alt="VOTES logo" width="84" height="84" />
 
-  # Stellar Evidence Kit
+  # VOTES
 
-  ### A proposed open-source Soroban developer toolchain
+  ### Stellar Evidence Kit
 
-  **Commit private off-chain records. Issue portable receipts. Verify them independently.**
+  **Public-opinion intelligence with a proposed open-source Soroban developer toolchain for verifiable evidence.**
 
-  The Stellar Evidence Kit will extract the working integrity infrastructure in VOTES into a generic Soroban contract, TypeScript SDK, CLI, public verifier, and reference integrations for Stellar developers.
+  VOTES is a geographic-intelligence platform and the first reference implementation of the proposed Stellar Evidence Kit: a generic Soroban contract, TypeScript SDK, CLI, and public verifier for privacy-preserving off-chain evidence.
 
-  [Proposed deliverables](#-proposed-30-day-deliverables) · [Current baseline](#-current-technical-baseline) · [Run the reference implementation](#-run-the-current-reference-implementation) · [Integrity guide](docs/soroban-integrity.md)
+  [VOTES platform](#-votes-platform--reference-integration) · [Proposed deliverables](#-proposed-30-day-deliverables) · [Current baseline](#-current-technical-baseline) · [Run VOTES](#-run-votes-and-the-current-integrity-baseline) · [Integrity guide](docs/soroban-integrity.md)
 
   ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
   ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
@@ -19,11 +19,16 @@
 </div>
 
 > [!IMPORTANT]
-> This repository currently contains the VOTES-specific Testnet implementation that proves the technical approach. The standalone Stellar Evidence Kit packages described below are proposed 30-day Instaward deliverables; they have not yet been published. No open-source license has been selected yet, and Mainnet deployment is out of scope.
+> This repository serves two connected purposes: it contains the VOTES application and its working Testnet integrity implementation, and it is the source baseline for the proposed Stellar Evidence Kit extraction. The standalone toolkit packages have not yet been published. No open-source license has been selected yet, and Mainnet deployment is out of scope.
 
 ---
 
-## 🧰 Why the Stellar Evidence Kit
+## 🗳️ VOTES and the Stellar Evidence Kit
+
+| Name | Role in this repository | Status |
+| --- | --- | --- |
+| **VOTES** | Local and regional public-opinion intelligence with web, mobile field-reporting, geographic analysis, administration, and Soroban-backed evidence verification | Working prototype and reference application |
+| **Stellar Evidence Kit** | Reusable Soroban contract, TypeScript SDK, CLI, receipt verifier, examples, and developer documentation extracted from the VOTES integrity implementation | Proposed 30-day Instaward deliverable |
 
 Stellar developers who need tamper-evident records currently have to design commitment formats, build and deploy Soroban contracts, manage authorization and transaction lifecycles, and create independent verification themselves. That duplicates effort and makes privacy boundaries, ordered revisions, retries, TTL maintenance, batching, and portable receipts difficult to implement consistently.
 
@@ -70,7 +75,7 @@ flowchart LR
 
 The toolkit will accept a caller-supplied payload or content hash, produce a deterministic commitment envelope, submit it through Soroban, and return a portable receipt. Verification will compare the receipt against live contract state and validate the ordered revision chain. Merkle batching will allow multiple records to share one on-chain root while retaining record-level inclusion proofs.
 
-## 📡 VOTES Reference Integration
+## 📡 VOTES Platform & Reference Integration
 
 VOTES is the first real-world demonstration of the toolkit. It brings community field reports, surveys, historical elections, and social-listening data into a geographic-intelligence prototype for local and regional decision support in the Philippines.
 
@@ -100,14 +105,14 @@ The implementation-ready ingestion and source policy is in [`docs/data-sources.m
 
 | Layer | Technologies |
 | --- | --- |
-| Proposed toolkit | TypeScript SDK, CLI, reusable verifier, commitment and Merkle utilities |
+| VOTES web | React 19, TypeScript, Vite, React Router, Recharts |
+| VOTES API | Node.js, Express, PostgreSQL |
+| VOTES mobile | Expo and React Native |
+| Stellar Evidence Kit | Proposed TypeScript SDK, CLI, reusable verifier, commitment and Merkle utilities |
 | Soroban | Rust/Wasm evidence registry, Stellar SDK, SHA-256 commitments |
-| VOTES reference web | React 19, TypeScript, Vite, React Router, Recharts |
-| VOTES reference API | Node.js, Express, PostgreSQL |
-| VOTES reference mobile | Expo and React Native |
 | Operations | Docker Compose, nginx, systemd, GitHub Actions |
 
-## 🚀 Run the Current Reference Implementation
+## 🚀 Run VOTES and the Current Integrity Baseline
 
 These instructions run VOTES and its existing integrity baseline. The standalone SDK and CLI installation instructions will be added when those sprint deliverables are published.
 
