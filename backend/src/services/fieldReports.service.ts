@@ -127,6 +127,20 @@ export async function synchronizeFieldReportRecipients(
     }
 
     await runTenantOperation(scope.tenantId, async client => {
+        // Prototype web accounts can be created before the optional demo seed has
+        // run. Provision the scope first so memberships and field reports never
+        // reference tenant/workspace rows that do not exist.
+        await client.query(`
+            INSERT INTO tenants (id, slug, name, status)
+            VALUES ($1, $2, $3, 'active')
+            ON CONFLICT (id) DO NOTHING
+        `, [scope.tenantId, scope.tenantId, 'VOTES prototype tenant'])
+        await client.query(`
+            INSERT INTO workspaces (id, tenant_id, slug, name, product)
+            VALUES ($1, $2, $3, $4, 'votes')
+            ON CONFLICT (id) DO NOTHING
+        `, [scope.workspaceId, scope.tenantId, scope.workspaceId, 'VOTES prototype workspace'])
+
         for (const account of sanitized) {
             const existing = await client.query(`
                 SELECT id FROM users

@@ -32,7 +32,7 @@ services:
       # Local prototype only. Production deployments must omit this override.
       MOBILE_AUTH_PROTOTYPE_ONLY: 'true'
       STELLAR_INTEGRITY_SIGNER_SECRET_FILE: /run/secrets/votes-integrity.secret
-      CORS_ORIGIN: 'http://votes.local,http://localhost:5173,http://127.0.0.1:5173'
+      CORS_ORIGIN: 'https://votes-pulse.fwdp.org,https://votes-pulse-rel8ph.fwdp.org,http://votes.local,http://localhost:5173,http://127.0.0.1:5173'
     volumes:
       - type: bind
         source: ./votes-integrity.secret
