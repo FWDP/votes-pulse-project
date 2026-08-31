@@ -19,7 +19,7 @@
 </div>
 
 > [!IMPORTANT]
-> VOTES is a prototype. Dashboard figures are illustrative unless a view explicitly identifies a live source. Stellar Testnet is the default integrity network, and Mainnet readiness is not a claim of production deployment or approval.
+> VOTES is a prototype. Dashboard figures are illustrative unless a view explicitly identifies a live source. All Stellar integrity features documented here target Testnet.
 
 ---
 
@@ -183,7 +183,7 @@ The v2 contract was deployed in transaction [`46170d73ad57b8b42589353b624f5796a6
 
 | Control | Implementation |
 | --- | --- |
-| Authorization | Separate administrator and writer roles, with threshold-controlled Mainnet administration |
+| Authorization | Separate administrator and writer roles |
 | Report history | Immutable submissions, ordered evidence revisions, and review attestations |
 | Delivery | Transactional outbox, atomic claims, bounded retries, and recovery of uncertain submissions |
 | Verification | Confirmed transaction/ledger references, chain validation, reconciliation, and privacy-safe `/verify/:receipt` pages |
@@ -192,28 +192,7 @@ The v2 contract was deployed in transaction [`46170d73ad57b8b42589353b624f5796a6
 
 The artifact endpoint accepts either a JSON payload for deterministic server-side hashing or an existing lowercase SHA-256 digest for files and external datasets. Public verification must be enabled per artifact; private artifacts remain available only to authorized operators.
 
-Read [`docs/soroban-integrity.md`](docs/soroban-integrity.md) for the threat model, privacy boundary, API routes, configuration, and operational controls. The ordered release plan is in [`docs/stellar-mainnet-implementation-plan.md`](docs/stellar-mainnet-implementation-plan.md), and contract-specific instructions are in [`contracts/README.md`](contracts/README.md).
-
-### Mainnet release checks
-
-Mainnet uses the standalone [`compose.mainnet.yaml`](compose.mainnet.yaml). It disables prototype authentication and local signer material, mounts remote-signer and alert tokens as secrets, runs migrations first, and checks `/api/readiness`.
-
-Copy `backend/.env.mainnet.example` to the ignored `backend/.env.mainnet`, replace every placeholder, and keep signer, fee-payer, alert, and archive tokens outside the repository. Then run:
-
-```bash
-npm run contract:build
-npm run integrity:estimate-cost
-NODE_ENV=production npm run integrity:mainnet-check
-docker compose -f compose.mainnet.yaml up --build -d
-```
-
-`integrity:mainnet-check` fails closed until its reviewed contract, deployment, security, cost, secret, database, network, signer-separation, archive, and release-gate evidence validates. It does not deploy to or approve Mainnet automatically.
-
-For non-Mainnet dataset or application promotions, enforce an approved gate in CI or the release job:
-
-```bash
-npm run integrity:release-gate -- <gate-id>
-```
+Read [`docs/soroban-integrity.md`](docs/soroban-integrity.md) for the threat model, privacy boundary, API routes, Testnet configuration, and operational controls. Contract-specific build, test, and deployment instructions are in [`contracts/README.md`](contracts/README.md).
 
 ## 🧪 Test and Validate
 
@@ -248,8 +227,7 @@ The GitHub Actions integrity gate repeats the report, integrity, type, contract,
 ├── data/              # Versioned and cached geography/election inputs
 ├── docs/              # Data, integrity, cost, and release documentation
 ├── deploy/            # nginx and systemd deployment configuration
-├── compose.yaml       # Local API/database workflow
-└── compose.mainnet.yaml
+└── compose.yaml       # Local API/database workflow
 ```
 
 ## 📚 Documentation
@@ -257,7 +235,6 @@ The GitHub Actions integrity gate repeats the report, integrity, type, contract,
 - [Field Reports mobile](mobile/README.md) — offline/connected behavior, API boundary, builds, and privacy notes.
 - [Data sources](docs/data-sources.md) — acquisition, licensing, provenance, normalization, and refresh policy.
 - [Soroban integrity](docs/soroban-integrity.md) — architecture, APIs, operational controls, and deployment gates.
-- [Stellar Mainnet plan](docs/stellar-mainnet-implementation-plan.md) — ordered blockers and release checklist.
 - [Contract guide](contracts/README.md) — contract interface, build, test, and deployment details.
 - [Backend cost estimate](docs/backend-cost-estimate.md) — infrastructure assumptions and estimates.
 
@@ -266,8 +243,7 @@ The GitHub Actions integrity gate repeats the report, integrity, type, contract,
 - Most dashboard values remain illustrative until a view identifies an integrated source and version.
 - Geographic records and congressional mappings are still being expanded and versioned.
 - Field reports may contain sensitive attachments, coordinates, or statements and require an approved purpose, consent, access, encryption, upload-limit, and retention policy before production use.
-- Testnet integrity proves the implemented workflow; it does not by itself establish Mainnet security, custody, compliance, or operational approval.
-- Production deployments must disable prototype authentication and satisfy the fail-closed readiness checks documented above.
+- Testnet integrity is intended for development, testing, and demonstration rather than production security, custody, or compliance assurance.
 
 ## 🤝 Contributing
 
