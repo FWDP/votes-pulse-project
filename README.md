@@ -1,15 +1,15 @@
 <div align="center">
   <img src="public/favicon.svg" alt="VOTES logo" width="84" height="84" />
 
-  # VOTES
+  # Stellar Evidence Kit
 
-  ### Local and regional public-opinion intelligence
+  ### A proposed open-source Soroban developer toolchain
 
-  **Understand communities. Track sentiment. Verify evidence.**
+  **Commit private off-chain records. Issue portable receipts. Verify them independently.**
 
-  VOTES brings community field reports, surveys, historical elections, and social-listening data into one geographic-intelligence platform for local and regional decision support in the Philippines.
+  The Stellar Evidence Kit will extract the working integrity infrastructure in VOTES into a generic Soroban contract, TypeScript SDK, CLI, public verifier, and reference integrations for Stellar developers.
 
-  [Explore the platform](#-platform-at-a-glance) · [Run locally](#-run-locally) · [Mobile field reports](mobile/README.md) · [Integrity guide](docs/soroban-integrity.md) · [Data policy](docs/data-sources.md)
+  [Proposed deliverables](#-proposed-30-day-deliverables) · [Current baseline](#-current-technical-baseline) · [Run the reference implementation](#-run-the-current-reference-implementation) · [Integrity guide](docs/soroban-integrity.md)
 
   ![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
   ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
@@ -19,49 +19,69 @@
 </div>
 
 > [!IMPORTANT]
-> VOTES is a prototype. Dashboard figures are illustrative unless a view explicitly identifies a live source. All Stellar integrity features documented here target Testnet.
+> This repository currently contains the VOTES-specific Testnet implementation that proves the technical approach. The standalone Stellar Evidence Kit packages described below are proposed 30-day Instaward deliverables; they have not yet been published. No open-source license has been selected yet, and Mainnet deployment is out of scope.
 
 ---
 
-## 📡 Why VOTES
+## 🧰 Why the Stellar Evidence Kit
 
-Local public opinion rarely lives in one dataset. Community issues, survey results, election history, social signals, and reports from the field all arrive with different geographic boundaries, confidence levels, and update cycles.
+Stellar developers who need tamper-evident records currently have to design commitment formats, build and deploy Soroban contracts, manage authorization and transaction lifecycles, and create independent verification themselves. That duplicates effort and makes privacy boundaries, ordered revisions, retries, TTL maintenance, batching, and portable receipts difficult to implement consistently.
 
-VOTES gives teams one place to compare those signals while keeping administrative geography separate from electoral geography and making source and confidence boundaries visible.
+The proposed toolkit will provide a reusable path from a private off-chain record to a public, independently verifiable Soroban receipt. Applications keep their source data and business logic off-chain; Stellar receives only opaque identifiers, schema and revision metadata, and cryptographic commitments.
 
-## 🧭 Platform at a Glance
+The ecosystem outcome is deliberately broader than VOTES: a developer unfamiliar with this application should be able to install the package, connect to or deploy the contract, commit a file or JSON payload hash, and verify the resulting receipt without importing VOTES code.
 
-| Experience | What it helps teams do | Current state |
+## 🎯 Proposed 30-Day Deliverables
+
+| Deliverable | Sprint output | Completion evidence |
 | --- | --- | --- |
-| 📍 **VOTES Dashboard** | Explore local and regional sentiment, issues, timelines, and election context by province, congressional district, LGU, and community | Multi-workspace prototype with live-source integration boundaries |
-| 📱 **Field Reports** | Capture observations, coordinates, and photo evidence; queue drafts and synchronize selected reports | Expo client with connected and offline prototype modes |
-| 🛡️ **Integrity** | Anchor report revisions, attestations, and reusable data artifacts without publishing sensitive content on-chain | Soroban contract and operational pipeline; Testnet by default |
-| 🔐 **Administration** | Control tenant/workspace access, roles, review queues, sessions, and integrity operations | Authenticated web workflows |
+| **1. Generic Soroban Evidence Registry & Specification** | Generalize the current Rust/Wasm contract; define stable evidence-envelope and receipt formats; add an explicit open-source license and deployment guide | Licensed source, passing contract tests, Testnet contract ID, deployment transaction, and confirmed commit/revision/TTL transactions |
+| **2. TypeScript SDK, CLI & Transaction Workflow** | Publish framework-neutral commitment, submission, receipt, lookup, verification, Merkle-batch, and proof APIs; provide a CLI and optional asynchronous outbox example | Installable package, CLI, API documentation, automated tests, and a clean-project integration recording |
+| **3. Public Verifier, Reference Integrations & Developer Validation** | Ship a public Testnet verifier, a standalone sample application, and VOTES as a second integration; publish guides and cost measurements; run a chapter demonstration | Live verifier, receipts from both integrations, workshop evidence, cost/storage report, and structured feedback from at least five Stellar developers |
 
-## ✨ What You Can Do Today
+Mainnet deployment, payment rails, production KMS/HSM and RPC operations, security audit, unrelated VOTES features, and long-term commercial support are not part of this sprint.
 
-- Navigate regional and local overview, sentiment, issue, location, timeline, historical, and key-insight views.
-- Switch between administrative and electoral viewing modes with cascading, location-ready filters.
-- Review source coverage, demo-data labels, confidence indicators, and geographic provenance.
-- Collect field reports on mobile with camera/library evidence, foreground GPS, drafts, an offline outbox, selective synchronization, and retry states.
-- Review synchronized reports in the web application and verify their ordered integrity history.
-- Register survey schemas and batches, dataset snapshots, analytics outputs, AI attestations, configuration approvals, and release evidence as reusable integrity artifacts.
+## ✅ Current Technical Baseline
 
-## 🧩 How It Fits Together
+The repository already demonstrates the core behavior inside VOTES:
+
+- An authorized Rust/Wasm registry deployed to Stellar Testnet.
+- Immutable commitments, ordered revisions, review attestations, contract events, and TTL extension.
+- Deterministic hashing with raw reports, identities, coordinates, attachments, and tenant data kept off-chain.
+- A transactional PostgreSQL outbox, asynchronous worker, retries, uncertain-submission recovery, and reconciliation.
+- Merkle batches and record-level proofs, provenance commitments, Stellar-key publisher attestations, and multi-party release gates.
+- Privacy-safe public receipt verification that reads the committed revision from Soroban.
+
+These capabilities are currently coupled to VOTES repositories, routes, configuration, and terminology. The Instaward sprint is the extraction and developer-experience work required to turn that implementation into an ecosystem toolchain.
+
+## 🧩 Target Developer Workflow
 
 ```mermaid
 flowchart LR
-  Sources[Social, survey, election, and field data] --> API[Express API]
-  Mobile[Expo Field Reports] --> API
-  API --> DB[(PostgreSQL)]
-  API --> Web[VOTES web app]
-  API --> Outbox[Integrity outbox]
-  Outbox --> Soroban[Soroban registry]
-  Soroban --> Verify[Public verification receipts]
-  DB --> Web
+  App[Developer application] --> Hash[Evidence SDK<br/>canonicalize and hash]
+  Hash --> Submit[SDK, CLI, or optional outbox worker]
+  Submit --> Contract[Soroban Evidence Registry]
+  Contract --> Receipt[Portable evidence receipt]
+  Receipt --> Verify[SDK, CLI, or public verifier]
+  Contract --> Verify
+  VOTES[VOTES reference integration] --> Hash
+  Sample[Standalone sample app] --> Hash
 ```
 
-PostgreSQL remains the operational source of truth. The integrity layer writes only opaque keys, revision and schema metadata, and SHA-256 commitments to Soroban; report text, identities, locations, filenames, and attachment contents remain off-chain.
+The toolkit will accept a caller-supplied payload or content hash, produce a deterministic commitment envelope, submit it through Soroban, and return a portable receipt. Verification will compare the receipt against live contract state and validate the ordered revision chain. Merkle batching will allow multiple records to share one on-chain root while retaining record-level inclusion proofs.
+
+## 📡 VOTES Reference Integration
+
+VOTES is the first real-world demonstration of the toolkit. It brings community field reports, surveys, historical elections, and social-listening data into a geographic-intelligence prototype for local and regional decision support in the Philippines.
+
+| Experience | Current state |
+| --- | --- |
+| **Dashboard** | Multi-workspace prototype for local sentiment, issues, timelines, and election context |
+| **Field Reports** | Expo client with connected and offline capture, evidence, synchronization, and retry workflows |
+| **Integrity** | VOTES-specific Soroban contract and operational pipeline on Testnet |
+| **Administration** | Authenticated review, audit, receipt, queue, retry, reconciliation, and TTL workflows |
+
+PostgreSQL remains the VOTES operational source of truth. Its integrity layer writes only opaque keys, revision and schema metadata, and SHA-256 commitments to Soroban.
 
 ## 🌍 Geography and Data Model
 
@@ -80,13 +100,16 @@ The implementation-ready ingestion and source policy is in [`docs/data-sources.m
 
 | Layer | Technologies |
 | --- | --- |
-| Web | React 19, TypeScript, Vite, React Router, Recharts |
-| API | Node.js, Express, PostgreSQL |
-| Mobile | Expo and React Native |
-| Integrity | Stellar SDK, Soroban, Rust/Wasm, SHA-256 commitments |
+| Proposed toolkit | TypeScript SDK, CLI, reusable verifier, commitment and Merkle utilities |
+| Soroban | Rust/Wasm evidence registry, Stellar SDK, SHA-256 commitments |
+| VOTES reference web | React 19, TypeScript, Vite, React Router, Recharts |
+| VOTES reference API | Node.js, Express, PostgreSQL |
+| VOTES reference mobile | Expo and React Native |
 | Operations | Docker Compose, nginx, systemd, GitHub Actions |
 
-## 🚀 Run Locally
+## 🚀 Run the Current Reference Implementation
+
+These instructions run VOTES and its existing integrity baseline. The standalone SDK and CLI installation instructions will be added when those sprint deliverables are published.
 
 ### Prerequisites
 
@@ -166,9 +189,9 @@ docker compose logs -f api
 docker compose down
 ```
 
-## 🔗 Stellar and Soroban Integrity
+## 🔗 Current VOTES Soroban Baseline
 
-VOTES uses Soroban as a privacy-preserving verification layer around field reports and reusable artifacts.
+VOTES currently uses Soroban as a privacy-preserving verification layer around field reports and reusable artifacts. This deployment proves the approach; it is not yet the generic Evidence Registry promised by the revised proposal.
 
 ### Current Testnet Contracts
 
@@ -191,6 +214,8 @@ The v2 contract was deployed in transaction [`46170d73ad57b8b42589353b624f5796a6
 | Data artifacts | Provenance commitments, Merkle batches, inclusion proofs, publisher/observer attestations, and multi-party release gates |
 
 The artifact endpoint accepts either a JSON payload for deterministic server-side hashing or an existing lowercase SHA-256 digest for files and external datasets. Public verification must be enabled per artifact; private artifacts remain available only to authorized operators.
+
+During the proposed sprint, the reusable portions will be separated from VOTES-specific tenant, report, survey, database, and UI assumptions. The resulting contract and package APIs will use generic namespaces, evidence envelopes, and receipts; VOTES will consume the same public toolkit as the standalone sample application.
 
 Read [`docs/soroban-integrity.md`](docs/soroban-integrity.md) for the threat model, privacy boundary, API routes, Testnet configuration, and operational controls. Contract-specific build, test, and deployment instructions are in [`contracts/README.md`](contracts/README.md).
 
@@ -223,12 +248,14 @@ The GitHub Actions integrity gate repeats the report, integrity, type, contract,
 ├── backend/           # Express API, PostgreSQL access, workers, and scripts
 ├── mobile/            # Expo Field Reports client
 ├── shared/            # Contracts shared by web, API, and mobile
-├── contracts/         # Soroban report-integrity contract
+├── contracts/         # Current VOTES-specific Soroban integrity contract
 ├── data/              # Versioned and cached geography/election inputs
 ├── docs/              # Data, integrity, cost, and release documentation
 ├── deploy/            # nginx and systemd deployment configuration
 └── compose.yaml       # Local API/database workflow
 ```
+
+The proposed sprint will introduce independently consumable toolkit/package and example boundaries only after their APIs and license are finalized. This README does not treat those future directories or packages as already released.
 
 ## 📚 Documentation
 
@@ -236,18 +263,21 @@ The GitHub Actions integrity gate repeats the report, integrity, type, contract,
 - [Data sources](docs/data-sources.md) — acquisition, licensing, provenance, normalization, and refresh policy.
 - [Soroban integrity](docs/soroban-integrity.md) — architecture, APIs, operational controls, and deployment gates.
 - [Contract guide](contracts/README.md) — contract interface, build, test, and deployment details.
+- [Instawards evidence](docs/instawards-deliverables-2-3-evidence.md) — existing Testnet and release-validation evidence that will inform the extraction.
 - [Backend cost estimate](docs/backend-cost-estimate.md) — infrastructure assumptions and estimates.
 
 ## ⚠️ Prototype Boundaries
 
+- The Stellar Evidence Kit is a revised proposal and has not yet been published as an independent SDK, CLI, contract package, or licensed open-source release.
 - Most dashboard values remain illustrative until a view identifies an integrated source and version.
 - Geographic records and congressional mappings are still being expanded and versioned.
 - Field reports may contain sensitive attachments, coordinates, or statements and require an approved purpose, consent, access, encryption, upload-limit, and retention policy before production use.
 - Testnet integrity is intended for development, testing, and demonstration rather than production security, custody, or compliance assurance.
+- Mainnet deployment, payment functionality, security audit, production key management, and operational service guarantees remain explicitly out of scope for the proposed 30-day sprint.
 
 ## 🤝 Contributing
 
-Keep changes focused, preserve the separation between administrative and electoral geography, and add tests beside changed behavior. Before opening a pull request, run the relevant focused checks or the full release gate:
+Keep toolkit work generic and independent of VOTES tenancy, political-data types, and application-specific routes. VOTES changes should preserve the separation between administrative and electoral geography. Add tests beside changed behavior and run the relevant focused checks or the full release gate before opening a pull request:
 
 ```bash
 npm run test:release
