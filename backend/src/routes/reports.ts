@@ -9,6 +9,7 @@ import {
   createFieldReport,
   getFieldReport,
   listFieldReportRecipients,
+  listFieldReportTopics,
   listFieldReports,
   reviseFieldReportEvidence,
   synchronizeFieldReportRecipients,
@@ -118,6 +119,16 @@ router.get('/recipients', async (request: AuthRequest, response) => {
   } catch (error) {
     console.error('Unable to list Field Report recipients:', error)
     return response.status(500).json({ error: 'Unable to list Field Report recipients.' })
+  }
+})
+
+router.get('/topics', async (request: AuthRequest, response) => {
+  try {
+    const data = await listFieldReportTopics(getScope(request))
+    return response.json({ data, count: data.length })
+  } catch (error) {
+    console.error('Unable to list Field Report topics:', error)
+    return response.status(500).json({ error: 'Unable to list Field Report topics.' })
   }
 })
 

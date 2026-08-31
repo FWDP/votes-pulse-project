@@ -107,6 +107,20 @@ export async function listFieldReportRecipients(scope: FieldReportScope): Promis
     })
 }
 
+export async function listFieldReportTopics(scope: FieldReportScope): Promise<string[]> {
+    if (!useDatabase()) return []
+
+    return runTenantOperation(scope.tenantId, async client => {
+        const { rows } = await client.query(`
+            SELECT name
+            FROM field_report_topic_categories
+            WHERE tenant_id = $1 AND status = 'active'
+            ORDER BY sort_order, name
+        `, [scope.tenantId])
+        return rows.map((row: { name: string }) => row.name)
+    })
+}
+
 export async function synchronizeFieldReportRecipients(
     scope: FieldReportScope,
     accounts: WebAccountRecipientInput[],

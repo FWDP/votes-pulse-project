@@ -19,6 +19,7 @@ import {
   getFieldReportIntegrityHealth,
   getFieldReportIntegrity,
   listFieldReports as listFieldReportRecords,
+  listFieldReportTopics,
   retryFieldReportIntegrity,
   reviseFieldReportEvidence,
   updateFieldReport as updateFieldReportRecord,
@@ -133,6 +134,7 @@ export default function FieldReportsPage() {
   const [resolvedGeography, setResolvedGeography] = useState<ResolvedGeographySelection>({})
   const [period, setPeriod] = useState('30d')
   const [reports, setReports] = useState<FieldReport[]>([])
+  const [seededTopics, setSeededTopics] = useState<string[]>([])
   const [query, setQuery] = useState('')
   const [topic, setTopic] = useState('all')
   const [status, setStatus] = useState<'all' | ReportStatus>('all')
@@ -170,9 +172,13 @@ export default function FieldReportsPage() {
     }
 
     const loadReports = async () => {
-      const response = await listFieldReportRecords(apiToken, controller.signal)
+      const [response, topicResponse] = await Promise.all([
+        listFieldReportRecords(apiToken, controller.signal),
+        listFieldReportTopics(apiToken, controller.signal),
+      ])
       if (!controller.signal.aborted) {
         setReports(response.data.map(toDashboardReport))
+        setSeededTopics(topicResponse.data)
         setNotice(current => current.startsWith('Connecting this account') ? '' : current)
       }
     }
@@ -223,7 +229,10 @@ export default function FieldReportsPage() {
     }
   }, [apiToken, user?.isSuperadmin])
 
-  const topics = useMemo(() => Array.from(new Set(reports.map(report => report.topic))).sort(), [reports])
+  const topics = useMemo(() => Array.from(new Set([
+    ...seededTopics,
+    ...reports.map(report => report.topic),
+  ])), [reports, seededTopics])
   const evidenceTypes = useMemo(() => Array.from(new Set(reports.map(report => report.evidenceType))).sort(), [reports])
   const assignees = useMemo(() => Array.from(new Set(reports.map(report => report.assignedTo))).sort(), [reports])
   const recipientInbox = !user?.isSuperadmin

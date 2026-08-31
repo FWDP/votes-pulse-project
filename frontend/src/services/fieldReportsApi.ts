@@ -7,6 +7,7 @@ import type {
     FieldReportIntegrityAuditEntry,
     FieldReportIntegrityHealth,
     FieldReportRecipientListResponse,
+    FieldReportTopicListResponse,
     FieldReportStatus,
 } from '../../../shared/fieldReports'
 import type { MobileSession } from '../../../shared/mobileSessions'
@@ -61,6 +62,12 @@ export const synchronizeFieldReportRecipients = (
 
 export const listFieldReports = (token: string, signal?: AbortSignal) =>
     requestJson<FieldReportListResponse>('/api/reports', {
+        signal,
+        headers: withToken(token),
+    })
+
+export const listFieldReportTopics = (token: string, signal?: AbortSignal) =>
+    requestJson<FieldReportTopicListResponse>('/api/reports/topics', {
         signal,
         headers: withToken(token),
     })
