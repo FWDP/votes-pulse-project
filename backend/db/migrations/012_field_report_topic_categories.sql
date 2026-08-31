@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS field_report_topic_categories (
 );
 
 INSERT INTO field_report_topic_categories (id, tenant_id, name, sort_order)
-SELECT 'topic-' || seed.slug, tenant.id, seed.name, seed.sort_order
+SELECT 'topic-' || md5(tenant.id) || '-' || seed.slug, tenant.id, seed.name, seed.sort_order
 FROM tenants tenant
 CROSS JOIN (VALUES
   ('public-services', 'Public Services', 10),
