@@ -7,6 +7,7 @@ dist-stale-*/
 dist-server/
 dist-root-owned/
 .env
+backend/.env.mainnet
 data/cache/
 *.log
 *.secret

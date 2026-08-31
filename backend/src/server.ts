@@ -16,7 +16,9 @@ const host = process.env.BACKEND_HOST || '127.0.0.1'
 app.listen(port, host, () => {
     // eslint-disable-next-line no-console
     console.log(`Backend server listening on http://${host}:${port}`)
-    if (startIntegrityWorker()) {
-        console.log('Soroban report-integrity worker started.')
-    }
+    void startIntegrityWorker()
+        .then(started => {
+            if (started) console.log('Soroban report-integrity worker started after runtime validation.')
+        })
+        .catch(error => console.error('Soroban integrity runtime validation failed; worker was not started:', error))
 })

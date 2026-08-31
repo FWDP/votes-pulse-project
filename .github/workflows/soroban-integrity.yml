@@ -36,5 +36,6 @@ jobs:
       - run: npm run type-check
       - run: npm run mobile:type-check
       - run: npm run contract:test
+      - run: cargo clippy --manifest-path contracts/Cargo.toml --target wasm32v1-none -- -D warnings
       - run: cargo build --manifest-path contracts/Cargo.toml --target wasm32v1-none --release
       - run: npm run build
