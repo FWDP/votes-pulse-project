@@ -10,8 +10,8 @@ export default function AdminControls() {
 
   return (
     <div className="admin-controls flex items-center gap-2">
-      <button onClick={() => navigate('/admin/sessions')} className="text-xs rounded bg-white/5 px-2 py-1">Sessions</button>
-      <button onClick={() => navigate('/admin/exports')} className="text-xs rounded bg-white/5 px-2 py-1">Exports</button>
+      <button onClick={() => navigate('/votes/admin/sessions')} className="text-xs rounded bg-white/5 px-2 py-1">Sessions</button>
+      <button onClick={() => navigate('/votes/admin/exports')} className="text-xs rounded bg-white/5 px-2 py-1">Exports</button>
     </div>
   )
 }

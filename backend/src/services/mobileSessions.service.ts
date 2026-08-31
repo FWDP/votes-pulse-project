@@ -11,10 +11,10 @@ const prototypeWorkspaceId = process.env.MOBILE_PROTOTYPE_WORKSPACE_ID || 'works
 
 const sessions = (() => {
     const root = globalThis as typeof globalThis & {
-        __votesPulseMobileSessions?: Map<string, StoredSession>
+        __votesMobileSessions?: Map<string, StoredSession>
     }
-    root.__votesPulseMobileSessions ??= new Map()
-    return root.__votesPulseMobileSessions
+    root.__votesMobileSessions ??= new Map()
+    return root.__votesMobileSessions
 })()
 
 const prototypeUsers: Record<string, Omit<MobileSessionUser, 'email'>> = {

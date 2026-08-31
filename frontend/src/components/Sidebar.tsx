@@ -21,9 +21,8 @@ const items: Array<{ to: string; label: string; icon: typeof MapPin; feature: Wo
 
 export default function Sidebar({ collapsed, variant = 'dashboard' }: { collapsed?: boolean, setCollapsed?: (v: boolean) => void, variant?: 'dashboard' | 'admin' }) {
   const { tenant, workspace, basePath } = useTenantWorkspace()
-  const { user, accessibleWorkspaces, membershipForTenant, signOut } = useAuth()
+  const { user, membershipForTenant, signOut } = useAuth()
   const navigate = useNavigate()
-  const isVotes = workspace.product === 'votes'
   const membership = membershipForTenant(tenant.id)
 
   // `collapsed` is controlled by parent `DashboardLayout` (if provided).
@@ -42,12 +41,12 @@ export default function Sidebar({ collapsed, variant = 'dashboard' }: { collapse
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : 'expanded'} bg-slate-900`}>
       <div className="sidebar-back">
-        <Link to={isVotes ? '/login/votes' : '/login/pulse'} className="back-link">Back to {isVotes ? 'VOTES' : 'PULSE'} Portal</Link>
+        <Link to="/login" className="back-link">Back to VOTES Portal</Link>
       </div>
-      <div className={`brand ${isVotes ? 'votes' : ''}`} title={`${tenant.name} · ${workspace.name}`}>
+      <div className="brand votes" title={`${tenant.name} · ${workspace.name}`}>
         <div className="brand-mark"><Radio size={18} /></div>
         <div>
-          <strong>{isVotes ? 'VOTES' : 'PULSE'}</strong>
+          <strong>VOTES</strong>
           <small>{workspace.name}</small>
         </div>
       </div>

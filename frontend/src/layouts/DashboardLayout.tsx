@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function DashboardLayout() {
-  const location = useLocation()
-  const pathname = location.pathname || ''
-  // determine theme from path prefix: /votes/* or /pulse/*
-  const prefix = pathname.split('/')[1] || ''
-  const themeClass = prefix === 'votes' ? 'theme-votes' : 'theme-pulse'
-
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('sidebarCollapsed') === '1'
@@ -34,7 +28,7 @@ export default function DashboardLayout() {
   }, [collapsed])
 
   return (
-    <div className={`app-shell ${themeClass}`}>
+    <div className="app-shell theme-votes">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       <main className="flex-1 overflow-auto page">
         <button

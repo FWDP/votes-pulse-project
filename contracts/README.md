@@ -1,6 +1,6 @@
-# PULSE report-integrity contract
+# VOTES report-integrity contract
 
-The contract stores only opaque 32-byte report keys and SHA-256 content digests. Report content, identities, locations, and attachments remain in PULSE.
+The contract stores only opaque 32-byte report keys and SHA-256 content digests. Report content, identities, locations, and attachments remain in VOTES.
 
 ```bash
 stellar contract build --manifest-path contracts/Cargo.toml
@@ -12,9 +12,9 @@ Deploy to Testnet with the same funded account as both the initial administrator
 ```bash
 stellar contract deploy \
   --wasm contracts/target/wasm32v1-none/release/report_integrity.wasm \
-  --source-account pulse-integrity \
+  --source-account votes-integrity \
   --network testnet \
-  -- --admin pulse-integrity --writer pulse-integrity
+  -- --admin votes-integrity --writer votes-integrity
 ```
 
 Copy the returned contract ID into `STELLAR_INTEGRITY_CONTRACT_ID`. The backend signer corresponding to the writer address signs every `anchor` invocation.
@@ -34,7 +34,7 @@ The earlier v1 Testnet contract remains at `CDKAQYQKVN3RVMWRO5MH6EMRRBOHBBOW37ZE
 
 The current source adds constructor TTL protection, an upgrade event, and additional authorization-negative tests. Its optimized, undeployed candidate hash is:
 
-`4ffd8b15ce098262f91dafd54c7eb59398624b43b1b65929d15d41e16be6f12d`
+`5759c354225fbf8754e8e8ec87f36e87776f4a5d8cd429dac10afb2b2aa199d3`
 
 Do not deploy it until that exact hash has completed independent review. Mainnet deployment must use distinct administrator and writer accounts; the writer belongs behind the approved remote signing service, while the administrator should remain offline or under an independently controlled multisignature policy.
 

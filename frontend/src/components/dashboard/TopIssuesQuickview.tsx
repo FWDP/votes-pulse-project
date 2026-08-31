@@ -1,7 +1,7 @@
 import {
   CircleDot,
   GraduationCap,
-  HeartPulse,
+  Heart,
   Landmark,
   Leaf,
   Minus,
@@ -24,7 +24,7 @@ interface TopIssuesQuickViewProps {
 const ISSUE_ICONS: Record<string, LucideIcon> = {
   infrastructure: Wrench,
   agriculture: Sprout,
-  health: HeartPulse,
+  health: Heart,
   education: GraduationCap,
   flooding: Waves,
   safety: Shield,

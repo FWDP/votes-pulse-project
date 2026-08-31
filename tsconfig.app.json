@@ -19,6 +19,5 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["frontend/src/**/*.ts", "frontend/src/**/*.tsx", "shared/**/*.ts"],
-  "exclude": ["frontend/src/PulseApp.jsx"]
+  "include": ["frontend/src/**/*.ts", "frontend/src/**/*.tsx", "shared/**/*.ts"]
 }

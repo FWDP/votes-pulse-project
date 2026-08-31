@@ -15,12 +15,10 @@ import {
   loadKeyInsightsPage,
   loadLocationPage,
   loadOverviewPage,
-  loadPulseApp,
   loadSentimentPage,
   loadTimelinePage,
 } from './routeLoaders'
 
-const PulseApp = lazy(loadPulseApp)
 const OverviewPage = lazy(loadOverviewPage)
 const SentimentPage = lazy(loadSentimentPage)
 const IssuesPage = lazy(loadIssuesPage)
@@ -58,61 +56,29 @@ function LazyRoute({ children }: { children: ReactNode }) {
 export default function App() {
   return (
     <Routes>
-      <Route
-        path="/"
-        element={<LazyRoute><PulseApp /></LazyRoute>}
-      />
-        <Route
-          path="login"
-          element={<LazyRoute><PulseApp /></LazyRoute>}
-        />
-        <Route
-          path="login/votes"
-          element={<LoginPage product="votes" />}
-        />
-      <Route
-          path="login/pulse"
-          element={<LoginPage product="pulse" />}
-        />
-        <Route path="verify/:receipt" element={<LazyRoute><VerifyIntegrityPage /></LazyRoute>} />
-        <Route path="pulse" element={<DashboardLayout />}>
-          <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview" element={<LazyRoute><OverviewPage /></LazyRoute>} />
-          <Route path="sentiment" element={<LazyRoute><SentimentPage /></LazyRoute>} />
-          <Route path="issues" element={<LazyRoute><IssuesPage /></LazyRoute>} />
-          <Route path="location" element={<LazyRoute><LocationPage /></LazyRoute>} />
-          <Route path="timeline" element={<LazyRoute><TimelinePage /></LazyRoute>} />
-          <Route path="historical" element={<LazyRoute><HistoricalPage /></LazyRoute>} />
-          <Route path="insights" element={<LazyRoute><KeyInsightsPage /></LazyRoute>} />
-          <Route path="datascope" element={<LazyRoute><DataScopePage /></LazyRoute>} />
-          <Route path="fieldreports" element={<LazyRoute><FieldReportsPage /></LazyRoute>} />
-        </Route>
-          <Route path="admin" element={<AdminLayout />}>
-            <Route path="roles" element={<LazyRoute><RolesPage /></LazyRoute>} />
-            <Route path="sessions" element={<LazyRoute><SessionsPage /></LazyRoute>} />
-            <Route path="exports" element={<LazyRoute><ExportsPage /></LazyRoute>} />
-            <Route path="superadmins" element={<LazyRoute><SuperadminsPage /></LazyRoute>} />
-          </Route>
-
-          <Route path="votes/admin" element={<AdminLayout />}>
-            <Route path="roles" element={<LazyRoute><RolesPage /></LazyRoute>} />
-            <Route path="sessions" element={<LazyRoute><SessionsPage /></LazyRoute>} />
-            <Route path="exports" element={<LazyRoute><ExportsPage /></LazyRoute>} />
-            <Route path="superadmins" element={<LazyRoute><SuperadminsPage /></LazyRoute>} />
-          </Route>
-
-        <Route path="votes" element={<DashboardLayout />}>
-          <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview" element={<LazyRoute><OverviewPage /></LazyRoute>} />
-          <Route path="sentiment" element={<LazyRoute><SentimentPage /></LazyRoute>} />
-          <Route path="issues" element={<LazyRoute><IssuesPage /></LazyRoute>} />
-          <Route path="location" element={<LazyRoute><LocationPage /></LazyRoute>} />
-          <Route path="timeline" element={<LazyRoute><TimelinePage /></LazyRoute>} />
-          <Route path="historical" element={<LazyRoute><HistoricalPage /></LazyRoute>} />
-          <Route path="insights" element={<LazyRoute><KeyInsightsPage /></LazyRoute>} />
-          <Route path="datascope" element={<LazyRoute><DataScopePage /></LazyRoute>} />
-          <Route path="fieldreports" element={<LazyRoute><FieldReportsPage /></LazyRoute>} />
-        </Route>
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="login" element={<LoginPage />} />
+      <Route path="login/votes" element={<Navigate to="/login" replace />} />
+      <Route path="verify/:receipt" element={<LazyRoute><VerifyIntegrityPage /></LazyRoute>} />
+      <Route path="votes/admin" element={<AdminLayout />}>
+        <Route path="roles" element={<LazyRoute><RolesPage /></LazyRoute>} />
+        <Route path="sessions" element={<LazyRoute><SessionsPage /></LazyRoute>} />
+        <Route path="exports" element={<LazyRoute><ExportsPage /></LazyRoute>} />
+        <Route path="superadmins" element={<LazyRoute><SuperadminsPage /></LazyRoute>} />
+      </Route>
+      <Route path="votes" element={<DashboardLayout />}>
+        <Route index element={<Navigate to="overview" replace />} />
+        <Route path="overview" element={<LazyRoute><OverviewPage /></LazyRoute>} />
+        <Route path="sentiment" element={<LazyRoute><SentimentPage /></LazyRoute>} />
+        <Route path="issues" element={<LazyRoute><IssuesPage /></LazyRoute>} />
+        <Route path="location" element={<LazyRoute><LocationPage /></LazyRoute>} />
+        <Route path="timeline" element={<LazyRoute><TimelinePage /></LazyRoute>} />
+        <Route path="historical" element={<LazyRoute><HistoricalPage /></LazyRoute>} />
+        <Route path="insights" element={<LazyRoute><KeyInsightsPage /></LazyRoute>} />
+        <Route path="datascope" element={<LazyRoute><DataScopePage /></LazyRoute>} />
+        <Route path="fieldreports" element={<LazyRoute><FieldReportsPage /></LazyRoute>} />
+      </Route>
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )
 }

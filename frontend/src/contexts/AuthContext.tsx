@@ -228,7 +228,8 @@ export const hasCoverageLock = (user?: Partial<TestUser>) => Boolean(
 
 const DEFAULT_TEST_USER_ID = TEST_USERS.find(candidate => candidate.homeLocation === 'Marilao, Bulacan')?.id ?? TEST_USERS[0].id
 const LEGACY_DEFAULT_USER_ID = 'user-navotas-local'
-const USERS_STORAGE_KEY = 'votespulse-users'
+const USERS_STORAGE_KEY = 'votes-users'
+const SELECTED_USER_STORAGE_KEY = 'votes-user-id'
 
 type PersistedTestUser = Omit<TestUser, 'licenseTier'> & {
   licenseTier?: LicenseTier
@@ -280,17 +281,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [selectedUserId, setSelectedUserId] = useState<string>(() => {
     if (typeof window === 'undefined') return DEFAULT_TEST_USER_ID
 
-    const saved = window.localStorage.getItem('votespulse-user-id')
+    const saved = window.localStorage.getItem(SELECTED_USER_STORAGE_KEY)
 
     if (saved === LEGACY_DEFAULT_USER_ID) {
-      window.localStorage.setItem('votespulse-user-id', DEFAULT_TEST_USER_ID)
+      window.localStorage.setItem(SELECTED_USER_STORAGE_KEY, DEFAULT_TEST_USER_ID)
       return DEFAULT_TEST_USER_ID
     }
 
     const availableUsers = readPersistedUsers()
     if (saved && availableUsers.some(user => user.id === saved)) return saved
 
-    window.localStorage.setItem('votespulse-user-id', DEFAULT_TEST_USER_ID)
+    window.localStorage.setItem(SELECTED_USER_STORAGE_KEY, DEFAULT_TEST_USER_ID)
     return DEFAULT_TEST_USER_ID
   })
 
@@ -364,7 +365,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setSelectedUserId(nextUserId)
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('votespulse-user-id', nextUserId)
+      window.localStorage.setItem(SELECTED_USER_STORAGE_KEY, nextUserId)
     }
   }
 
@@ -419,7 +420,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSelectedUserId(nextUser.id)
 
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('votespulse-user-id', nextUser.id)
+      window.localStorage.setItem(SELECTED_USER_STORAGE_KEY, nextUser.id)
     }
 
     return nextUser

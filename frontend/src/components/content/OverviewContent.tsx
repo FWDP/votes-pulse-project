@@ -259,7 +259,7 @@ export default function OverviewContent() {
             },
             topics: issueTopics,
             insights: [{
-                title: 'Coverage pulse',
+                title: 'Coverage signal',
                 description: 'Top issues are being tracked against the selected area and recent reporting period.',
             }],
         }

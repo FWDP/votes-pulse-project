@@ -9,7 +9,7 @@ export interface MembershipRole {
 export const getMemberships = (userId?: string | number): MembershipRole[] => {
   if (!userId) return []
 
-  const dict = (globalThis as any).__votesPulseMemberships
+  const dict = (globalThis as any).__votesMemberships
   if (Array.isArray(dict)) {
     return dict.filter((membership: any) => String(membership?.userId ?? membership?.user_id) === String(userId))
   }

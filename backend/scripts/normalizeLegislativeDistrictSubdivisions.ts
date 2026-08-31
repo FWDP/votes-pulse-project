@@ -70,7 +70,7 @@ const fetchPinnedPsgcReference = async () => {
 
   const archivePath = resolve(
     tmpdir(),
-    `votes-pulse-barangay-2025.7.31.1-${process.pid}.tar.gz`,
+    `votes-barangay-2025.7.31.1-${process.pid}.tar.gz`,
   )
 
   writeFileSync(archivePath, archive)

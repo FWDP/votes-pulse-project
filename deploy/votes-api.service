@@ -1,0 +1,18 @@
+[Unit]
+Description=VOTES source connector API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=votes
+Group=votes
+WorkingDirectory=/opt/votes
+Environment=NODE_ENV=production
+EnvironmentFile=-/opt/votes/backend/.env
+ExecStart=/usr/bin/node --import tsx /opt/votes/backend/src/server.ts
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

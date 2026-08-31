@@ -1,6 +1,3 @@
-export const loadPulseApp = () =>
-    import('./PulseApp')
-
 export const loadOverviewPage = () =>
     import('./pages/OverviewPage')
 
@@ -76,7 +73,7 @@ export const preloadRoute = (
         .filter(Boolean)
         .at(-1)
 
-    if (!routeName) return loadPulseApp()
+    if (!routeName) return Promise.resolve()
 
     return routePreloaders[routeName]?.() ??
         Promise.resolve()

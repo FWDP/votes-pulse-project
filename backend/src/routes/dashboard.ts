@@ -88,11 +88,9 @@ router.get('/', async (req, res) => {
   )
 
   try {
-    // Determine product from mounted path: requests under /api/pulse/* are for PULSE
-    const product = req.baseUrl && req.baseUrl.startsWith('/api/pulse') ? 'pulse' : 'votes'
     const data = await buildDashboard(
       { start, end },
-      resolvedArea ? { area: resolvedArea, product } : { product },
+      resolvedArea ? { area: resolvedArea } : {},
     )
     return res.json({ ...data, coverage: electionCoverage })
   } catch (error) {

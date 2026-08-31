@@ -37,7 +37,7 @@ pub struct RevisionAnchor {
     pub schema_version: u32,
 }
 
-#[contractevent(topics = ["pulse", "anchor"])]
+#[contractevent(topics = ["votes", "anchor"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnchorCreated {
     #[topic]
@@ -49,13 +49,13 @@ pub struct AnchorCreated {
     pub schema_version: u32,
 }
 
-#[contractevent(topics = ["pulse", "writer"])]
+#[contractevent(topics = ["votes", "writer"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WriterRotated {
     pub new_writer: Address,
 }
 
-#[contractevent(topics = ["pulse", "revision"])]
+#[contractevent(topics = ["votes", "revision"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RevisionCreated {
     #[topic]
@@ -67,13 +67,13 @@ pub struct RevisionCreated {
     pub previous_hash: BytesN<32>,
 }
 
-#[contractevent(topics = ["pulse", "admin"])]
+#[contractevent(topics = ["votes", "admin"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AdminRotated {
     pub new_admin: Address,
 }
 
-#[contractevent(topics = ["pulse", "upgrade"])]
+#[contractevent(topics = ["votes", "upgrade"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContractUpgraded {
     pub new_wasm_hash: BytesN<32>,

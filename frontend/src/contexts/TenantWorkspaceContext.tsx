@@ -1,16 +1,14 @@
 import React, { createContext, useContext, useMemo } from 'react'
-import { useLocation } from 'react-router-dom'
 
 const TenantWorkspaceContext = createContext<any>(null)
 
 export function TenantWorkspaceProvider({ children }: { children: React.ReactNode }) {
-  const location = useLocation()
   const tenant = useMemo(() => ({ id: 'tenant-local', slug: 'local', name: 'Local Tenant' }), [])
   const workspace = useMemo(() => ({
     id: 'workspace-local',
     slug: 'local',
     name: 'Local Workspace',
-    product: location.pathname.startsWith('/votes') ? 'votes' : 'pulse',
+    product: 'votes',
     enabledFeatures: [
       'overview',
       'sentiment',
@@ -22,8 +20,8 @@ export function TenantWorkspaceProvider({ children }: { children: React.ReactNod
       'datascope',
       'fieldreports',
     ],
-  }), [location.pathname])
-  const basePath = `/${workspace.product}`
+  }), [])
+  const basePath = '/votes'
 
   const value = { tenant, workspace, basePath }
   return <TenantWorkspaceContext.Provider value={value}>{children}</TenantWorkspaceContext.Provider>

@@ -6,7 +6,6 @@ import geographyRouter from './routes/geography'
 import adminRouter from './routes/admin'
 import dashboardRouter from './routes/dashboard'
 import reportsRouter from './routes/reports'
-import brandsRouter from './routes/brands'
 import electionsRouter from './routes/elections'
 import mobileRouter from './routes/mobile'
 import integrityRouter from './routes/integrity'
@@ -20,7 +19,7 @@ const distPath = path.resolve(process.cwd(), 'dist')
 
 app.use(express.json())
 
-const defaultDevOrigins = 'http://votes-pulse.local,http://localhost:5173,http://127.0.0.1:5173'
+const defaultDevOrigins = 'http://votes.local,http://localhost:5173,http://127.0.0.1:5173'
 const corsOrigins = (process.env.CORS_ORIGIN || defaultDevOrigins)
     .split(',')
     .map(s => s.trim())
@@ -40,7 +39,7 @@ app.use(cors(corsOptions))
 app.get('/api/health', (_request, response) => {
     response.json({
         ok: true,
-        service: 'votes-pulse-backend',
+        service: 'votes-backend',
         now: new Date().toISOString(),
     })
 })
@@ -74,25 +73,10 @@ app.use(
 app.use('/api/admin', adminRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/reports', reportsRouter)
-app.use('/api/brands', brandsRouter)
 app.use('/api/elections', electionsRouter)
 app.use('/api/mobile', mobileRouter)
 app.use('/api/integrity', integrityRouter)
 app.use('/api/verify', verificationRouter)
-
-// Pulse API namespace (mirror existing endpoints under /api/pulse/*)
-app.use(
-    '/api/pulse/geography',
-    geographyRouter,
-)
-
-app.use('/api/pulse/admin', adminRouter)
-app.use('/api/pulse/dashboard', dashboardRouter)
-app.use('/api/pulse/reports', reportsRouter)
-app.use('/api/pulse/brands', brandsRouter)
-app.use('/api/pulse/elections', electionsRouter)
-app.use('/api/pulse/mobile', mobileRouter)
-app.use('/api/pulse/integrity', integrityRouter)
 
 app.use(express.static(distPath))
 

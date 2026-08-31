@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import type { FieldReport, FieldReportStatus } from '../../../shared/fieldReports'
 
 export const REPORT_INTEGRITY_SCHEMA_VERSION = 1
-export const REPORT_INTEGRITY_SCHEMA = `pulse-field-report-integrity/v${REPORT_INTEGRITY_SCHEMA_VERSION}`
+export const REPORT_INTEGRITY_SCHEMA = `votes-field-report-integrity/v${REPORT_INTEGRITY_SCHEMA_VERSION}`
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 
@@ -95,7 +95,7 @@ export interface ReviewAttestationInput {
 
 export const hashReviewAttestation = (input: ReviewAttestationInput) => {
   const manifest = {
-    schema: 'pulse-field-report-review-attestation/v1',
+    schema: 'votes-field-report-review-attestation/v1',
     reportId: input.reportId,
     revision: input.revision,
     status: input.status,

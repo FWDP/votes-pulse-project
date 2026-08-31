@@ -29,10 +29,10 @@ export interface FieldReportViewer {
 
 const reportStore = (() => {
     const root = globalThis as typeof globalThis & {
-        __votesPulseFieldReports?: Map<string, FieldReport>
+        __votesFieldReports?: Map<string, FieldReport>
     }
-    root.__votesPulseFieldReports ??= new Map()
-    return root.__votesPulseFieldReports
+    root.__votesFieldReports ??= new Map()
+    return root.__votesFieldReports
 })()
 
 const useDatabase = () => dbEnabled && process.env.FIELD_REPORTS_MEMORY_ONLY !== 'true'

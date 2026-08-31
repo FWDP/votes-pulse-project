@@ -44,7 +44,7 @@ export async function recordIntegrityIncident(input: {
         rows[0].id,
         input.tenantId,
         input.workspaceId,
-        JSON.stringify({ source: 'votes-pulse-stellar-integrity', occurredAt: new Date().toISOString(), ...input }),
+        JSON.stringify({ source: 'votes-stellar-integrity', occurredAt: new Date().toISOString(), ...input }),
       ])
     }
   })
@@ -123,7 +123,7 @@ export async function deliverIntegrityArchive(limit = 25) {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
-          source: 'votes-pulse-stellar-archive/v1',
+          source: 'votes-stellar-archive/v1',
           chainHash: archive.chain_hash,
           previousChainHash: archive.previous_chain_hash,
           payload: archive.payload,
@@ -380,7 +380,7 @@ export async function ingestIntegrityEvents() {
         `, [stellarIntegrityConfig.network, stellarIntegrityConfig.contractId])
         const previousChainHash = previous.rows[0]?.chain_hash as string | undefined
         const chainHash = hashArtifact({
-          domain: 'votes-pulse-stellar-event-archive/v1',
+          domain: 'votes-stellar-event-archive/v1',
           previousChainHash: previousChainHash ?? null,
           payload,
         })

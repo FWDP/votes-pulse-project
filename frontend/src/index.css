@@ -12,12 +12,11 @@
   --red: #e45d65;
   --navy: #071918;
   --cream: #f8faf9;
-  /* default brand variables (PULSE) */
-  --brand-50: #e6f8f0;
-  --brand-100: #ccefe2;
-  --brand-500: #1fb986;
-  --brand-600: #117c5d;
-  --brand-700: #0b5b45;
+  --brand-50: #eef5ff;
+  --brand-100: #d9e9ff;
+  --brand-500: #3370ff;
+  --brand-600: #1a4df5;
+  --brand-700: #1339e1;
 }
 
 * {
@@ -225,66 +224,7 @@ select {
   margin: 0 8px 8px;
 }
 
-/* PULSE-specific sidebar styling (matches screenshot) */
-.app-shell.theme-pulse .sidebar {
-  background: #0f1720;
-}
-
-.app-shell.theme-pulse .brand {
-  padding-bottom: 18px;
-}
-
-.app-shell.theme-pulse .brand-mark {
-  background: var(--brand-500);
-}
-
-.app-shell.theme-pulse .brand strong {
-  color: #ffffff;
-}
-
-.app-shell.theme-pulse .brand small {
-  color: #b9c6c2;
-}
-
-.app-shell.theme-pulse .back-link {
-  color: #9fb0ad;
-  font-size: 13px;
-  display: inline-block;
-  margin: 6px 8px 12px;
-}
-
-.app-shell.theme-pulse .nav-item {
-  padding: 12px 14px;
-  border-radius: 10px;
-  color: #cde3df;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.app-shell.theme-pulse .nav-item:hover {
-  background: rgba(255, 255, 255, 0.02);
-  color: #fff;
-}
-
-.app-shell.theme-pulse .nav-item.active {
-  background: var(--brand-500);
-  color: #fff;
-  box-shadow: 0 6px 18px rgba(12, 58, 46, 0.18);
-}
-
-.app-shell.theme-pulse .nav-chev {
-  margin-left: auto;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.app-shell.theme-pulse .sidebar-foot {
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 10px;
-  padding: 12px;
-}
-
-/* Unified sidebar layout tweaks for both themes to match design */
+/* Unified VOTES sidebar layout */
 .sidebar {
   width: var(--sidebar-width);
   padding: 20px 16px;
@@ -391,7 +331,6 @@ select {
 }
 
 .nav-item.active svg,
-.app-shell.theme-pulse .nav-item.active svg,
 .app-shell.theme-votes .nav-item.active svg {
   color: #fff;
 }
@@ -434,7 +373,7 @@ select {
   border-radius: 8px;
 }
 
-/* Ensure the sidebar "Back to PULSE Portal" link hides when the shell is collapsed */
+/* Hide the portal link when the shell is collapsed. */
 .app-shell.collapsed .sidebar .sidebar-back {
   display: none;
 }
@@ -663,12 +602,6 @@ header {
   cursor: pointer;
   z-index: 999;
   transition: left 180ms ease, transform 180ms ease;
-}
-
-.app-shell.theme-pulse .content-toggle {
-  /* keep content-toggle appearance consistent across themes */
-  background: #000;
-  color: #fff;
 }
 
 .content-toggle svg {
@@ -1357,22 +1290,13 @@ footer div {
   margin-top: 15px;
 }
 
-/* Theme variants: default to PULSE */
+/* VOTES brand theme */
 :root {
-  --brand-50: #e6f8f0;
-  --brand-100: #ccefe2;
-  --brand-500: #1fb986;
-  --brand-600: #117c5d;
-  --brand-700: #0b5b45;
-}
-
-.theme-pulse {
-  --brand-50: #e6f8f0;
-  --brand-100: #ccefe2;
-  --brand-500: #1fb986;
-  /* green/teal */
-  --brand-600: #117c5d;
-  --brand-700: #0b5b45;
+  --brand-50: #eef5ff;
+  --brand-100: #d9e9ff;
+  --brand-500: #3370ff;
+  --brand-600: #1a4df5;
+  --brand-700: #1339e1;
 }
 
 .theme-votes {

@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 
 export default function AdminLayout() {
-  const location = useLocation()
-  const pathname = location.pathname || ''
-  const prefix = pathname.split('/')[1] || ''
-  const themeClass = prefix === 'votes' || pathname.startsWith('/admin') ? 'theme-votes' : 'theme-pulse'
-
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('adminSidebarCollapsed') === '1'
@@ -31,7 +26,7 @@ export default function AdminLayout() {
   }, [collapsed])
 
   return (
-    <div className={`app-shell ${themeClass}`}>
+    <div className="app-shell theme-votes">
       <Sidebar variant="admin" collapsed={collapsed} setCollapsed={setCollapsed} />
       <main className="flex-1 overflow-auto page">
         <button

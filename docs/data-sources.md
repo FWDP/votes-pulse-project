@@ -1,4 +1,4 @@
-# PULSE data-source registry
+# VOTES data-source registry
 
 This registry separates authoritative context from public-discourse signals. A source being publicly viewable does not automatically authorize automated collection.
 
@@ -14,7 +14,7 @@ Never bypass authentication, CAPTCHAs, paywalls, access controls, or rate limits
 
 ## Tier 1 — authoritative reference and baseline data
 
-| Source | Value to PULSE | Geography | Preferred ingestion | Cadence | Notes |
+| Source | Value to VOTES | Geography | Preferred ingestion | Cadence | Notes |
 |---|---|---|---|---|---|
 | [PSA PSGC API](https://psa.gov.ph/classifications-api/psgc) | Regions, provinces, cities, municipalities, barangays, official codes and historical versions | Barangay to national | Official API | Quarterly/versioned | Geographic master data; never match places by name alone |
 | [GeoRiskPH PSA boundary service](https://ulap-nga.georisk.gov.ph/arcgis/rest/services/PSA) and [PSGC-enriched boundary release](https://github.com/bendlikeabamboo/barangay-boundaries-repository/releases/tag/v2026.4.13.0) | Administrative polygon geometry joined to canonical PSGC codes | Municipality to national | GeoJSON API/version-pinned release | Source-specific | Credit PSA/NAMRIA; track geometry vintage separately from the current PSGC classification version |
@@ -31,7 +31,7 @@ Never bypass authentication, CAPTCHAs, paywalls, access controls, or rate limits
 
 ## Tier 2 — issue and event context
 
-| Source | Value to PULSE | Geography | Preferred ingestion | Cadence | Notes |
+| Source | Value to VOTES | Geography | Preferred ingestion | Cadence | Notes |
 |---|---|---|---|---|---|
 | [DSWD DROMIC situation reports](https://dromic.dswd.gov.ph/category/situation-reports/) | Disaster impact, affected families, assistance and incident locations | Barangay/LGU/region | Page index + official PDF extraction | Event-driven | Preserve report number and “as of” timestamp; later reports supersede earlier figures |
 | [PAGASA](https://www.pagasa.dost.gov.ph/) | Weather bulletins, cyclone/flood context and climate publications | Forecast area/station | Official bulletins/files | Hourly to monthly | Raw climate datasets may require a request and terms of use |
@@ -46,7 +46,7 @@ Never bypass authentication, CAPTCHAs, paywalls, access controls, or rate limits
 
 These sources measure attention and discussion, not representative public opinion.
 
-| Source | Value to PULSE | Use this | Avoid |
+| Source | Value to VOTES | Use this | Avoid |
 |---|---|---|---|
 | News publishers | Issue volume, framing, named entities and local events | Publisher RSS/API, licensed feeds, article metadata and short extracts | Copying full articles or crawling sites that prohibit it |
 | [GDELT](https://www.gdeltproject.org/) | Broad news-event discovery and multilingual trend signals | GDELT API/data exports | Treating automated tone as ground truth |

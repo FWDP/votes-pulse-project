@@ -22,7 +22,7 @@ This plan covers the work that remains after the application-side Mainnet safegu
 Release candidate Wasm SHA-256:
 
 ```text
-4ffd8b15ce098262f91dafd54c7eb59398624b43b1b65929d15d41e16be6f12d
+5759c354225fbf8754e8e8ec87f36e87776f4a5d8cd429dac10afb2b2aa199d3
 ```
 
 Any contract source or toolchain change invalidates this candidate. Rebuild, record the new hash, repeat the independent review, and update the controlled release record.

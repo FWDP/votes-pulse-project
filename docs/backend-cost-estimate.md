@@ -1,4 +1,4 @@
-# Votes Pulse Backend Cost Estimate
+# VOTES Backend Cost Estimate
 
 **Prepared:** 6 August 2026  
 **Currency:** Philippine peso (PHP)  
@@ -8,7 +8,7 @@
 
 ## Executive summary
 
-Votes Pulse backend cost has three parts:
+The VOTES backend cost has three parts:
 
 1. One-time backend development and production hardening
 2. Recurring cloud infrastructure
@@ -22,7 +22,7 @@ Votes Pulse backend cost has three parts:
 | Production | ₱700,000–₱1.5 million | ₱25,000–₱70,000 | ₱60,000–₱150,000 | ₱150,000–₱400,000 | ₱235,000–₱620,000 |
 | Premium | ₱1.8–₱4 million+ | ₱120,000–₱450,000+ | ₱150,000–₱500,000+ | ₱400,000–₱1 million+ | ₱670,000–₱1.95 million+ |
 
-These development estimates assume continued work on the existing Votes Pulse prototype rather than a new implementation.
+These development estimates assume continued work on the existing VOTES prototype rather than a new implementation.
 
 ## Tier 1: Minimal prototype
 
@@ -205,11 +205,11 @@ These figures exclude paid surveys, commercial social-listening feeds, proprieta
 
 ## Social-listening subscription costs
 
-Social-listening subscriptions are a data-acquisition cost, not ordinary server infrastructure. The final cost depends on the number of topics or keywords, monthly mention volume, historical coverage, user seats, monitored countries and whether Votes Pulse needs automated API access.
+Social-listening subscriptions are a data-acquisition cost, not ordinary server infrastructure. The final cost depends on the number of topics or keywords, monthly mention volume, historical coverage, user seats, monitored countries and whether VOTES needs automated API access.
 
 ### Meltwater price reference
 
-Votes Pulse will use **Meltwater** as its social-listening platform and pricing reference. [Meltwater's official pricing page](https://www.meltwater.com/en/pricing) does not publish a fixed subscription amount. Meltwater provides a tailored quotation based on the selected packages and modules, monitored sources and regions, data volume, number of users, integrations, onboarding and support.
+VOTES will use **Meltwater** as its social-listening platform and pricing reference. [Meltwater's official pricing page](https://www.meltwater.com/en/pricing) does not publish a fixed subscription amount. Meltwater provides a tailored quotation based on the selected packages and modules, monitored sources and regions, data volume, number of users, integrations, onboarding and support.
 
 Until Meltwater supplies its written quotation, this estimate uses a **₱100,000 monthly reference amount** for the lean pilot. This is an internal budgeting assumption—not a published or guaranteed Meltwater price. The final computation must replace this value with the accepted quotation.
 
@@ -220,9 +220,9 @@ Until Meltwater supplies its written quotation, this estimate uses a **₱100,00
 | Production | ₱150,000–₱400,000/month | Broader coverage, more users and licensed integration |
 | Premium | ₱400,000–₱1 million+/month | Multiple modules, historical data, regions, integrations and support |
 
-For the project computation, Votes Pulse assigns **₱100,000 per month or ₱1,200,000 per year** to Meltwater. This cost is included in the monthly operating cost and complete first-year total below. It remains a planning assumption until replaced by Meltwater's formal quotation. The request for quotation must separately identify media monitoring, social listening, historical search, Philippine and regional sources, user seats, exports, API or data-feed access, onboarding, support, taxes and contract duration. API access must be written into the proposal if Meltwater results will flow automatically into Votes Pulse.
+For the project computation, VOTES assigns **₱100,000 per month or ₱1,200,000 per year** to Meltwater. This cost is included in the monthly operating cost and complete first-year total below. It remains a planning assumption until replaced by Meltwater's formal quotation. The request for quotation must separately identify media monitoring, social listening, historical search, Philippine and regional sources, user seats, exports, API or data-feed access, onboarding, support, taxes and contract duration. API access must be written into the proposal if Meltwater results will flow automatically into VOTES.
 
-## Recommended Votes Pulse budget
+## Recommended VOTES budget
 
 The recommended first deployment is the lean pilot tier:
 
@@ -239,7 +239,7 @@ The continuing operating cost after implementation is approximately **₱150,000
 
 The first-year computation includes Meltwater rather than treating it as an exclusion or optional add-on. At the lean planning range of **₱40,000–₱150,000 per month**, the actual first-year total would be approximately **₱1.68–₱3.0 million**. Every ₱10,000 monthly difference in the final Meltwater quotation changes the annual total by ₱120,000. Replace the assumed amount with the accepted quotation before budget approval; VAT, foreign-card charges, onboarding and API fees may change the total.
 
-Votes Pulse can move to the production tier once user traffic, collection frequency, retention volume and institutional requirements justify the increase. Before purchasing any platform, conduct a short coverage test for Philippine languages, local news sources, public Facebook content and the required retention period.
+VOTES can move to the production tier once user traffic, collection frequency, retention volume and institutional requirements justify the increase. Before purchasing any platform, conduct a short coverage test for Philippine languages, local news sources, public Facebook content and the required retention period.
 
 ## Exclusions and assumptions
 
@@ -266,7 +266,7 @@ Actual cost should be recalculated after confirming:
 - Whether AI classification or summarization is required
 - Whether commercial social-media data will be purchased
 - Required platforms, keywords, mention volume, seats and historical lookback
-- Whether analysts will use a vendor dashboard or Votes Pulse requires licensed API ingestion
+- Whether analysts will use a vendor dashboard or VOTES requires licensed API ingestion
 
 ## Pricing references
 

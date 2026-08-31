@@ -1063,7 +1063,7 @@ const normalizePartyLists = (bboxPath: string) => {
 
 const main = () => {
   const temporaryDirectory = mkdtempSync(
-    resolve(tmpdir(), 'votes-pulse-election-import-'),
+    resolve(tmpdir(), 'votes-election-import-'),
   )
 
   try {

@@ -1,13 +1,13 @@
 # Soroban integrity platform
 
-VOTES/PULSE uses Soroban as an asynchronous, privacy-preserving integrity rail. PostgreSQL remains the operational source of truth. The chain receives only an opaque random key, revision number, schema version, and SHA-256 content digest.
+VOTES uses Soroban as an asynchronous, privacy-preserving integrity rail. PostgreSQL remains the operational source of truth. The chain receives only an opaque random key, revision number, schema version, and SHA-256 content digest.
 
 ## Implemented scope
 
 - Rust/Wasm `ReportIntegrityRegistry` contract with authorized writes, immutable revision keys, persistent storage, TTL extension, events, and writer rotation.
 - Chained review attestations that bind each review decision to the previous digest.
 - Admin rotation, writer rotation, guarded Wasm upgrades, and explicit TTL maintenance.
-- Deterministic `pulse-field-report-integrity/v1` manifest and SHA-256 hashing.
+- Deterministic `votes-field-report-integrity/v1` manifest and SHA-256 hashing.
 - Server-generated SHA-256 hashes for uploaded attachment bytes.
 - PostgreSQL transactional outbox and anchor ledger.
 - Background worker with atomic job claims, stale-job recovery, exponential retry, and terminal failure state.
@@ -27,7 +27,7 @@ The contract never receives report text, human-readable report IDs, tenant/works
 4. Prefer `STELLAR_INTEGRITY_SIGNER_SECRET_FILE` with a read-only mounted secret. `STELLAR_INTEGRITY_SIGNER_SECRET` remains available for local development. The signer address must equal the contract's configured writer.
 5. Set `STELLAR_INTEGRITY_ENABLED=true` and restart the API.
 
-Never commit the signer secret. For the project-specific local CLI identity, an authorized developer can retrieve it directly with `stellar keys secret votes-pulse-integrity` and place it into their secret manager.
+Never commit the signer secret. For the project-specific local CLI identity, an authorized developer can retrieve it directly with `stellar keys secret votes-integrity` and place it into their secret manager.
 
 ## APIs
 
@@ -132,7 +132,7 @@ NODE_ENV=production npm run integrity:mainnet-check
 
 The readiness command checks the public network/passphrase, HTTPS endpoints, contract address, remote auth-entry signer, separate fee payer, threshold-controlled administrator, mounted authentication tokens, event deployment ledger, off-site archive, required workers, alerting, reviewed Wasm hash, deployment transaction, security-review reference, cost-report reference, migration 011, an approved multi-party gate bound to the exact release-approval artifact commitment, RPC-reported network, and deployed contract roles. Any missing or mismatched item returns a nonzero exit code.
 
-Current undeployed Mainnet candidate Wasm SHA-256: `4ffd8b15ce098262f91dafd54c7eb59398624b43b1b65929d15d41e16be6f12d`.
+Current undeployed Mainnet candidate Wasm SHA-256: `5759c354225fbf8754e8e8ec87f36e87776f4a5d8cd429dac10afb2b2aa199d3`.
 
 On 2026-08-27, five read-only Testnet simulations against the deployed v2 anchor interface each reported a minimum resource fee of `51,836` stroops. This is a development measurement, not a substitute for the recorded production load/cost report required by the Mainnet gate.
 
